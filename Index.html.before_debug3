@@ -4638,29 +4638,20 @@ window.saveAirForm = saveAirForm;
 (function() {
   window.addEventListener("load", function() {
     setTimeout(function() {
-      var viewportWidth = window.innerWidth;
-      var docScrollWidth = document.documentElement.scrollWidth;
-      var bodyScrollWidth = document.body.scrollWidth;
-
-      var allEls = document.querySelectorAll("body *");
+      var docWidth = document.documentElement.clientWidth;
+      var allEls = document.querySelectorAll("*");
       var overflowing = [];
       allEls.forEach(function(el) {
-        var rect = el.getBoundingClientRect();
-        if (rect.right > viewportWidth + 2 || rect.left < -2) {
-          overflowing.push(el.tagName + "." + String(el.className).replace(/\s+/g, ".") + " | left:" + Math.round(rect.left) + " right:" + Math.round(rect.right) + " width:" + Math.round(rect.width));
+        if (el.scrollWidth > docWidth + 2) {
+          var rect = el.getBoundingClientRect();
+          overflowing.push(el.tagName + "." + String(el.className).replace(/\s+/g, ".") + " | scrollWidth: " + el.scrollWidth + "px | right edge: " + Math.round(rect.right) + "px");
         }
       });
-
-      var msg = "viewportWidth: " + viewportWidth + "px\n" +
-        "documentElement.scrollWidth: " + docScrollWidth + "px\n" +
-        "body.scrollWidth: " + bodyScrollWidth + "px\n\n";
-
       if (overflowing.length > 0) {
-        msg += "ELEMEN OVERFLOW (" + overflowing.length + "):\n\n" + overflowing.slice(0, 6).join("\n\n");
+        alert("OVERFLOW DITEMUKAN (" + overflowing.length + " elemen):\n\n" + overflowing.slice(0, 8).join("\n\n"));
       } else {
-        msg += "Tidak ada elemen individual yang overflow batas viewport.";
+        alert("Masih tidak ada overflow terdeteksi. Lebar: " + docWidth + "px");
       }
-      alert(msg);
     }, 4000);
   });
 })();
