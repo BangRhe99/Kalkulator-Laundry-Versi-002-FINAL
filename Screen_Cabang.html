@@ -1,0 +1,231 @@
+<!--
+===============================================================================
+FILE: Screen_Cabang.html
+PROJECT: Kalkulator Laundry Versi 002
+TAHAP: 4 — Pecah HTML Screen
+
+FUNGSI:
+Berisi pecahan tampilan screen dari Index.html.
+
+ATURAN:
+- ID elemen dipertahankan.
+- Nama screen dipertahankan.
+- Urutan screen mengikuti Index.html asli.
+- File ini hanya berisi markup screen.
+- Logic JavaScript tetap berada di Index.html.
+- Styling tetap mengikuti file style yang sudah ada.
+===============================================================================
+-->
+
+<section class="screen" id="screenList">
+      <div class="list-header">
+        <h1>Cabang &amp; lokasi</h1>
+        <span class="count" id="cabangCount">0 cabang</span>
+      </div>
+      <div id="cabangListEmpty" class="empty-state" style="display:none;">
+        <div class="icon">&#128465;</div>
+        <p>Belum ada data operasional.<br>Tambahkan cabang pertama untuk mulai menghitung kapasitas.</p>
+      </div>
+      <div class="list-grid" id="cabangList"></div>
+      <button class="add-cabang-btn" onclick="openFormNew()">+ Tambah cabang baru</button>
+    </section>
+
+<section class="screen" id="screenRingkasan">
+      <div class="summary-hero">
+        <div class="summary-eyebrow">Profil Operasional</div>
+        <div class="summary-title" id="rNamaLaundry">-</div>
+        <div class="summary-meta">
+          <span>Jam operasional: <b id="rJamOperasional">-</b></span>
+          <span>Layanan: <b id="rKategoriLayanan">-</b></span>
+        </div>
+      </div>
+
+      <div class="ringkasan-grid">
+        <div>
+          <div class="summary-panel">
+            <div class="summary-section-label">Mesin cuci</div>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div class="label">Total unit</div>
+                <div class="num" id="rCuciUnit">0</div>
+              </div>
+              <div class="stat-card brass">
+                <div class="label">Kapasitas maksimal/hari</div>
+                <div class="num" id="rCuciMax">0<span class="unit">load</span></div>
+              </div>
+            </div>
+            <div class="scale-table">
+              <div class="scale-row highlight"><span class="k">Load per hari (setelah okupansi)</span><span class="v" id="rCuciHari">0 load</span></div>
+              <div class="scale-row"><span class="k">Load per minggu</span><span class="v" id="rCuciMinggu">0 load</span></div>
+              <div class="scale-row"><span class="k">Load per bulan</span><span class="v" id="rCuciBulan">0 load</span></div>
+            </div>
+            <div class="group-divider">Rincian unit</div>
+            <div class="machine-summary-list" id="rCuciDetail"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="summary-panel">
+            <div class="summary-section-label">Mesin pengering</div>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div class="label">Total unit</div>
+                <div class="num" id="rKeringUnit">0</div>
+              </div>
+              <div class="stat-card brass">
+                <div class="label">Kapasitas maksimal/hari</div>
+                <div class="num" id="rKeringMax">0<span class="unit">load</span></div>
+              </div>
+            </div>
+            <div class="scale-table">
+              <div class="scale-row highlight"><span class="k">Load per hari (setelah okupansi)</span><span class="v" id="rKeringHari">0 load</span></div>
+              <div class="scale-row"><span class="k">Load per minggu</span><span class="v" id="rKeringMinggu">0 load</span></div>
+              <div class="scale-row"><span class="k">Load per bulan</span><span class="v" id="rKeringBulan">0 load</span></div>
+            </div>
+            <div class="group-divider">Rincian unit</div>
+            <div class="machine-summary-list" id="rKeringDetail"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+<section class="screen" id="screenForm">
+      <div class="layout-grid">
+        <div class="col-input">
+
+          <section class="panel" data-panel="profil">
+            <div class="panel-head" onclick="togglePanel(this)">
+              <span class="idx">01</span>
+              <h2>Profil &amp; jam operasional</h2>
+              <span class="chev">&#9660;</span>
+            </div>
+            <div class="panel-body">
+              <div class="field">
+                <label for="namaLaundry">Nama cabang / laundry</label>
+                <input type="text" id="namaLaundry" placeholder="Contoh: Cabang Sudirman">
+              </div>
+              <div class="row2">
+                <div class="field">
+                  <label>Jam buka</label>
+                  <div class="time-picker-row">
+                    <select id="jamBukaJam"></select>
+                    <span class="colon">.</span>
+                    <select id="jamBukaMenit"></select>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Jam tutup</label>
+                  <div class="time-picker-row">
+                    <select id="jamTutupJam"></select>
+                    <span class="colon">.</span>
+                    <select id="jamTutupMenit"></select>
+                  </div>
+                </div>
+              </div>
+              <div class="duration-readout" id="durasiReadout">
+                <span>-- jam operasional</span>
+                <span>-- menit</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" data-panel="cuci">
+            <div class="panel-head" onclick="togglePanel(this)">
+              <span class="idx">02</span>
+              <h2>Mesin cuci</h2>
+              <span class="chev">&#9660;</span>
+            </div>
+            <div class="panel-body">
+              <div class="machine-list" id="mesinCuciList"></div>
+              <div class="empty-hint" id="mesinCuciEmpty">Belum ada mesin cuci. Tambahkan baris pertama.</div>
+              <button class="add-btn" onclick="addMachine('mesinCuci')">+ Tambah mesin cuci</button>
+            </div>
+          </section>
+
+          <section class="panel" data-panel="kering">
+            <div class="panel-head" onclick="togglePanel(this)">
+              <span class="idx">03</span>
+              <h2>Mesin pengering</h2>
+              <span class="chev">&#9660;</span>
+            </div>
+            <div class="panel-body">
+              <div class="machine-list" id="mesinPengeringList"></div>
+              <div class="empty-hint" id="mesinPengeringEmpty">Belum ada mesin pengering. Tambahkan baris pertama.</div>
+              <button class="add-btn" onclick="addMachine('mesinPengering')">+ Tambah mesin pengering</button>
+            </div>
+          </section>
+
+          <section class="panel" data-panel="okupansi">
+            <div class="panel-head" onclick="togglePanel(this)">
+              <span class="idx">04</span>
+              <h2>Okupansi &amp; kategori layanan</h2>
+              <span class="chev">&#9660;</span>
+            </div>
+            <div class="panel-body">
+              <div class="meter-block">
+                <div class="meter-label-row">
+                  <span class="name">Okupansi mesin cuci</span>
+                  <span class="val" id="cuciPersenVal">70%</span>
+                </div>
+                <input type="range" id="cuciPersen" min="0" max="100" step="5" value="70">
+              </div>
+              <div class="meter-block">
+                <div class="meter-label-row">
+                  <span class="name">Okupansi mesin pengering</span>
+                  <span class="val" id="keringPersenVal">70%</span>
+                </div>
+                <input type="range" id="keringPersen" min="0" max="100" step="5" value="70">
+              </div>
+
+              <div class="group-divider">Kategori layanan</div>
+              <div class="pill-group" id="kategoriPills">
+                <div class="pill active" data-val="self_service">Self Service</div>
+                <div class="pill disabled" data-val="drop_off" title="Segera hadir">Drop off / kiloan</div>
+                <div class="pill disabled" data-val="hybrid" title="Segera hadir">Hybrid</div>
+              </div>
+            </div>
+          </section>
+
+        </div>
+
+        <div class="col-output">
+          <section class="summary-panel">
+            <div class="summary-section-label">Pratinjau kapasitas cuci</div>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div class="label">Total unit</div>
+                <div class="num" id="outCuciUnit">0</div>
+              </div>
+              <div class="stat-card brass">
+                <div class="label">Maksimal/hari</div>
+                <div class="num" id="outCuciMax">0<span class="unit">load</span></div>
+              </div>
+            </div>
+            <div class="scale-table">
+              <div class="scale-row"><span class="k">Load per hari</span><span class="v" id="outCuciHari">0 load</span></div>
+              <div class="scale-row"><span class="k">Load per minggu</span><span class="v" id="outCuciMinggu">0 load</span></div>
+              <div class="scale-row"><span class="k">Load per bulan</span><span class="v" id="outCuciBulan">0 load</span></div>
+            </div>
+          </section>
+
+          <section class="summary-panel">
+            <div class="summary-section-label">Pratinjau kapasitas pengering</div>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div class="label">Total unit</div>
+                <div class="num" id="outKeringUnit">0</div>
+              </div>
+              <div class="stat-card brass">
+                <div class="label">Maksimal/hari</div>
+                <div class="num" id="outKeringMax">0<span class="unit">load</span></div>
+              </div>
+            </div>
+            <div class="scale-table">
+              <div class="scale-row"><span class="k">Load per hari</span><span class="v" id="outKeringHari">0 load</span></div>
+              <div class="scale-row"><span class="k">Load per minggu</span><span class="v" id="outKeringMinggu">0 load</span></div>
+              <div class="scale-row"><span class="k">Load per bulan</span><span class="v" id="outKeringBulan">0 load</span></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>

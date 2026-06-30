@@ -1,0 +1,170 @@
+<!--
+===============================================================================
+FILE: Style_Base.html
+PROJECT: Kalkulator Laundry Versi 002
+TAHAP: 2 — Pecah CSS Global
+
+FUNGSI FILE:
+File ini berisi style dasar aplikasi yang memengaruhi pondasi layout umum.
+
+ISI UTAMA:
+1. Reset global\n2. Style html dan body\n3. Wrapper utama\n4. Header aplikasi\n5. Tombol back\n6. Brand\n7. Save status\n8. Screen active/hidden\n9. Header daftar
+
+BATAS TANGGUNG JAWAB:
+- Hanya berisi style pondasi global.\n- Tidak boleh berisi style card fitur khusus.\n- Tidak boleh berisi style Master Biaya, HPP, Fixed Cost, atau Harga Layanan.\n- Tidak boleh berisi JavaScript atau HTML screen.
+
+TERHUBUNG DENGAN:
+- Index.html\n- Layout_AppShell.html yang akan dibuat pada tahap berikutnya\n- Screen_*.html yang akan dibuat pada tahap berikutnya
+
+CATATAN PENGEMBANGAN:
+Jika ada masalah layout dasar seperti body kepotong, header, tombol back, atau screen tidak muncul, mulai cek dari file ini.
+===============================================================================
+-->
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html {
+    background: var(--bg);
+    min-height: 100%;
+    height: 100%;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    /* PERBAIKAN: Mencegah layar terpotong atau bisa digeser ke samping */
+    max-width: 100%;
+    overflow-x: hidden; 
+    min-height: 100vh;
+  }
+
+  body {
+    padding: 16px;
+    padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+    min-height: 100%;
+  }
+
+  .wrap { max-width: 480px; margin: 0 auto; }
+
+  header.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-top: 4px;
+    gap: 10px;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+  .back-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .back-btn:hover { border-color: var(--sage); color: var(--sage); }
+
+  .brand {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 19px;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .brand span { color: var(--brass); }
+
+  .save-status {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    text-align: right;
+    min-height: 14px;
+    flex-shrink: 0;
+  }
+  .save-status.ok { color: var(--sage); }
+  .save-status.err { color: var(--red); }
+  .save-status.busy { color: var(--brass); }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  .list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 16px;
+  }
+  .list-header h1 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .list-header .count {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+
+  /* ---------------------------------------------------------------------- */
+
+  /* === MOBILE_LAYOUT_FIX_START ===
+     Tujuan:
+     1. Menghilangkan sumber scroll horizontal dari root layout.
+     2. Mengurangi ruang kosong bawah khusus Menu/Dashboard.
+     3. Menjaga screen lain yang memakai footer tetap aman.
+  */
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  @supports not (overflow-x: clip) {
+    html,
+    body {
+      overflow-x: hidden;
+    }
+  }
+
+  body {
+    padding-left: clamp(12px, 4vw, 16px);
+    padding-right: clamp(12px, 4vw, 16px);
+  }
+
+  .wrap {
+    width: min(100%, 480px);
+    max-width: 100%;
+    min-width: 0;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  #loadingState,
+  #appRoot,
+  .screen {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  @supports selector(body:has(#screenMenu.active)) {
+    body:has(#screenMenu.active) {
+      padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    }
+  }
+  /* === MOBILE_LAYOUT_FIX_END === */
+
+</style>

@@ -1,0 +1,140 @@
+/**
+ * ============================================================================
+ * KALKULATOR LAUNDRY â€” DATA OPERASIONAL (multi-cabang)
+ * Code.gs â€” ENTRY POINT & KONSTANTA SKEMA GLOBAL â€” Schema v4
+ * ============================================================================
+ *
+ * FILE INI SENGAJA DIBUAT SANGAT RINGKAS. Tugasnya hanya dua:
+ *   1. doGet() â€” satu-satunya pintu masuk web app, merender Index.html.
+ *   2. Konstanta skema (SCHEMA_VERSION, DATA_SHEET_NAME, KEY_xxx) yang
+ *      dipakai SEMUA file lain di project ini.
+ * Semua logika fitur (CRUD, kalkulasi, validasi) ada di file Modul_*.gs.
+ * Semua logika upgrade versi data ada di Migrasi_Skema.gs.
+ *
+ * ===========================================================================
+ * PETA PROJECT â€” baca ini dulu sebelum mencari/menambah apapun:
+ *
+ *   Code.gs                 (file ini) entry point + konstanta skema
+ *   Util_Umum.gs            helper murni: sanitasi angka/string, id, rounding,
+ *                           bentuk error seragam. TIDAK menyentuh Spreadsheet.
+ *   Util_Penyimpanan.gs     SATU-SATUNYA file yang boleh memanggil
+ *                           SpreadsheetApp. Sheet "_data_operasional"
+ *                           dipakai sebagai key-value store.
+ *   Migrasi_Skema.gs        riwayat & logika upgrade versi skema data.
+ *   Modul_Cabang.gs         fitur "Cabang & Lokasi": profil outlet, mesin
+ *                           cuci/pengering, kalkulasi kapasitas (load/hari).
+ *                           Ini DATA INDUK yang dibaca semua Modul_Biaya*.gs.
+ *   Modul_BiayaGas.gs       fitur "Master Biaya > Gas": multi-record per
+ *                           cabang, kalkulasi estimasi load & biaya per load.
+ *   Modul_BiayaListrik.gs   fitur "Master Biaya > Listrik": satu konfigurasi
+ *                           per cabang, kalkulasi Rp/load per baris mesin +
+ *                           alokasi pompa air.
+ *
+ * CARA MENCARI SESUATU DI PROJECT INI:
+ *   - "Saya mau ubah cara hitung kapasitas mesin cuci/pengering"
+ *       -> Modul_Cabang.gs, cari computeSummary_ / computeGroupLoad_
+ *   - "Saya mau ubah rumus biaya gas"
+ *       -> Modul_BiayaGas.gs, cari computeBiayaGasSummary_
+ *   - "Saya mau ubah rumus biaya listrik / pompa air"
+ *       -> Modul_BiayaListrik.gs, cari computeBiayaListrikSummary_ atau
+ *          computeListrikBarisMesin_
+ *   - "Ada error dari frontend, stage-nya 'createBiayaGas:validate_payload'"
+ *       -> nama stage SELALU "namaFungsi:tahapGagal" -> cari namaFungsi-nya
+ *          (createBiayaGas) di Modul_BiayaGas.gs
+ *   - "Saya mau tambah kategori biaya baru (Air, Deterjen, dst)"
+ *       -> baca catatan "CATATAN PENTING UNTUK KATEGORI BIAYA BARU" di
+ *          Modul_BiayaGas.gs (kalau multi-record) atau Modul_BiayaListrik.gs
+ *          (kalau satu konfigurasi per cabang), lalu buat file baru
+ *          Modul_BiayaXxx.gs yang meniru pola itu. JANGAN tambah field baru
+ *          ke objek biayaGas atau biayaListrik yang sudah ada.
+ *   - "Saya mau tambah migrasi skema baru (v5)"
+ *       -> Migrasi_Skema.gs, baca catatan "CARA MENAMBAH MIGRASI BARU"
+ *
+ * ATURAN WAJIB UNTUK SEMUA FILE Modul_*.gs (konsisten di seluruh project):
+ *   - Setiap fungsi publik (dipanggil dari frontend lewat google.script.run)
+ *     WAJIB dibungkus try-catch, dan WAJIB mengembalikan bentuk seragam:
+ *       sukses -> { ok: true, data: ... }
+ *       gagal  -> { ok: false, error: "pesan jelas", stage: "namaFungsi:tahap" }
+ *     TIDAK PERNAH throw mentah ke frontend.
+ *   - VALIDASI dua lapis: sanitize (bersihkan/lengkapi diam-diam) DULU, lalu
+ *     validate (tolak dengan pesan jelas jika melanggar aturan bisnis).
+ *   - Kalkulasi (computeXxx_) adalah SUMBER KEBENARAN TUNGGAL. Frontend boleh
+ *     punya salinan identik untuk pratinjau instan, tapi modul backend lain
+ *     WAJIB memanggil fungsi compute yang sama, JANGAN duplikasi rumus.
+ *
+ * RIWAYAT SKEMA (detail lengkap tiap versi ada di Migrasi_Skema.gs):
+ *   v1 â€” satu set data operasional per Sheet (tidak ada konsep "cabang").
+ *   v2 â€” multi-cabang, satuan kapasitas LOAD (bukan kg).
+ *   v3 â€” Master Biaya: Gas LPG.
+ *   v4 â€” Master Biaya: Listrik.
+ *
+ * CATATAN TEKNIS Apps Script (penting dipahami sebelum menambah file baru):
+ *   Semua file .gs dalam project ini berbagi SATU global scope yang sama.
+ *   Fungsi di file manapun bisa memanggil fungsi di file lain tanpa import,
+ *   dan urutan parse antar file TIDAK menjamin urutan tertentu. Ini AMAN
+ *   selama (seperti pola di seluruh project ini) semua pemanggilan terjadi
+ *   DI DALAM BODY FUNGSI (saat runtime), bukan di top-level scope file.
+ *   JANGAN PERNAH menjalankan kode atau memanggil fungsi lain di luar fungsi
+ *   (di top-level file), karena itu satu-satunya kondisi yang bisa rusak
+ *   akibat urutan parse antar file yang tidak terjamin.
+ * ===========================================================================
+ */
+
+const SCHEMA_VERSION = 4;
+const DATA_SHEET_NAME = "_data_operasional";
+const KEY_META = "meta";
+const KEY_CABANG_ORDER = "cabang_order";
+const KEY_BIAYA_GAS_ORDER = "biayaGas_order";
+const KEY_LEGACY_V1 = "operasional_v1";
+
+// ----------------------------------------------------------------------------
+// ENTRY POINT WEB APP
+// ----------------------------------------------------------------------------
+
+function doGet(e) {
+  return HtmlService
+    .createTemplateFromFile("Index")
+    .evaluate()
+    .setTitle("Kalkulator Laundry")
+    .addMetaTag(
+      "viewport",
+      "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+    )
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function include(filename) {
+  var cleanName = String(filename || "").trim();
+
+  if (!cleanName) {
+    throw new Error("include(filename) gagal: nama file kosong.");
+  }
+
+  if (cleanName.indexOf("/") !== -1 || cleanName.indexOf("\\") !== -1) {
+    throw new Error(
+      "include(filename) gagal: nama file tidak boleh memakai path folder. File: " +
+      cleanName
+    );
+  }
+
+  if (/\.html$/i.test(cleanName)) {
+    throw new Error(
+      "include(filename) gagal: panggil tanpa ekstensi .html. Gunakan include('" +
+      cleanName.replace(/\.html$/i, "") +
+      "')."
+    );
+  }
+
+  try {
+    return HtmlService
+      .createHtmlOutputFromFile(cleanName)
+      .getContent();
+  } catch (err) {
+    throw new Error(
+      "include('" + cleanName + "') gagal. Pastikan file " +
+      cleanName +
+      ".html sudah ada di Apps Script. Detail: " +
+      (err && err.message ? err.message : String(err))
+    );
+  }
+}

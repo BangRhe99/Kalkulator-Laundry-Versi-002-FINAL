@@ -1,0 +1,48 @@
+<!--
+===============================================================================
+FILE: Style_Tokens.html
+PROJECT: Kalkulator Laundry Versi 002
+TAHAP: 2 â€” Pecah CSS Global
+
+FUNGSI FILE:
+File ini berisi design token global aplikasi.
+
+ISI UTAMA:
+1. Warna utama aplikasi\n2. Warna panel, border, teks, dan status\n3. Radius global\n4. Font family global
+
+BATAS TANGGUNG JAWAB:
+- Hanya berisi variabel CSS di dalam :root.\n- Tidak boleh berisi layout.\n- Tidak boleh berisi style fitur.\n- Tidak boleh berisi JavaScript atau HTML screen.
+
+TERHUBUNG DENGAN:
+- Index.html\n- Style_Base.html\n- Style_Components.html\n- Semua Style_Module_*.html yang akan dibuat pada tahap berikutnya
+
+CATATAN PENGEMBANGAN:
+Jika ingin mengubah warna brand atau token global, lakukan di file ini. Jangan membuat variabel warna baru di file module kecuali benar-benar khusus fitur.
+===============================================================================
+-->
+<style>
+:root {
+    --bg: #F5F7FA;
+    --panel: #FFFFFF;
+    --panel-2: #F1F5F9;
+    --border: #D9E2EC;
+    --text: #111827;
+    --text-dim: #4B5563;
+    --text-faint: #6B7280;
+    --sage: #0F766E;
+    --sage-dim: rgba(15, 118, 110, 0.16);
+    --brass: #B7791F;
+    --brass-dim: rgba(183, 121, 31, 0.16);
+    --red: #DC2626;
+    --red-dim: rgba(220, 38, 38, 0.14);
+    --flame: #EA580C;
+    --flame-dim: rgba(234, 88, 12, 0.14);
+    --volt: #D9C24B;
+    --volt-dim: #5C5424;
+    --radius: 10px;
+    --radius-lg: 16px;
+    --font-display: 'Space Grotesk', 'Inter', -apple-system, sans-serif;
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  }
+</style>

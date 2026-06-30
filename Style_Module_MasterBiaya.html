@@ -1,0 +1,229 @@
+<!--
+===============================================================================
+FILE: Style_Module_MasterBiaya.html
+PROJECT: Kalkulator Laundry Versi 002
+TAHAP: 3 — Pecah CSS Per Fitur
+
+FUNGSI FILE:
+Style khusus untuk fitur Master Biaya.
+
+ISI UTAMA:
+1. Tampilan pilih cabang Master Biaya
+2. Tampilan kartu biaya gas
+3. Tampilan form gas
+4. Tampilan panel tarif dasar listrik
+5. Tampilan kategori listrik
+6. Tampilan rincian listrik
+7. Style pendukung kategori biaya seperti air dan admin/nota bila class-nya ada di blok ini
+
+BATAS TANGGUNG JAWAB:
+- File ini hanya berisi CSS fitur Master Biaya.
+- Tidak boleh berisi CSS global.
+- Tidak boleh berisi HTML screen.
+- Tidak boleh berisi JavaScript.
+- Jangan mengubah nama class, warna, atau layout tanpa instruksi khusus.
+
+TERHUBUNG DENGAN:
+- Index.html
+- Screen_MasterBiaya.html pada tahap berikutnya
+- Script_Module_MasterBiaya.html pada tahap berikutnya
+
+CATATAN PENGEMBANGAN:
+Jika tampilan gas, listrik, air, atau admin/nota bermasalah, mulai cek dari file ini. Jangan memindahkan style HPP, Fixed Cost, atau Harga Layanan ke file ini.
+===============================================================================
+-->
+<style>
+/* ---------------------------------------------------------------------- */
+  /* MASTER BIAYA — pilih cabang (sub-langkah sebelum daftar kartu gas)     */
+  /* ---------------------------------------------------------------------- */
+  .pick-cabang-row {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: border-color 0.15s ease;
+  }
+  .pick-cabang-row:hover { border-color: var(--flame-dim); }
+  .pick-cabang-row .name { font-family: var(--font-display); font-size: 14.5px; font-weight: 600; }
+  .pick-cabang-row .arrow { color: var(--text-faint); }
+
+  .gas-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .gas-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .gas-card-top .title-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .gas-card-top .flame-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--flame); flex-shrink: 0;
+  }
+  .gas-card-top h3 {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .gas-card-top .actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  .gas-card-result {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .gas-result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .gas-result-cell {
+    background: var(--panel-2);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+  }
+  .gas-result-cell .label { font-size: 10.5px; color: var(--text-faint); margin-bottom: 4px; }
+  .gas-result-cell .val { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--text); }
+  .gas-result-cell.highlight { background: rgba(217,113,75,0.1); border: 1px solid var(--flame-dim); }
+  .gas-result-cell.highlight .val { color: var(--flame); font-size: 15px; }
+  .gas-result-cell .val .unit { font-size: 10px; color: var(--text-faint); margin-left: 2px; }
+
+  .gas-warning {
+    margin-top: 10px;
+    background: rgba(194,96,78,0.08);
+    border: 1px solid var(--red-dim);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #F0B5AA;
+    line-height: 1.4;
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /* MASTER BIAYA — LISTRIK                                                 */
+  /* ---------------------------------------------------------------------- */
+  .tdl-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .tdl-panel label {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+  .tdl-input-row { display: flex; align-items: center; gap: 8px; }
+  .tdl-input-row .prefix {
+    font-family: var(--font-mono);
+    font-size: 19px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .tdl-input-row input[type="number"] {
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 700;
+    padding: 12px 14px;
+  }
+
+  .listrik-kategori-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .listrik-kategori-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+  }
+  .listrik-kategori-card.full { grid-column: 1 / -1; }
+  .listrik-kategori-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .listrik-kategori-top .name {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .listrik-kategori-top .name.cuci { color: var(--sage); }
+  .listrik-kategori-top .name.kering { color: var(--flame); }
+  .listrik-kategori-top .name.pompa { color: #6FA8D9; }
+  .listrik-kategori-icon {
+    width: 30px; height: 30px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .listrik-kategori-icon.cuci { background: rgba(111,160,140,0.12); }
+  .listrik-kategori-icon.kering { background: rgba(217,113,75,0.12); }
+  .listrik-kategori-icon.pompa { background: rgba(111,168,217,0.12); }
+
+  .listrik-kategori-card label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 6px;
+  }
+
+  .listrik-rincian-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+  .listrik-rincian-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 12px;
+  }
+  .listrik-rincian-row .k { color: var(--text-faint); }
+  .listrik-rincian-row .v { font-family: var(--font-mono); font-weight: 600; color: var(--text); }
+  .listrik-rincian-row .v.muted { color: var(--text-faint); font-weight: 500; }
+  .listrik-rincian-empty { font-size: 12px; color: var(--text-faint); margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+
+  .listrik-total-bar {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .listrik-total-bar .k { font-size: 12.5px; color: var(--text-dim); font-weight: 500; }
+  .listrik-total-bar .v { font-family: var(--font-mono); font-size: 15px; font-weight: 700; color: var(--volt); }
+
+  @media (max-width: 759px) {
+    .listrik-kategori-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (min-width: 760px) {
+    body { padding: 28px 32px 90px; }
+    .wrap { max-width: 1080px; }
+    .layout-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+    .layout-grid .col-input { display: flex; flex-direction: column; }
+    .layout-grid .col-output { position: sticky; top: 24px; }
+    .machine-grid { grid-template-columns: repeat(4, 1fr); }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .footer-bar { justify-content: flex-end; padding: 16px 32px; }
+    .footer-bar .wrap-inner { max-width: 320px; }
+    #screenList .list-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    #screenRingkasan .ringkasan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+    #screenGasList .gas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>

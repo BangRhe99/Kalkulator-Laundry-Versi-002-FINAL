@@ -1,0 +1,44 @@
+<!--
+===============================================================================
+FILE: Screen_HPP.html
+PROJECT: Kalkulator Laundry Versi 002
+TAHAP: 4 — Pecah HTML Screen
+
+FUNGSI:
+Berisi pecahan tampilan screen dari Index.html.
+
+ATURAN:
+- ID elemen dipertahankan.
+- Nama screen dipertahankan.
+- Urutan screen mengikuti Index.html asli.
+- File ini hanya berisi markup screen.
+- Logic JavaScript tetap berada di Index.html.
+- Styling tetap mengikuti file style yang sudah ada.
+===============================================================================
+-->
+
+<section class="screen" id="screenStrukturHPPList">
+      <div class="list-header">
+        <h1>Struktur Biaya HPP</h1>
+        <span class="count" id="strukturHPPOutletCount">0 outlet</span>
+      </div>
+
+      <div class="hpp-structure-desc" style="margin-bottom: 14px;">
+        Pilih outlet untuk melihat rincian HPP cuci, kering, dan cuci kering.
+      </div>
+
+      <div id="strukturHPPOutletList" class="menu-grid"></div>
+    </section>
+
+<section class="screen" id="screenStrukturHPPDetail">
+      <div class="hpp-structure-head">
+        <div class="hpp-structure-title">Struktur Biaya HPP</div>
+        <div class="hpp-structure-desc">
+          Rincian komponen, persentase, dan total Harga Pokok Produksi per outlet.
+        </div>
+      </div>
+
+      <div id="strukturHPPContent">
+        <div class="hpp-loading">Memuat struktur biaya HPP...</div>
+      </div>
+    </section>

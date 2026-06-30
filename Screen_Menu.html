@@ -1,0 +1,70 @@
+<!--
+===============================================================================
+FILE: Screen_Menu.html
+PROJECT: Kalkulator Laundry Versi 002
+TAHAP: 4 — Pecah HTML Screen
+
+FUNGSI:
+Berisi pecahan tampilan screen dari Index.html.
+
+ATURAN:
+- ID elemen dipertahankan.
+- Nama screen dipertahankan.
+- Urutan screen mengikuti Index.html asli.
+- File ini hanya berisi markup screen.
+- Logic JavaScript tetap berada di Index.html.
+- Styling tetap mengikuti file style yang sudah ada.
+===============================================================================
+-->
+
+<section class="screen" id="screenMenu">
+      <div class="list-header">
+        <h1>Menu utama</h1>
+      </div>
+      <div class="menu-grid">
+        <div class="menu-card tone-sage" onclick="openScreenCabangList()">
+          <div class="menu-icon">&#127981;</div>
+          <div class="menu-body">
+            <div class="menu-title">Cabang &amp; lokasi</div>
+            <div class="menu-desc">Kelola profil operasional, mesin cuci dan pengering per outlet.</div>
+          </div>
+          <div class="menu-arrow">&#8594;</div>
+        </div>
+
+        <div class="menu-card tone-flame" onclick="openScreenMasterBiaya()">
+          <div class="menu-icon">&#128293;</div>
+          <div class="menu-body">
+            <div class="menu-title">Master Biaya</div>
+            <div class="menu-desc">Hitung Biaya Produksi Per Outlet: Gas LPG, Listrik, Air, Admin/Nota</div>
+          </div>
+          <div class="menu-arrow">&#8594;</div>
+        </div>
+
+        <div class="menu-card tone-volt" onclick="openStrukturHPPOutletList()">
+          <div class="menu-icon">&#128202;</div>
+          <div class="menu-body">
+            <div class="menu-title">Struktur Biaya HPP</div>
+            <div class="menu-desc">Rincian komponen, persentase, dan total Harga Pokok Produksi per outlet.</div>
+          </div>
+          <div class="menu-arrow">&#8594;</div>
+        </div>
+
+        <div class="menu-card tone-sage" onclick="openHargaLayananOutletList()">
+          <div class="menu-icon">&#128176;</div>
+          <div class="menu-body">
+            <div class="menu-title">Harga Layanan</div>
+            <div class="menu-desc">Tentukan harga jual dan cek margin tiap layanan.</div>
+          </div>
+          <div class="menu-arrow">&#8594;</div>
+        </div>
+
+        <div class="menu-card tone-sage" onclick="openBiayaTetapOutletList()">
+          <div class="menu-icon">&#128179;</div>
+          <div class="menu-body">
+            <div class="menu-title">Biaya Tetap Outlet (Fixed Cost)</div>
+            <div class="menu-desc">Catat biaya tetap bulanan seperti sewa, gaji, internet, penyusutan mesin, perawatan dan operasional rutin lainnya.</div>
+          </div>
+          <div class="menu-arrow">&#8594;</div>
+        </div>
+      </div>
+    </section>

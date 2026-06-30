@@ -1,0 +1,11 @@
+﻿**/*
+
+!Code.gs
+!Migrasi_Skema.gs
+!Util_*.gs
+!Modul_*.gs
+!appsscript.json
+
+!Index.html
+!Style_*.html
+!Screen_*.html

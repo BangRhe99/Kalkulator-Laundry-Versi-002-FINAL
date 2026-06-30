@@ -1,0 +1,42 @@
+<!--
+===============================================================================
+FILE: Screen_FixedCost.html
+PROJECT: Kalkulator Laundry Versi 002
+TAHAP: 4 — Pecah HTML Screen
+
+FUNGSI:
+Berisi pecahan tampilan screen dari Index.html.
+
+ATURAN:
+- ID elemen dipertahankan.
+- Nama screen dipertahankan.
+- Urutan screen mengikuti Index.html asli.
+- File ini hanya berisi markup screen.
+- Logic JavaScript tetap berada di Index.html.
+- Styling tetap mengikuti file style yang sudah ada.
+===============================================================================
+-->
+
+<section class="screen" id="screenBiayaTetapList">
+      <div class="list-header">
+        <h1>Biaya Tetap Outlet</h1>
+        <span class="count" id="biayaTetapOutletCount">0 outlet</span>
+      </div>
+
+      <div class="fc-desc" style="margin-bottom: 14px;">
+        Pilih outlet untuk mencatat fixed cost bulanan seperti sewa, gaji, internet, penyusutan mesin, perawatan dan biaya rutin lainnya.
+      </div>
+
+      <div id="biayaTetapOutletList" class="menu-grid"></div>
+    </section>
+
+<section class="screen" id="screenBiayaTetapForm">
+      <div class="fc-head">
+        <div class="fc-title">Biaya Tetap Outlet (Fixed Cost)</div>
+        <div class="fc-desc">Catat biaya tetap bulanan sebagai dasar menghitung BEP, target omzet, margin, dan harga jual.</div>
+      </div>
+
+      <div id="biayaTetapContent">
+        <div class="hpp-loading">Memuat biaya tetap outlet...</div>
+      </div>
+    </section>

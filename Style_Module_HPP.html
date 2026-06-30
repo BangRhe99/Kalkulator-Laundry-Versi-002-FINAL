@@ -1,0 +1,201 @@
+<!--
+===============================================================================
+FILE: Style_Module_HPP.html
+PROJECT: Kalkulator Laundry Versi 002
+TAHAP: 3 — Pecah CSS Per Fitur
+
+FUNGSI FILE:
+Style khusus untuk fitur Struktur Biaya HPP.
+
+ISI UTAMA:
+1. Header Struktur Biaya HPP
+2. Warning box HPP
+3. Card layanan HPP
+4. Rincian komponen HPP
+5. Progress bar komponen
+6. Loading state HPP
+
+BATAS TANGGUNG JAWAB:
+- File ini hanya berisi CSS fitur Struktur Biaya HPP.
+- Tidak boleh berisi CSS global.
+- Tidak boleh berisi HTML screen.
+- Tidak boleh berisi JavaScript.
+- Jangan mengubah nama class, warna, atau layout tanpa instruksi khusus.
+
+TERHUBUNG DENGAN:
+- Index.html
+- Screen_HPP.html pada tahap berikutnya
+- Script_Module_HPP.html pada tahap berikutnya
+
+CATATAN PENGEMBANGAN:
+Jika tampilan rincian HPP, persen komponen, atau total HPP bermasalah, cek file ini terlebih dahulu.
+===============================================================================
+-->
+<style>
+/* ---------------------------------------------------------------------- */
+/* STRUKTUR BIAYA HPP                                                     */
+/* ---------------------------------------------------------------------- */
+
+.hpp-structure-head {
+  margin-bottom: 16px;
+}
+
+.hpp-structure-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+
+.hpp-structure-desc {
+  font-size: 12.5px;
+  color: var(--text-faint);
+  line-height: 1.5;
+}
+
+.hpp-warning-box {
+  background: rgba(217, 162, 75, 0.08);
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.hpp-warning-title {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--brass);
+  margin-bottom: 8px;
+}
+
+.hpp-warning-box ul {
+  padding-left: 18px;
+}
+
+.hpp-warning-box li {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+.hpp-service-card {
+  background: linear-gradient(165deg, var(--panel) 0%, var(--panel-2) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.hpp-service-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.hpp-service-name {
+  font-family: var(--font-display);
+  font-size: 15.5px;
+  font-weight: 700;
+}
+
+.hpp-service-unit {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+
+.hpp-service-total {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.hpp-total-label {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  margin-bottom: 4px;
+}
+
+.hpp-total-value {
+  font-family: var(--font-display);
+  font-size: 21px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: var(--sage);
+}
+
+.hpp-component-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hpp-component-row {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: var(--radius);
+  padding: 10px 11px;
+}
+
+.hpp-component-line {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: baseline;
+  margin-bottom: 7px;
+}
+
+.hpp-component-name {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  min-width: 0;
+}
+
+.hpp-component-amount {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.hpp-component-percent {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--brass);
+  white-space: nowrap;
+}
+
+.hpp-progress {
+  height: 5px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.hpp-progress-fill {
+  height: 100%;
+  background: var(--sage);
+  border-radius: 999px;
+}
+
+.hpp-component-note {
+  font-size: 10.8px;
+  color: var(--text-faint);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.hpp-loading {
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 13px;
+  padding: 30px 12px;
+}
+</style>

@@ -1,0 +1,378 @@
+/**
+ * ============================================================================
+ * MODUL: DASHBOARD MENU UTAMA
+ * ============================================================================
+ * Modul ini hanya membaca data dari modul existing untuk menampilkan rangkuman
+ * kondisi outlet di Menu Utama.
+ *
+ * PUBLIC FUNCTIONS:
+ * - getDashboardCabangSummary()
+ * - getDashboardMasterBiayaSummary()
+ * - getDashboardHPPSummary()
+ * - getDashboardHargaLayananSummary()
+ * - getDashboardFixedCostSummary()
+ * ============================================================================
+ */
+
+function dashboardError_(err, stage) {
+  if (typeof errorResponse_ === "function") {
+    return errorResponse_(err, stage);
+  }
+  return {
+    ok: false,
+    error: err && err.message ? err.message : String(err || "Terjadi kesalahan."),
+    stage: stage || "dashboard:unknown"
+  };
+}
+
+function dashboardNumber_(value, fallback) {
+  const n = Number(value);
+  return isFinite(n) ? n : (fallback || 0);
+}
+
+function dashboardRound2_(value) {
+  return Math.round(dashboardNumber_(value, 0) * 100) / 100;
+}
+
+function dashboardArray_(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function dashboardGetCabangRows_() {
+  if (typeof listCabang !== "function") {
+    return {
+      ok: false,
+      error: "Fungsi listCabang belum tersedia.",
+      stage: "dashboardGetCabangRows_:listCabang_missing"
+    };
+  }
+
+  const res = listCabang();
+  if (!res || !res.ok) {
+    return {
+      ok: false,
+      error: res && res.error ? res.error : "Gagal membaca daftar cabang.",
+      stage: res && res.stage ? res.stage : "dashboardGetCabangRows_:listCabang"
+    };
+  }
+
+  return {
+    ok: true,
+    data: dashboardArray_(res.data)
+  };
+}
+
+function dashboardOutletName_(item) {
+  if (!item) return "Outlet tanpa nama";
+  return String(item.namaLaundry || item.nama || item.namaCabang || "Outlet tanpa nama");
+}
+
+function getDashboardCabangSummary() {
+  try {
+    const cabangRes = dashboardGetCabangRows_();
+    if (!cabangRes.ok) return cabangRes;
+
+    const rows = cabangRes.data.map(function (item) {
+      const summary = item.summary || {};
+      const cuci = summary.cuci || {};
+      const kering = summary.kering || {};
+
+      return {
+        cabangId: String(item.id || ""),
+        namaLaundry: dashboardOutletName_(item),
+        kategoriLayanan: String(item.kategoriLayanan || ""),
+        totalUnitCuci: dashboardNumber_(item.totalUnitCuci, 0),
+        totalUnitPengering: dashboardNumber_(item.totalUnitPengering, 0),
+        loadCuciPerBulan: dashboardRound2_(cuci.loadPerBulan),
+        loadKeringPerBulan: dashboardRound2_(kering.loadPerBulan)
+      };
+    });
+
+    return {
+      ok: true,
+      data: {
+        totalOutlet: rows.length,
+        rows: rows
+      }
+    };
+  } catch (err) {
+    return dashboardError_(err, "getDashboardCabangSummary");
+  }
+}
+
+function getDashboardMasterBiayaSummary() {
+  try {
+    const cabangRes = dashboardGetCabangRows_();
+    if (!cabangRes.ok) return cabangRes;
+
+    const rows = cabangRes.data.map(function (item) {
+      const cabangId = String(item.id || "");
+      const missing = [];
+      let lengkapCount = 0;
+
+      let gasComplete = false;
+      try {
+        if (typeof listBiayaGas === "function") {
+          const gasRes = listBiayaGas(cabangId);
+          gasComplete = !!(gasRes && gasRes.ok && gasRes.data && Array.isArray(gasRes.data.items) && gasRes.data.items.length > 0);
+        }
+      } catch (e) {}
+      if (gasComplete) lengkapCount++; else missing.push("Gas");
+
+      let listrikComplete = false;
+      try {
+        if (typeof getBiayaListrik === "function") {
+          const listrikRes = getBiayaListrik(cabangId);
+          listrikComplete = !!(listrikRes && listrikRes.ok && listrikRes.data && listrikRes.data.record && listrikRes.data.record.updatedAt);
+        }
+      } catch (e) {}
+      if (listrikComplete) lengkapCount++; else missing.push("Listrik");
+
+      let airComplete = false;
+      try {
+        if (typeof getBiayaAir === "function") {
+          const airRes = getBiayaAir(cabangId);
+          airComplete = !!(airRes && airRes.ok && airRes.data && airRes.data.record && airRes.data.record.updatedAt);
+        }
+      } catch (e) {}
+      if (airComplete) lengkapCount++; else missing.push("Air");
+
+      let notaComplete = false;
+      try {
+        if (typeof getBiayaNotaKasir === "function") {
+          const notaRes = getBiayaNotaKasir(cabangId);
+          notaComplete = !!(notaRes && notaRes.ok && notaRes.data && notaRes.data.record && notaRes.data.record.updatedAt);
+        }
+      } catch (e) {}
+      if (notaComplete) lengkapCount++; else missing.push("Nota/Kasir");
+
+      return {
+        cabangId: cabangId,
+        namaLaundry: dashboardOutletName_(item),
+        lengkapCount: lengkapCount,
+        totalKomponen: 4,
+        isComplete: lengkapCount === 4,
+        missing: missing
+      };
+    });
+
+    const completeOutlet = rows.filter(function (row) { return row.isComplete; }).length;
+
+    return {
+      ok: true,
+      data: {
+        totalOutlet: rows.length,
+        completeOutlet: completeOutlet,
+        incompleteOutlet: rows.length - completeOutlet,
+        rows: rows
+      }
+    };
+  } catch (err) {
+    return dashboardError_(err, "getDashboardMasterBiayaSummary");
+  }
+}
+
+function getDashboardHPPSummary() {
+  try {
+    const cabangRes = dashboardGetCabangRows_();
+    if (!cabangRes.ok) return cabangRes;
+
+    const rows = cabangRes.data.map(function (item) {
+      const cabangId = String(item.id || "");
+      let layanan = [];
+      let warnings = [];
+      let hppCuciKering = 0;
+      let errorText = "";
+
+      try {
+        if (typeof getStrukturBiayaHPP === "function") {
+          const hppRes = getStrukturBiayaHPP(cabangId);
+          if (hppRes && hppRes.ok && hppRes.data) {
+            layanan = dashboardArray_(hppRes.data.layanan);
+            warnings = dashboardArray_(hppRes.data.warnings);
+          } else {
+            errorText = hppRes && hppRes.error ? hppRes.error : "HPP belum bisa dibaca.";
+          }
+        } else {
+          errorText = "Fungsi getStrukturBiayaHPP belum tersedia.";
+        }
+      } catch (e) {
+        errorText = e && e.message ? e.message : String(e);
+      }
+
+      const totals = [];
+
+      layanan.forEach(function (svc) {
+        if (!svc) return;
+        const total = dashboardNumber_(svc.total, 0);
+        if (total > 0) totals.push(total);
+        if (String(svc.key || "") === "cuci_kering") {
+          hppCuciKering = dashboardRound2_(total);
+        }
+      });
+
+      const isReady = totals.length > 0;
+
+      return {
+        cabangId: cabangId,
+        namaLaundry: dashboardOutletName_(item),
+        isReady: isReady,
+        hppMin: isReady ? dashboardRound2_(Math.min.apply(null, totals)) : 0,
+        hppMax: isReady ? dashboardRound2_(Math.max.apply(null, totals)) : 0,
+        hppCuciKering: hppCuciKering,
+        warningsCount: warnings.length + (errorText ? 1 : 0),
+        errorText: errorText
+      };
+    });
+
+    return {
+      ok: true,
+      data: {
+        totalOutlet: rows.length,
+        readyOutlet: rows.filter(function (row) { return row.isReady; }).length,
+        rows: rows
+      }
+    };
+  } catch (err) {
+    return dashboardError_(err, "getDashboardHPPSummary");
+  }
+}
+
+function getDashboardHargaLayananSummary() {
+  try {
+    const cabangRes = dashboardGetCabangRows_();
+    if (!cabangRes.ok) return cabangRes;
+
+    const rows = cabangRes.data.map(function (item) {
+      const cabangId = String(item.id || "");
+      let layanan = [];
+      let warnings = [];
+      let errorText = "";
+
+      try {
+        if (typeof getHargaLayanan === "function") {
+          const hargaRes = getHargaLayanan(cabangId);
+          if (hargaRes && hargaRes.ok && hargaRes.data) {
+            layanan = dashboardArray_(hargaRes.data.layanan);
+            warnings = dashboardArray_(hargaRes.data.warnings);
+          } else {
+            errorText = hargaRes && hargaRes.error ? hargaRes.error : "Harga layanan belum bisa dibaca.";
+          }
+        } else {
+          errorText = "Fungsi getHargaLayanan belum tersedia.";
+        }
+      } catch (e) {
+        errorText = e && e.message ? e.message : String(e);
+      }
+
+      let hargaTerisiCount = 0;
+      let rugiCount = 0;
+      let tipisCount = 0;
+      let impasCount = 0;
+      let amanCount = 0;
+      const marginPercents = [];
+
+      layanan.forEach(function (svc) {
+        if (!svc) return;
+        const hargaJual = dashboardNumber_(svc.hargaJual, 0);
+        const status = String(svc.status || "");
+
+        if (hargaJual > 0) {
+          hargaTerisiCount++;
+          marginPercents.push(dashboardNumber_(svc.marginPercent, 0));
+
+          if (status === "rugi") rugiCount++;
+          else if (status === "tipis") tipisCount++;
+          else if (status === "impas") impasCount++;
+          else if (status === "aman") amanCount++;
+        }
+      });
+
+      const totalLayanan = layanan.length;
+      let status = "ok";
+      if (rugiCount > 0) {
+        status = "danger";
+      } else if (tipisCount > 0 || hargaTerisiCount < totalLayanan || errorText) {
+        status = "warning";
+      }
+
+      return {
+        cabangId: cabangId,
+        namaLaundry: dashboardOutletName_(item),
+        totalLayanan: totalLayanan,
+        hargaTerisiCount: hargaTerisiCount,
+        rugiCount: rugiCount,
+        tipisCount: tipisCount,
+        impasCount: impasCount,
+        amanCount: amanCount,
+        minMarginPercent: marginPercents.length ? dashboardRound2_(Math.min.apply(null, marginPercents)) : null,
+        warningsCount: warnings.length + (errorText ? 1 : 0),
+        status: status,
+        errorText: errorText
+      };
+    });
+
+    return {
+      ok: true,
+      data: {
+        totalOutlet: rows.length,
+        dangerOutlet: rows.filter(function (row) { return row.status === "danger"; }).length,
+        warningOutlet: rows.filter(function (row) { return row.status === "warning"; }).length,
+        rows: rows
+      }
+    };
+  } catch (err) {
+    return dashboardError_(err, "getDashboardHargaLayananSummary");
+  }
+}
+
+function getDashboardFixedCostSummary() {
+  try {
+    if (typeof listBiayaTetapOutletSummaries !== "function") {
+      return {
+        ok: false,
+        error: "Fungsi listBiayaTetapOutletSummaries belum tersedia.",
+        stage: "getDashboardFixedCostSummary:listBiayaTetapOutletSummaries_missing"
+      };
+    }
+
+    const res = listBiayaTetapOutletSummaries();
+    if (!res || !res.ok) {
+      return {
+        ok: false,
+        error: res && res.error ? res.error : "Gagal membaca summary fixed cost.",
+        stage: res && res.stage ? res.stage : "getDashboardFixedCostSummary:listBiayaTetapOutletSummaries"
+      };
+    }
+
+    const rows = dashboardArray_(res.data).map(function (item) {
+      const cabang = item.cabang || {};
+      const summary = item.summary || {};
+      const warnings = dashboardArray_(item.warnings);
+
+      return {
+        cabangId: String(cabang.id || ""),
+        namaLaundry: String(cabang.namaLaundry || "Outlet tanpa nama"),
+        hasData: !!item.hasData,
+        totalPerBulan: dashboardRound2_(summary.totalPerBulan),
+        totalPerHari: dashboardRound2_(summary.totalPerHari),
+        warningsCount: warnings.length
+      };
+    });
+
+    const totalFixedCostPerBulan = dashboardRound2_(rows.reduce(function (sum, row) {
+      return sum + dashboardNumber_(row.totalPerBulan, 0);
+    }, 0));
+
+    return {
+      ok: true,
+      data: {
+        totalOutlet: rows.length,
+        totalFixedCostPerBulan: totalFixedCostPerBulan,
+        rows: rows
+      }
+    };
+  } catch (err) {
+    return dashboardError_(err, "getDashboardFixedCostSummary");
+  }
+}

@@ -1,0 +1,56 @@
+<!--
+===============================================================================
+FILE: Screen_HargaLayanan.html
+PROJECT: Kalkulator Laundry Versi 002
+TAHAP: 4 — Pecah HTML Screen
+
+FUNGSI:
+Berisi pecahan tampilan screen dari Index.html.
+
+ATURAN:
+- ID elemen dipertahankan.
+- Nama screen dipertahankan.
+- Urutan screen mengikuti Index.html asli.
+- File ini hanya berisi markup screen.
+- Logic JavaScript tetap berada di Index.html.
+- Styling tetap mengikuti file style yang sudah ada.
+===============================================================================
+-->
+
+<section class="screen" id="screenHargaLayananList">
+      <div class="list-header">
+        <h1>Harga Layanan</h1>
+        <span class="count" id="hargaLayananOutletCount">0 outlet</span>
+      </div>
+
+      <div class="hl-desc" style="margin-bottom: 14px;">
+        Tentukan harga jual dan cek margin tiap layanan. Margin bukan laba bersih.
+      </div>
+
+      <div id="hargaLayananOutletList" class="menu-grid"></div>
+    </section>
+
+<section class="screen" id="screenHargaLayananDetail">
+      <div class="hl-head">
+        <div class="hl-title" id="hargaLayananTitle">Harga Layanan</div>
+        <div class="hl-desc" id="hargaLayananSubtitle">Tentukan harga jual dan cek margin tiap layanan</div>
+        <div class="hl-cabang-badge" id="hargaLayananKategori">-</div>
+      </div>
+
+      <div class="hl-warning-box">
+        <div class="title">Catatan penting</div>
+        <ul>
+          <li>Margin bukan laba bersih.</li>
+          <li>Margin belum dikurangi biaya tetap bulanan seperti sewa, gaji, internet, penyusutan mesin, perawatan, dan operasional rutin lainnya.</li>
+        </ul>
+      </div>
+
+      <div id="hargaLayananWarningBox" class="hl-warning-box" style="display:none;">
+        <div class="title">Perlu dicek</div>
+        <ul id="hargaLayananWarningList"></ul>
+      </div>
+
+      <div id="hargaLayananServiceList">
+        <div class="hpp-loading">Memuat harga layanan...</div>
+      </div>
+    </section>

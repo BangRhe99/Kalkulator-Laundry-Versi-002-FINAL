@@ -1,0 +1,66 @@
+<!--
+===============================================================================
+FILE: Style_Module_HargaLayanan.html
+PROJECT: Kalkulator Laundry Versi 002
+TAHAP: 3 — Pecah CSS Per Fitur
+
+FUNGSI FILE:
+Style khusus untuk fitur Harga Layanan.
+
+ISI UTAMA:
+1. Header Harga Layanan
+2. Warning box Harga Layanan
+3. Card layanan
+4. Input harga jual
+5. Metric margin
+6. Status margin
+7. Tombol CRUD Harga Layanan
+8. Ringkasan Harga Layanan di daftar outlet
+
+BATAS TANGGUNG JAWAB:
+- File ini hanya berisi CSS fitur Harga Layanan.
+- Tidak boleh berisi CSS global.
+- Tidak boleh berisi HTML screen.
+- Tidak boleh berisi JavaScript.
+- Jangan mengubah nama class, warna, atau layout tanpa instruksi khusus.
+
+TERHUBUNG DENGAN:
+- Index.html
+- Screen_HargaLayanan.html pada tahap berikutnya
+- Script_Module_HargaLayanan.html pada tahap berikutnya
+
+CATATAN PENGEMBANGAN:
+Jika tampilan input harga jual, margin, status margin, atau ringkasan Harga Layanan bermasalah, mulai cek dari file ini.
+===============================================================================
+-->
+<style>
+/* ---------------------------------------------------------------------- */
+/* HARGA LAYANAN                                                          */
+/* ---------------------------------------------------------------------- */
+.hl-head { margin-bottom: 16px; }
+.hl-title { font-family: var(--font-display); font-size: 20px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 6px; }
+.hl-desc { font-size: 12.5px; color: var(--text-faint); line-height: 1.5; }
+.hl-cabang-badge { font-family: var(--font-mono); font-size: 11px; color: var(--brass); margin-top: 6px; }
+.hl-warning-box { background: rgba(217,162,75,0.08); border: 1px solid var(--brass-dim); border-radius: var(--radius-lg); padding: 14px; margin-bottom: 14px; }
+.hl-warning-box .title { font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--brass); margin-bottom: 8px; }
+.hl-warning-box ul { padding-left: 18px; }
+.hl-warning-box li { font-size: 12px; color: var(--text-dim); line-height: 1.5; margin-bottom: 4px; }
+.hl-service-card { background: linear-gradient(165deg, var(--panel) 0%, var(--panel-2) 100%); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; margin-bottom: 14px; overflow: hidden; }
+.hl-service-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
+.hl-service-name { font-family: var(--font-display); font-size: 15.5px; font-weight: 700; }
+.hl-service-unit { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-faint); margin-top: 4px; }
+.hl-status-pill { font-family: var(--font-mono); font-size: 10px; border-radius: 999px; padding: 5px 8px; border: 1px solid var(--border); color: var(--text-dim); white-space: nowrap; }
+.hl-status-pill.aman { border-color: var(--sage-dim); color: var(--sage); background: rgba(111,160,140,0.08); }
+.hl-status-pill.tipis { border-color: var(--brass-dim); color: var(--brass); background: rgba(217,162,75,0.08); }
+.hl-status-pill.rugi { border-color: var(--red-dim); color: var(--red); background: rgba(194,96,78,0.08); }
+.hl-status-pill.impas { border-color: var(--border); color: var(--text-faint); background: rgba(255,255,255,0.03); }
+.hl-metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.hl-metric { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.04); border-radius: var(--radius); padding: 11px 12px; }
+.hl-metric .label { font-size: 10.5px; color: var(--text-faint); margin-bottom: 5px; }
+.hl-metric .value { font-family: var(--font-display); font-size: 18px; font-weight: 800; color: var(--text); }
+.hl-metric.highlight { border-color: var(--sage-dim); background: rgba(111,160,140,0.07); }
+.hl-metric.highlight .value { color: var(--sage); }
+.hl-note { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
+.hl-note b { color: var(--brass); font-weight: 700; }
+@media (max-width: 520px) { .hl-metric-grid { grid-template-columns: 1fr; } }
+</style>
