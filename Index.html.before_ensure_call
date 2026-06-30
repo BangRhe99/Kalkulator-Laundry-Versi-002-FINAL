@@ -1400,16 +1400,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     if (!document.getElementById("dashboardCabangSummary")) return;
 
     setDashboardAllLoading();
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (res && res.ok) {
-          cabangListCache = res.data || [];
-          ensureDashboardOutletSelection_();
-        }
-      })
-      .withFailureHandler(function () {})
-      .listCabang();
-
 
     loadDashboardCabang();
     loadDashboardMasterBiaya();

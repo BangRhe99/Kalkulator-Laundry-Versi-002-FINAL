@@ -90,7 +90,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             <h1 class="dashboard-title">Dashboard Bisnis</h1>
             <p class="dashboard-subtitle">Ringkasan kondisi outlet Anda saat ini.</p>
           </div>
-          <button class="outlet-filter-pill" type="button" id="dashboardOutletFilter" onclick="openOutletPicker()">
+          <button class="outlet-filter-pill" type="button" id="dashboardOutletFilter">
             <span class="outlet-filter-name">Syakira Laundry</span>
             <svg class="outlet-filter-arrow" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
               <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
@@ -704,15 +704,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
 
 <div class="toast" id="toast"></div>
 
-<div class="confirm-overlay" id="outletPickerOverlay">
-  <div class="confirm-box outlet-picker-box">
-    <h3>Pilih Outlet</h3>
-    <div class="outlet-picker-list" id="outletPickerList"></div>
-    <div class="confirm-actions">
-      <button class="btn-secondary" onclick="closeOutletPicker()" style="width:100%;">Tutup</button>
-    </div>
-  </div>
-</div>
 <div class="confirm-overlay" id="confirmOverlay">
   <div class="confirm-box">
     <h3 id="confirmTitle">Hapus cabang ini?</h3>
@@ -1303,113 +1294,10 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     setDashboardCardLoading("dashboardFixedCostSummary");
   }
 
-  /**
-   * =========================================================================
-   * OUTLET PICKER (filter Dashboard per outlet)
-   * =========================================================================
-   */
-  var DASHBOARD_OUTLET_STORAGE_KEY = "dashboardSelectedOutletId";
-  var dashboardSelectedOutletId = null;
-
-  function getStoredOutletId_() {
-    try {
-      return window.localStorage.getItem(DASHBOARD_OUTLET_STORAGE_KEY);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  function setStoredOutletId_(id) {
-    try {
-      window.localStorage.setItem(DASHBOARD_OUTLET_STORAGE_KEY, id);
-    } catch (e) {}
-  }
-
-  function updateOutletFilterPillText_() {
-    var nameEl = document.querySelector("#dashboardOutletFilter .outlet-filter-name");
-    if (!nameEl) return;
-
-    var current = (cabangListCache || []).find(function (c) { return c.id === dashboardSelectedOutletId; });
-    nameEl.textContent = current ? (current.namaLaundry || "Outlet tanpa nama") : "Pilih outlet";
-  }
-
-  function ensureDashboardOutletSelection_() {
-    var rows = cabangListCache || [];
-    if (!rows.length) {
-      dashboardSelectedOutletId = null;
-      updateOutletFilterPillText_();
-      return;
-    }
-
-    var stored = getStoredOutletId_();
-    var storedExists = rows.some(function (c) { return c.id === stored; });
-
-    if (storedExists) {
-      dashboardSelectedOutletId = stored;
-    } else {
-      dashboardSelectedOutletId = rows[0].id;
-      setStoredOutletId_(dashboardSelectedOutletId);
-    }
-
-    updateOutletFilterPillText_();
-  }
-
-  function renderOutletPickerList_() {
-    var listEl = document.getElementById("outletPickerList");
-    if (!listEl) return;
-
-    var rows = cabangListCache || [];
-
-    if (!rows.length) {
-      listEl.innerHTML = "<div class=\"empty-hint\">Belum ada outlet. Tambahkan di menu Profil Outlet.</div>";
-      return;
-    }
-
-    listEl.innerHTML = rows.map(function (item) {
-      var isActive = item.id === dashboardSelectedOutletId;
-      return (
-        "<div class=\"outlet-picker-item" + (isActive ? " active" : "") + "\" data-outlet-id=\"" + escapeHtml(item.id) + "\">" +
-          "<span>" + escapeHtml(item.namaLaundry || \"Outlet tanpa nama\") + "</span>" +
-          "<svg class=\"check-icon\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\"><path d=\"M5 13l4 4L19 7\" stroke=\"currentColor\" stroke-width=\"2.4\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>" +
-        "</div>"
-      );
-    }).join("");
-
-    listEl.querySelectorAll("[data-outlet-id]").forEach(function (el) {
-      el.addEventListener("click", function () {
-        var id = el.getAttribute("data-outlet-id");
-        dashboardSelectedOutletId = id;
-        setStoredOutletId_(id);
-        updateOutletFilterPillText_();
-        renderOutletPickerList_();
-        closeOutletPicker();
-      });
-    });
-  }
-
-  window.openOutletPicker = function () {
-    renderOutletPickerList_();
-    document.getElementById("outletPickerOverlay").classList.add("show");
-  };
-
-  window.closeOutletPicker = function () {
-    document.getElementById("outletPickerOverlay").classList.remove("show");
-  };
-
   function refreshDashboard() {
     if (!document.getElementById("dashboardCabangSummary")) return;
 
     setDashboardAllLoading();
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (res && res.ok) {
-          cabangListCache = res.data || [];
-          ensureDashboardOutletSelection_();
-        }
-      })
-      .withFailureHandler(function () {})
-      .listCabang();
-
 
     loadDashboardCabang();
     loadDashboardMasterBiaya();

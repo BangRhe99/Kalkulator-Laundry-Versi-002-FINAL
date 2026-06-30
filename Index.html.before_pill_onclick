@@ -90,7 +90,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             <h1 class="dashboard-title">Dashboard Bisnis</h1>
             <p class="dashboard-subtitle">Ringkasan kondisi outlet Anda saat ini.</p>
           </div>
-          <button class="outlet-filter-pill" type="button" id="dashboardOutletFilter" onclick="openOutletPicker()">
+          <button class="outlet-filter-pill" type="button" id="dashboardOutletFilter">
             <span class="outlet-filter-name">Syakira Laundry</span>
             <svg class="outlet-filter-arrow" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
               <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1400,16 +1400,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     if (!document.getElementById("dashboardCabangSummary")) return;
 
     setDashboardAllLoading();
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (res && res.ok) {
-          cabangListCache = res.data || [];
-          ensureDashboardOutletSelection_();
-        }
-      })
-      .withFailureHandler(function () {})
-      .listCabang();
-
 
     loadDashboardCabang();
     loadDashboardMasterBiaya();

@@ -707,48 +707,6 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
   .confirm-box p { font-size: 13.5px; color: var(--text-dim); line-height: 1.5; margin-bottom: 18px; }
   .confirm-actions { display: flex; gap: 10px; }
 
-
-  .outlet-picker-box {
-    max-width: 380px;
-  }
-
-  .outlet-picker-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 18px;
-    max-height: 50vh;
-    overflow-y: auto;
-  }
-
-  .outlet-picker-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 14px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    cursor: pointer;
-    font-size: 13.5px;
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  .outlet-picker-item.active {
-    border-color: var(--sage);
-    background: var(--panel-2);
-    color: var(--sage);
-  }
-
-  .outlet-picker-item .check-icon {
-    color: var(--sage);
-    flex-shrink: 0;
-    display: none;
-  }
-
-  .outlet-picker-item.active .check-icon {
-    display: block;
-  }
   .skeleton-line { height: 14px; background: var(--panel-2); border-radius: 4px; animation: pulse 1.1s ease-in-out infinite; }
   @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
