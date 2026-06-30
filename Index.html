@@ -1,8 +1,8 @@
-<!--
+﻿<!--
 ===============================================================================
 FILE: Index.html
 PROJECT: Kalkulator Laundry Versi 002
-TAHAP: 5 Ã¢â‚¬â€ Pecah Script Shared
+TAHAP: 5 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Pecah Script Shared
 
 FUNGSI FILE SAAT INI:
 File utama web app yang sudah memakai include CSS, screen, dan script shared.
@@ -55,7 +55,17 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
   <header class="app-header">
     <div class="header-left">
       <button class="back-btn" id="backBtn" style="display:none;" onclick="goBack()" aria-label="Kembali">&#8592;</button>
-      <div class="brand">Kalkulator<span>Laundry</span></div>
+      <div class="brand" aria-label="Kalkulator Laundry">
+        <svg class="brand-icon" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <rect x="7" y="5" width="18" height="22" rx="4"></rect>
+          <path d="M11 9h2"></path>
+          <path d="M17 9h4"></path>
+          <circle cx="16" cy="18" r="6"></circle>
+          <path d="M12.5 18c1.2-1.4 2.4-1.4 3.5 0s2.3 1.4 3.5 0"></path>
+        </svg>
+        <span class="brand-word brand-word-main">Kalkulator</span>
+        <span class="brand-word brand-word-accent">Laundry</span>
+      </div>
     </div>
     <div class="save-status" id="saveStatus"></div>
   </header>
@@ -71,7 +81,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
   <div id="appRoot" style="display:none;">
 
     <!-- ===================================================================
-         LAYAR: MENU UTAMA Ã¢â‚¬â€ gerbang ke "Cabang & Lokasi" dan "Master Biaya"
+         LAYAR: MENU UTAMA ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â gerbang ke "Cabang & Lokasi" dan "Master Biaya"
     =================================================================== -->
     <section class="screen" id="screenMenu">
       <div class="dashboard-header">
@@ -350,7 +360,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     </section>
 
     <!-- ===================================================================
-         LAYAR: MASTER BIAYA Ã¢â‚¬â€ pilih kategori (saat ini hanya Gas aktif)
+         LAYAR: MASTER BIAYA ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â pilih kategori (saat ini hanya Gas aktif)
     =================================================================== -->
     <section class="screen" id="screenMasterBiaya">
       <div class="list-header">
@@ -575,7 +585,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
 
 
     <!-- ===================================================================
-         LAYAR: STRUKTUR BIAYA HPP Ã¢â‚¬â€ pilih outlet
+         LAYAR: STRUKTUR BIAYA HPP ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â pilih outlet
     =================================================================== -->
     <section class="screen" id="screenStrukturHPPList">
       <div class="list-header">
@@ -591,7 +601,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     </section>
 
     <!-- ===================================================================
-         LAYAR: STRUKTUR BIAYA HPP Ã¢â‚¬â€ detail hasil
+         LAYAR: STRUKTUR BIAYA HPP ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â detail hasil
     =================================================================== -->
     <section class="screen" id="screenStrukturHPPDetail">
       <div class="hpp-structure-head">
@@ -608,7 +618,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
 
 
     <!-- ===================================================================
-         LAYAR: HARGA LAYANAN Ã¢â‚¬â€ pilih outlet
+         LAYAR: HARGA LAYANAN ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â pilih outlet
     =================================================================== -->
     <section class="screen" id="screenHargaLayananList">
       <div class="list-header">
@@ -624,7 +634,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     </section>
 
     <!-- ===================================================================
-         LAYAR: HARGA LAYANAN Ã¢â‚¬â€ detail per outlet
+         LAYAR: HARGA LAYANAN ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â detail per outlet
     =================================================================== -->
     <section class="screen" id="screenHargaLayananDetail">
       <div class="hl-head">
@@ -652,7 +662,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     </section>
 
     <!-- ===================================================================
-         LAYAR: BIAYA TETAP OUTLET Ã¢â‚¬â€ pilih outlet
+         LAYAR: BIAYA TETAP OUTLET ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â pilih outlet
     =================================================================== -->
     <section class="screen" id="screenBiayaTetapList">
       <div class="list-header">
@@ -668,7 +678,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     </section>
 
     <!-- ===================================================================
-         LAYAR: BIAYA TETAP OUTLET Ã¢â‚¬â€ form & rangkuman
+         LAYAR: BIAYA TETAP OUTLET ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â form & rangkuman
     =================================================================== -->
     <section class="screen" id="screenBiayaTetapForm">
       <div class="fc-head">
@@ -791,7 +801,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
 
   /*
    * =========================================================================
-   * SHARED FUNCTIONS â€” digabung kembali ke Index.html
+   * SHARED FUNCTIONS Ã¢â‚¬â€ digabung kembali ke Index.html
    * Urutan: Helper -> Formatter -> UI -> Validator
    * =========================================================================
    */
@@ -986,7 +996,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     screen: "menu",
     editingId: null,
     isNew: false,
-    kategoriBiayaAktif: "gas", // "gas" | "listrik" | "air" | "notaKasir" Ã¢â‚¬â€ menentukan tujuan saat pilih cabang di screenMasterBiaya
+    kategoriBiayaAktif: "gas", // "gas" | "listrik" | "air" | "notaKasir" ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â menentukan tujuan saat pilih cabang di screenMasterBiaya
     gasCabangId: null,
     gasEditingId: null,
     gasIsNew: false,
@@ -1071,7 +1081,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
   /**
    * Salinan rumus computeBiayaGasSummary_ dari Code.gs, untuk pratinjau
    * instan di form (tanpa menunggu roundtrip ke server). Backend tetap
-   * sumber kebenaran tunggal saat data disimpan Ã¢â‚¬â€ lihat catatan di Code.gs.
+   * sumber kebenaran tunggal saat data disimpan ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â lihat catatan di Code.gs.
    */
   function computeBiayaGasSummaryClient(record, dryer) {
     var durasiLoadMenit = dryer ? (Number(dryer.durasiMenit) || 0) : 0;
@@ -1105,7 +1115,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
 
   function machineDisplayName(m) {
     var jenis = JENIS_MESIN_LABEL[m.jenis] || "Mesin";
-    return jenis + " Ã‚Â· " + (m.durasiMenit || 0) + " mnt";
+    return jenis + " Ãƒâ€šÃ‚Â· " + (m.durasiMenit || 0) + " mnt";
   }
 
   var BIAYA_GAS_PRESET = [
@@ -1119,7 +1129,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
    * =========================================================================
    * NAVIGASI ANTAR LAYAR
    * -------------------------------------------------------------------------
-   * SCREEN_STACK mendefinisikan "induk" tiap layar untuk tombol Kembali (Ã¢â€ Â).
+   * SCREEN_STACK mendefinisikan "induk" tiap layar untuk tombol Kembali (ÃƒÂ¢Ã¢â‚¬Â Ã‚Â).
    * Ditambah entri untuk layar Master Biaya tanpa mengubah entri yang sudah
    * ada (list/ringkasan/form tetap balik ke "list" atau parent masing-masing).
    * =========================================================================
@@ -1319,7 +1329,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
               return (
                 '<div class="dashboard-outlet-row">' +
                   '<span class="dashboard-outlet-name">' + escapeHtml(row.namaLaundry) + '</span>' +
-                  '<span class="dashboard-outlet-value">Cuci ' + escapeHtml(row.loadCuciPerBulan || 0) + ' · Kering ' + escapeHtml(row.loadKeringPerBulan || 0) + ' load/bln</span>' +
+                  '<span class="dashboard-outlet-value">Cuci ' + escapeHtml(row.loadCuciPerBulan || 0) + ' Â· Kering ' + escapeHtml(row.loadKeringPerBulan || 0) + ' load/bln</span>' +
                 '</div>'
               );
             }).join("") +
@@ -1406,7 +1416,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
               if (row.isReady) {
                 value = row.hppCuciKering > 0
                   ? "CK " + formatDashboardRp(row.hppCuciKering)
-                  : "Range " + formatDashboardRp(row.hppMin) + "–" + formatDashboardRp(row.hppMax);
+                  : "Range " + formatDashboardRp(row.hppMin) + "â€“" + formatDashboardRp(row.hppMax);
               }
 
               var pill = row.warningsCount > 0
@@ -1461,7 +1471,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
               return (
                 '<div class="dashboard-outlet-row is-' + escapeHtml(pillClass) + '">' +
                   '<span class="dashboard-outlet-name">' + escapeHtml(row.namaLaundry) + '</span>' +
-                  '<span class="dashboard-outlet-value">Aman ' + escapeHtml(row.amanCount || 0) + ' · Tipis ' + escapeHtml(row.tipisCount || 0) + ' · Rugi ' + escapeHtml(row.rugiCount || 0) + ' <span class="dashboard-status-pill ' + escapeHtml(pillClass) + '">' + escapeHtml(pillText) + '</span></span>' +
+                  '<span class="dashboard-outlet-value">Aman ' + escapeHtml(row.amanCount || 0) + ' Â· Tipis ' + escapeHtml(row.tipisCount || 0) + ' Â· Rugi ' + escapeHtml(row.rugiCount || 0) + ' <span class="dashboard-status-pill ' + escapeHtml(pillClass) + '">' + escapeHtml(pillText) + '</span></span>' +
                 '</div>'
               );
             }).join("") +
@@ -2178,7 +2188,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
 
   /**
    * ===========================================================================
-   * SECTION: MASTER BIAYA Ã¢â‚¬â€ GAS LPG
+   * SECTION: MASTER BIAYA ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â GAS LPG
    * ===========================================================================
    * Semua fungsi di bawah ini diberi prefix "gas"/"Gas" secara konsisten,
    * supaya kalau nanti dipecah ke file Index lain (mis. MasterBiaya.html
@@ -2190,7 +2200,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
   /**
    * selectKategoriBiaya: dipanggil saat user klik pill kategori di
    * screenMasterBiaya. Hanya menukar view.kategoriBiayaAktif dan re-render
-   * tampilan pill aktif Ã¢â‚¬â€ TIDAK perlu reload daftar cabang, karena daftar
+   * tampilan pill aktif ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â TIDAK perlu reload daftar cabang, karena daftar
    * cabang sama untuk semua kategori, hanya tujuan navigasinya yang beda
    * (lihat renderBiayaPickCabangList -> openGasList vs openListrikForm).
    */
@@ -2253,7 +2263,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
    * openGasList: masuk ke daftar kartu "Analisa Biaya Gas" untuk satu cabang.
    * Memanggil listBiayaGas(cabangId) yang mengembalikan SEKALIGUS profil
    * cabang ringkas (untuk judul + dropdown dryer) dan seluruh record gas
-   * dengan summary masing-masing Ã¢â‚¬â€ jadi cukup satu roundtrip.
+   * dengan summary masing-masing ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â jadi cukup satu roundtrip.
    */
   function openGasList(cabangId) {
     view.gasCabangId = cabangId;
@@ -2273,7 +2283,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
         }
         gasCabangCache = res.data.cabang;
         gasItemsCache = res.data.items;
-        document.getElementById("gasListTitle").textContent = "Analisa Biaya Gas Ã‚Â· " + (gasCabangCache.namaLaundry || "(Tanpa nama)");
+        document.getElementById("gasListTitle").textContent = "Analisa Biaya Gas Ãƒâ€šÃ‚Â· " + (gasCabangCache.namaLaundry || "(Tanpa nama)");
         renderGasList();
       })
       .withFailureHandler(function (err) {
@@ -2563,7 +2573,7 @@ function selectGasCustom() {
     dryers.forEach(function (m, idx) {
       var opt = document.createElement("option");
       opt.value = m.id;
-      opt.textContent = "Unit #" + (idx + 1) + " Ã‚Â· " + machineDisplayName(m);
+      opt.textContent = "Unit #" + (idx + 1) + " Ãƒâ€šÃ‚Â· " + machineDisplayName(m);
       if (m.id === gasFormState.dryerRefId) opt.selected = true;
       select.appendChild(opt);
     });
@@ -2636,7 +2646,7 @@ function selectGasCustom() {
 
   function saveGasForm() {
     // Validasi ringan di sisi klien dulu (UX cepat), validasi penuh & otoritatif
-    // tetap di backend (validateBiayaGas_) Ã¢â‚¬â€ lihat catatan arsitektur Code.gs.
+    // tetap di backend (validateBiayaGas_) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â lihat catatan arsitektur Code.gs.
     var isCustom = !BIAYA_GAS_PRESET.some(function (p) { return p.label === gasFormState.kapasitasLabel; });
     if (isCustom) {
       var customKg = Number(document.getElementById("gasKapasitasCustomKg").value) || 0;
@@ -2689,7 +2699,7 @@ function selectGasCustom() {
 
   /**
    * ===========================================================================
-   * SECTION: MASTER BIAYA Ã¢â‚¬â€ LISTRIK
+   * SECTION: MASTER BIAYA ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â LISTRIK
    * ===========================================================================
    * Semua fungsi di bawah ini diberi prefix "listrik"/"Listrik" secara
    * konsisten, mengikuti pola prefix "gas"/"Gas" di section sebelumnya.
@@ -2705,7 +2715,7 @@ function selectGasCustom() {
 
   function listrikMachineLabel(m, index) {
     var jenis = JENIS_MESIN_LABEL_CLIENT[m.jenis] || "Mesin";
-    return "Unit #" + (index + 1) + " Ã‚Â· " + jenis + " Ã‚Â· " + (m.durasiMenit || 0) + " mnt";
+    return "Unit #" + (index + 1) + " Ãƒâ€šÃ‚Â· " + jenis + " Ãƒâ€šÃ‚Â· " + (m.durasiMenit || 0) + " mnt";
   }
 
   /**
@@ -2756,7 +2766,7 @@ function selectGasCustom() {
   /**
    * openListrikForm: masuk ke layar konfigurasi listrik untuk satu cabang.
    * getBiayaListrik(cabangId) mengembalikan default (TDL 1700, watt 0) jika
-   * cabang belum pernah mengisi Ã¢â‚¬â€ BUKAN error Ã¢â‚¬â€ sehingga layar tetap mulus
+   * cabang belum pernah mengisi ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â BUKAN error ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â sehingga layar tetap mulus
    * dibuka pertama kali.
    */
   function openListrikForm(cabangId) {
@@ -2775,7 +2785,7 @@ function selectGasCustom() {
         }
         listrikCabangCache = res.data.cabang;
         listrikFormState = res.data.record;
-        document.getElementById("listrikTitle").textContent = "Analisa Biaya Listrik Ã‚Â· " + (listrikCabangCache.namaLaundry || "(Tanpa nama)");
+        document.getElementById("listrikTitle").textContent = "Analisa Biaya Listrik Ãƒâ€šÃ‚Â· " + (listrikCabangCache.namaLaundry || "(Tanpa nama)");
         renderListrikForm();
         setSaveStatus("", "");
       })
@@ -2864,9 +2874,9 @@ function selectGasCustom() {
 
     var hintEl = document.getElementById("listrikPompaHint");
     if (summary.totalUnitMesinCuci > 0) {
-      hintEl.textContent = "Dialokasikan rata ke " + summary.totalUnitMesinCuci + " unit mesin cuci di profil cabang ini (Ã¢â€°Ë† " + formatNum(summary.wattPompaPerMesinCuci) + " W / mesin).";
+      hintEl.textContent = "Dialokasikan rata ke " + summary.totalUnitMesinCuci + " unit mesin cuci di profil cabang ini (ÃƒÂ¢Ã¢â‚¬Â°Ã‹â€  " + formatNum(summary.wattPompaPerMesinCuci) + " W / mesin).";
     } else {
-      hintEl.textContent = "Belum ada mesin cuci di profil cabang ini Ã¢â‚¬â€ beban pompa belum bisa dialokasikan.";
+      hintEl.textContent = "Belum ada mesin cuci di profil cabang ini ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â beban pompa belum bisa dialokasikan.";
     }
   }
 
@@ -2901,7 +2911,7 @@ function selectGasCustom() {
 
   /**
    * Input hanya memperbarui listrikFormState di memori + pratinjau real-time.
-   * TIDAK mengirim apapun ke server di sini Ã¢â‚¬â€ pengiriman hanya terjadi saat
+   * TIDAK mengirim apapun ke server di sini ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â pengiriman hanya terjadi saat
    * tombol "Simpan perubahan" diklik (saveListrikFormManual).
    */
   function bindListrikFormInputs() {
@@ -2943,7 +2953,7 @@ function selectGasCustom() {
         }
         airCabangCache = res.data.cabang;
         airFormState = res.data.record;
-        document.getElementById("airTitle").textContent = "Analisa Biaya Air Ã‚Â· " + (airCabangCache.namaLaundry || "(Tanpa nama)");
+        document.getElementById("airTitle").textContent = "Analisa Biaya Air Ãƒâ€šÃ‚Â· " + (airCabangCache.namaLaundry || "(Tanpa nama)");
         renderAirForm();
         setSaveStatus("", "");
       })
@@ -2963,7 +2973,7 @@ function selectGasCustom() {
 
     showScreen("notaKasirForm");
     document.getElementById("notaKasirTitle").textContent =
-      "Admin/Nota Kasir" + (notaKasirCabangCache.namaLaundry ? " Ã‚Â· " + notaKasirCabangCache.namaLaundry : "");
+      "Admin/Nota Kasir" + (notaKasirCabangCache.namaLaundry ? " Ãƒâ€šÃ‚Â· " + notaKasirCabangCache.namaLaundry : "");
     renderNotaKasirForm();
     setSaveStatus("", "");
 
@@ -2977,7 +2987,7 @@ function selectGasCustom() {
         notaKasirCabangCache = res.data.cabang || notaKasirCabangCache;
         notaKasirFormState = res.data.record || notaKasirFormState;
         document.getElementById("notaKasirTitle").textContent =
-          "Admin/Nota Kasir" + (notaKasirCabangCache.namaLaundry ? " Ã‚Â· " + notaKasirCabangCache.namaLaundry : "");
+          "Admin/Nota Kasir" + (notaKasirCabangCache.namaLaundry ? " Ãƒâ€šÃ‚Â· " + notaKasirCabangCache.namaLaundry : "");
         renderNotaKasirForm();
         setSaveStatus("", "");
       })
@@ -3302,7 +3312,7 @@ function selectGasCustom() {
     if (airFormState.sumberAir === "pdam") {
       container.innerHTML = `
         <div class="field">
-          <label for="airPdamHarga">Harga air per mÃ‚Â³ (Rp)</label>
+          <label for="airPdamHarga">Harga air per mÃƒâ€šÃ‚Â³ (Rp)</label>
           <input type="number" inputmode="decimal" min="0" step="0.01" id="airPdamHarga" placeholder="Contoh: 3000">
           <div class="field-hint">Sesuaikan dengan tarif PDAM area laundry Anda.</div>
         </div>
@@ -3926,7 +3936,7 @@ window.saveAirForm = saveAirForm;
   function createBiayaTetapDepresiasiRowHtml(row) {
     return '' +
       '<div class="fc-dynamic-row fc-dep-row" data-key="' + escapeJsAttr(row.key || "") + '" data-group="' + escapeJsAttr(row.group || "") + '" data-machine-ref-id="' + escapeJsAttr(row.machineRefId || "") + '" data-nama-mesin="' + escapeJsAttr(row.namaMesin || "") + '" data-jenis-mesin="' + escapeJsAttr(row.jenisMesin || "") + '" data-jumlah-unit="' + Number(row.jumlahUnit || 0) + '">' +
-        '<div class="fc-row-top"><div><div class="fc-row-title">' + escapeHtml(row.namaMesin || "Mesin") + '</div><div class="fc-row-subtitle">Tipe: ' + escapeHtml(row.jenisMesin || "-") + ' Ã‚Â· Unit: ' + Number(row.jumlahUnit || 0) + '</div></div></div>' +
+        '<div class="fc-row-top"><div><div class="fc-row-title">' + escapeHtml(row.namaMesin || "Mesin") + '</div><div class="fc-row-subtitle">Tipe: ' + escapeHtml(row.jenisMesin || "-") + ' Ãƒâ€šÃ‚Â· Unit: ' + Number(row.jumlahUnit || 0) + '</div></div></div>' +
         '<div class="fc-input-grid three">' +
           '<div class="field"><label>Harga beli / unit</label><input type="number" class="fc-dep-harga" min="0" step="1" value="' + Number(row.hargaBeliPerUnit || 0) + '" oninput="refreshBiayaTetapPreview()"></div>' +
           '<div class="field"><label>Nilai residu / unit</label><input type="number" class="fc-dep-residu" min="0" step="1" value="' + Number(row.nilaiResiduPerUnit || 0) + '" oninput="refreshBiayaTetapPreview()"></div>' +
@@ -4313,7 +4323,7 @@ window.saveAirForm = saveAirForm;
     var breakdownHtml = layanan.map(function (item) {
       var harga = Number(item.hargaJual || 0);
       var margin = Number(item.margin || 0);
-      var label = harga > 0 ? money0(harga) + ' Ã‚Â· Margin ' + money0(margin) + ' Ã‚Â· % Margin ' + formatNum(Number(item.marginPercent || 0)) + '%' : 'Belum diisi';
+      var label = harga > 0 ? money0(harga) + ' Ãƒâ€šÃ‚Â· Margin ' + money0(margin) + ' Ãƒâ€šÃ‚Â· % Margin ' + formatNum(Number(item.marginPercent || 0)) + '%' : 'Belum diisi';
       return '<div class="fc-list-breakdown-row"><span class="k">' + escapeHtml(item.title || '-') + '</span><span class="v">' + escapeHtml(label) + '</span></div>';
     }).join("");
 
@@ -4636,3 +4646,4 @@ window.saveAirForm = saveAirForm;
 
 </body>
 </html>
+

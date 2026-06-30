@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 ===============================================================================
 FILE: Style_Base.html
 PROJECT: Kalkulator Laundry Versi 002
@@ -76,37 +76,15 @@ Jika ada masalah layout dasar seperti body kepotong, header, tombol back, atau s
   .back-btn:hover { border-color: var(--sage); color: var(--sage); }
 
   .brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-    min-width: 0;
-    max-width: 100%;
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: clamp(22px, 5.4vw, 24px);
-    line-height: 1.1;
-    letter-spacing: -0.02em;
+    font-size: 19px;
+    letter-spacing: -0.01em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: #1A1A1A;
   }
-
-  .brand-icon {
-    width: clamp(28px, 7vw, 32px);
-    height: clamp(28px, 7vw, 32px);
-    flex: 0 0 auto;
-    color: var(--brass);
-    stroke: currentColor;
-    fill: none;
-    stroke-width: 1.8;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-
-  .brand-word-accent {
-    color: var(--brass);
-  }
+  .brand span { color: var(--brass); }
 
   .save-status {
     font-family: var(--font-mono);
