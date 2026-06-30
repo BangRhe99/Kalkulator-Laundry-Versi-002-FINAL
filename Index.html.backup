@@ -85,8 +85,9 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     =================================================================== -->
     <section class="screen" id="screenMenu">
       <div class="dashboard-header">
+        <div class="dashboard-eyebrow">Menu Utama</div>
         <h1 class="dashboard-title">Dashboard Bisnis</h1>
-        <p class="dashboard-subtitle">Ringkasan kondisi outlet Anda saat ini.</p>
+        <p class="dashboard-subtitle">Ringkasan kondisi outlet berdasarkan data yang sudah diisi.</p>
       </div>
 
       <div class="menu-grid dashboard-grid">
