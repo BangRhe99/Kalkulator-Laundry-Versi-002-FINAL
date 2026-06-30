@@ -78,8 +78,7 @@ Jika ada masalah layout dasar seperti body kepotong, header, tombol back, atau s
   .brand {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    word-spacing: -3px;
+    gap: 9px;
     min-width: 0;
     max-width: 100%;
     font-family: var(--font-display);
