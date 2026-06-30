@@ -4641,3 +4641,25 @@ window.saveAirForm = saveAirForm;
 </body>
 </html>
 
+
+<script>
+(function() {
+  window.addEventListener("load", function() {
+    setTimeout(function() {
+      var docWidth = document.documentElement.clientWidth;
+      var allEls = document.querySelectorAll("*");
+      var overflowing = [];
+      allEls.forEach(function(el) {
+        if (el.scrollWidth > docWidth + 2) {
+          overflowing.push(el.tagName + (el.className ? "." + String(el.className).replace(/\s+/g, ".") : "") + " (width: " + el.scrollWidth + "px, screen: " + docWidth + "px)");
+        }
+      });
+      if (overflowing.length > 0) {
+        alert("ELEMEN OVERFLOW DITEMUKAN:\n\n" + overflowing.slice(0, 10).join("\n\n"));
+      } else {
+        alert("Tidak ada elemen yang overflow. Lebar layar: " + docWidth + "px");
+      }
+    }, 1500);
+  });
+})();
+</script>
