@@ -94,6 +94,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           <div class="menu-icon">&#127981;</div>
           <div class="menu-body">
             <div class="menu-title">Profil Outlet</div>
+            <div class="menu-desc">Kelola profil outlet, mesin, jam operasional, dan kapasitas.</div>
             <div class="dashboard-card-summary is-loading" id="dashboardCabangSummary">Memuat data...</div>
           </div>
           <div class="menu-arrow">&#8594;</div>
@@ -103,6 +104,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           <div class="menu-icon">&#128293;</div>
           <div class="menu-body">
             <div class="menu-title">Master Biaya</div>
+            <div class="menu-desc">Kelengkapan data Gas, Listrik, Air, dan Nota per outlet.</div>
             <div class="dashboard-card-summary is-loading" id="dashboardMasterBiayaSummary">Memuat data...</div>
           </div>
           <div class="menu-arrow">&#8594;</div>
@@ -112,6 +114,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           <div class="menu-icon">&#128202;</div>
           <div class="menu-body">
             <div class="menu-title">Struktur Biaya HPP</div>
+            <div class="menu-desc">Ringkasan HPP per layanan dan outlet.</div>
             <div class="dashboard-card-summary is-loading" id="dashboardHppSummary">Memuat data...</div>
           </div>
           <div class="menu-arrow">&#8594;</div>
@@ -121,6 +124,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           <div class="menu-icon">&#128176;</div>
           <div class="menu-body">
             <div class="menu-title">Harga Layanan</div>
+            <div class="menu-desc">Pantau margin, harga yang belum diisi, dan layanan berisiko rugi.</div>
             <div class="dashboard-card-summary is-loading" id="dashboardHargaLayananSummary">Memuat data...</div>
           </div>
           <div class="menu-arrow">&#8594;</div>
@@ -130,6 +134,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           <div class="menu-icon">&#128179;</div>
           <div class="menu-body">
             <div class="menu-title">Biaya Tetap Outlet (Fixed Cost)</div>
+            <div class="menu-desc">Total fixed cost bulanan per outlet.</div>
             <div class="dashboard-card-summary is-loading" id="dashboardFixedCostSummary">Memuat data...</div>
           </div>
           <div class="menu-arrow">&#8594;</div>

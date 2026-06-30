@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 ===============================================================================
 FILE: Style_Components.html
 PROJECT: Kalkulator Laundry Versi 002
@@ -56,15 +56,6 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
     font-size: 15.5px;
     font-weight: 600;
     margin-bottom: 3px;
-  }
-
-  .dashboard-card .menu-title {
-    font-size: 12.5px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--text-faint);
-    margin-bottom: 8px;
   }
   .menu-card .menu-desc { font-size: 12.5px; color: var(--text-faint); line-height: 1.4; }
   .menu-card .menu-arrow { color: var(--text-faint); font-size: 16px; flex-shrink: 0; }
