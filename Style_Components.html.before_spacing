@@ -139,7 +139,6 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
     font-size: 12.5px;
     color: var(--text-dim);
     line-height: 1.5;
-    margin-bottom: 8px;
   }
 
   .dashboard-grid .dashboard-card {
