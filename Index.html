@@ -1420,11 +1420,12 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
       .listCabang();
 
 
-    loadDashboardCabang();
-    loadDashboardMasterBiaya();
-    loadDashboardHPP();
-    loadDashboardHargaLayanan();
-    loadDashboardFixedCost();
+    var cId = dashboardSelectedOutletId || null;
+    loadDashboardCabang(cId);
+    loadDashboardMasterBiaya(cId);
+    loadDashboardHPP(cId);
+    loadDashboardHargaLayanan(cId);
+    loadDashboardFixedCost(cId);
   }
 
   function loadDashboardCabang(cabangId) {
