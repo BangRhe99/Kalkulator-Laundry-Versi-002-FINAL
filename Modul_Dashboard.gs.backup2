@@ -334,7 +334,7 @@ function getDashboardHargaLayananSummary(cabangId) {
   }
 }
 
-function getDashboardFixedCostSummary(cabangId) {
+function getDashboardFixedCostSummary() {
   try {
     if (typeof listBiayaTetapOutletSummaries !== "function") {
       return {
@@ -368,8 +368,7 @@ function getDashboardFixedCostSummary(cabangId) {
       };
     });
 
-    const filteredRows = cabangId ? rows.filter(function(r) { return r.cabangId === cabangId; }) : rows;
-    const totalFixedCostPerBulan = dashboardRound2_(filteredRows.reduce(function (sum, row) {
+    const totalFixedCostPerBulan = dashboardRound2_(rows.reduce(function (sum, row) {
       return sum + dashboardNumber_(row.totalPerBulan, 0);
     }, 0));
 

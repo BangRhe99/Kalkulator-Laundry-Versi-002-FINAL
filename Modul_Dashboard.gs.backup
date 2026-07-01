@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ============================================================================
  * MODUL: DASHBOARD MENU UTAMA
  * ============================================================================
@@ -67,14 +67,12 @@ function dashboardOutletName_(item) {
   return String(item.namaLaundry || item.nama || item.namaCabang || "Outlet tanpa nama");
 }
 
-function getDashboardCabangSummary(cabangId) {
+function getDashboardCabangSummary() {
   try {
     const cabangRes = dashboardGetCabangRows_();
     if (!cabangRes.ok) return cabangRes;
 
-    const allRows = cabangRes.data;
-    const filtered = cabangId ? allRows.filter(function(r) { return r.id === cabangId; }) : allRows;
-    const rows = filtered.map(function (item) {
+    const rows = cabangRes.data.map(function (item) {
       const summary = item.summary || {};
       const cuci = summary.cuci || {};
       const kering = summary.kering || {};
@@ -102,14 +100,12 @@ function getDashboardCabangSummary(cabangId) {
   }
 }
 
-function getDashboardMasterBiayaSummary(cabangId) {
+function getDashboardMasterBiayaSummary() {
   try {
     const cabangRes = dashboardGetCabangRows_();
     if (!cabangRes.ok) return cabangRes;
 
-    const allRows = cabangRes.data;
-    const filtered = cabangId ? allRows.filter(function(r) { return r.id === cabangId; }) : allRows;
-    const rows = filtered.map(function (item) {
+    const rows = cabangRes.data.map(function (item) {
       const cabangId = String(item.id || "");
       const missing = [];
       let lengkapCount = 0;
@@ -176,14 +172,12 @@ function getDashboardMasterBiayaSummary(cabangId) {
   }
 }
 
-function getDashboardHPPSummary(cabangId) {
+function getDashboardHPPSummary() {
   try {
     const cabangRes = dashboardGetCabangRows_();
     if (!cabangRes.ok) return cabangRes;
 
-    const allRows = cabangRes.data;
-    const filtered = cabangId ? allRows.filter(function(r) { return r.id === cabangId; }) : allRows;
-    const rows = filtered.map(function (item) {
+    const rows = cabangRes.data.map(function (item) {
       const cabangId = String(item.id || "");
       let layanan = [];
       let warnings = [];
@@ -244,14 +238,12 @@ function getDashboardHPPSummary(cabangId) {
   }
 }
 
-function getDashboardHargaLayananSummary(cabangId) {
+function getDashboardHargaLayananSummary() {
   try {
     const cabangRes = dashboardGetCabangRows_();
     if (!cabangRes.ok) return cabangRes;
 
-    const allRows = cabangRes.data;
-    const filtered = cabangId ? allRows.filter(function(r) { return r.id === cabangId; }) : allRows;
-    const rows = filtered.map(function (item) {
+    const rows = cabangRes.data.map(function (item) {
       const cabangId = String(item.id || "");
       let layanan = [];
       let warnings = [];
@@ -334,7 +326,7 @@ function getDashboardHargaLayananSummary(cabangId) {
   }
 }
 
-function getDashboardFixedCostSummary(cabangId) {
+function getDashboardFixedCostSummary() {
   try {
     if (typeof listBiayaTetapOutletSummaries !== "function") {
       return {
@@ -368,8 +360,7 @@ function getDashboardFixedCostSummary(cabangId) {
       };
     });
 
-    const filteredRows = cabangId ? rows.filter(function(r) { return r.cabangId === cabangId; }) : rows;
-    const totalFixedCostPerBulan = dashboardRound2_(filteredRows.reduce(function (sum, row) {
+    const totalFixedCostPerBulan = dashboardRound2_(rows.reduce(function (sum, row) {
       return sum + dashboardNumber_(row.totalPerBulan, 0);
     }, 0));
 

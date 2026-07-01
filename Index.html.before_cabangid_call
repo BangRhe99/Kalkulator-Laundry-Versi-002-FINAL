@@ -1418,7 +1418,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     loadDashboardFixedCost();
   }
 
-  function loadDashboardCabang(cabangId) {
+  function loadDashboardCabang() {
     google.script.run
       .withSuccessHandler(function (res) {
         if (!res || !res.ok) {
@@ -1456,10 +1456,10 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
       .withFailureHandler(function (err) {
         setDashboardCardError("dashboardCabangSummary", err && err.message ? err.message : String(err));
       })
-      .getDashboardCabangSummary(cabangId);
+      .getDashboardCabangSummary();
   }
 
-  function loadDashboardMasterBiaya(cabangId) {
+  function loadDashboardMasterBiaya() {
     google.script.run
       .withSuccessHandler(function (res) {
         if (!res || !res.ok) {
@@ -1501,10 +1501,10 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
       .withFailureHandler(function (err) {
         setDashboardCardError("dashboardMasterBiayaSummary", err && err.message ? err.message : String(err));
       })
-      .getDashboardMasterBiayaSummary(cabangId);
+      .getDashboardMasterBiayaSummary();
   }
 
-  function loadDashboardHPP(cabangId) {
+  function loadDashboardHPP() {
     google.script.run
       .withSuccessHandler(function (res) {
         if (!res || !res.ok) {
@@ -1553,10 +1553,10 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
       .withFailureHandler(function (err) {
         setDashboardCardError("dashboardHppSummary", err && err.message ? err.message : String(err));
       })
-      .getDashboardHPPSummary(cabangId);
+      .getDashboardHPPSummary();
   }
 
-  function loadDashboardHargaLayanan(cabangId) {
+  function loadDashboardHargaLayanan() {
     google.script.run
       .withSuccessHandler(function (res) {
         if (!res || !res.ok) {
@@ -1598,10 +1598,10 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
       .withFailureHandler(function (err) {
         setDashboardCardError("dashboardHargaLayananSummary", err && err.message ? err.message : String(err));
       })
-      .getDashboardHargaLayananSummary(cabangId);
+      .getDashboardHargaLayananSummary();
   }
 
-  function loadDashboardFixedCost(cabangId) {
+  function loadDashboardFixedCost() {
     google.script.run
       .withSuccessHandler(function (res) {
         if (!res || !res.ok) {
@@ -1643,7 +1643,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
       .withFailureHandler(function (err) {
         setDashboardCardError("dashboardFixedCostSummary", err && err.message ? err.message : String(err));
       })
-      .getDashboardFixedCostSummary(cabangId);
+      .getDashboardFixedCostSummary();
   }
 
   window.openScreenCabangList = function () {
