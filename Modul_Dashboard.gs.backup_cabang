@@ -86,9 +86,7 @@ function getDashboardCabangSummary(cabangId) {
         totalUnitCuci: dashboardNumber_(item.totalUnitCuci, 0),
         totalUnitPengering: dashboardNumber_(item.totalUnitPengering, 0),
         loadCuciPerBulan: dashboardRound2_(cuci.loadPerBulan),
-        loadKeringPerBulan: dashboardRound2_(kering.loadPerBulan),
-        jamBukaMenit: dashboardNumber_(item.jamBukaMenit, 0),
-        jamTutupMenit: dashboardNumber_(item.jamTutupMenit, 0)
+        loadKeringPerBulan: dashboardRound2_(kering.loadPerBulan)
       };
     });
 

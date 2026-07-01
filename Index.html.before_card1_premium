@@ -1445,40 +1445,18 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
         }
 
         var shown = rows.slice(0, 3);
-        var html = rows.slice(0, 1).map(function (row) {
-          var jamBuka = row.jamBukaMenit != null ? row.jamBukaMenit : 0;
-          var jamTutup = row.jamTutupMenit != null ? row.jamTutupMenit : 0;
-          var totalMenit = jamTutup > jamBuka ? jamTutup - jamBuka : (jamTutup + 1440 - jamBuka);
-          var jamOps = Math.floor(totalMenit / 60);
-          var jamBukaStr = Math.floor(jamBuka/60) + "." + (jamBuka%60 < 10 ? "0" : "") + (jamBuka%60);
-          var jamTutupStr = Math.floor(jamTutup/60) + "." + (jamTutup%60 < 10 ? "0" : "") + (jamTutup%60);
-          var kategoriLabel = row.kategoriLayanan === "self_service" ? "Self Service" : (row.kategoriLayanan === "drop_off" ? "Drop Off" : (row.kategoriLayanan || "-"));
-          return (
-            "<div class=""profil-outlet-card"">" +
-              "<div class=""profil-outlet-meta"">" +
-                "<span class=""profil-outlet-kategori"">" + escapeHtml(kategoriLabel) + "</span>" +
-                "<span class=""profil-outlet-jam"">" + jamBukaStr + " \u2013 " + jamTutupStr + " \u00B7 " + jamOps + " jam</span>" +
-              "</div>" +
-              "<div class=""profil-outlet-kpi"">" +
-                "<div class=""profil-kpi-item"">" +
-                  "<span class=""profil-kpi-label"">Cuci / bulan</span>" +
-                  "<span class=""profil-kpi-value"">" + escapeHtml(formatNum(row.loadCuciPerBulan || 0)) + "</span>" +
-                  "<span class=""profil-kpi-unit"">load</span>" +
-                "</div>" +
-                "<div class=""profil-kpi-divider""></div>" +
-                "<div class=""profil-kpi-item"">" +
-                  "<span class=""profil-kpi-label"">Kering / bulan</span>" +
-                  "<span class=""profil-kpi-value"">" + escapeHtml(formatNum(row.loadKeringPerBulan || 0)) + "</span>" +
-                  "<span class=""profil-kpi-unit"">load</span>" +
-                "</div>" +
-              "</div>" +
-              "<div class=""profil-outlet-mesin"">" +
-                "<span>\u26FA Cuci: " + escapeHtml(row.totalUnitCuci || 0) + " unit</span>" +
-                "<span>\u26FA Kering: " + escapeHtml(row.totalUnitPengering || 0) + " unit</span>" +
-              "</div>" +
-            "</div>"
-          );
-        }).join("");
+        var html =
+          '<div class="dashboard-outlet-list">' +
+            shown.map(function (row) {
+              return (
+                '<div class="dashboard-outlet-row">' +
+                  '<span class="dashboard-outlet-value">Cuci ' + escapeHtml(row.loadCuciPerBulan || 0) + ' · Kering ' + escapeHtml(row.loadKeringPerBulan || 0) + ' load/bln</span>' +
+                '</div>'
+              );
+            }).join("") +
+          '</div>' +
+          dashboardMoreRowsText(rows.length, shown.length);
+
         setDashboardCardHtml("dashboardCabangSummary", html);
       })
       .withFailureHandler(function (err) {
