@@ -1130,7 +1130,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
 
   function machineDisplayName(m) {
     var jenis = JENIS_MESIN_LABEL[m.jenis] || "Mesin";
-    return jenis + " · " + (m.durasiMenit || 0) + " mnt";
+    return jenis + " Ãƒâ€šÃ‚Â· " + (m.durasiMenit || 0) + " mnt";
   }
 
   var BIAYA_GAS_PRESET = [
@@ -1450,7 +1450,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             shown.map(function (row) {
               return (
                 '<div class="dashboard-outlet-row">' +
-                  '<span class="dashboard-outlet-value">Cuci ' + escapeHtml(row.loadCuciPerBulan || 0) + ' · Kering ' + escapeHtml(row.loadKeringPerBulan || 0) + ' load/bln</span>' +
+                  '<span class="dashboard-outlet-value">Cuci ' + escapeHtml(row.loadCuciPerBulan || 0) + ' Â· Kering ' + escapeHtml(row.loadKeringPerBulan || 0) + ' load/bln</span>' +
                 '</div>'
               );
             }).join("") +
@@ -2375,7 +2375,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
         }
         gasCabangCache = res.data.cabang;
         gasItemsCache = res.data.items;
-        document.getElementById("gasListTitle").textContent = "Analisa Biaya Gas · " + (gasCabangCache.namaLaundry || "(Tanpa nama)");
+        document.getElementById("gasListTitle").textContent = "Analisa Biaya Gas Ãƒâ€šÃ‚Â· " + (gasCabangCache.namaLaundry || "(Tanpa nama)");
         renderGasList();
       })
       .withFailureHandler(function (err) {
@@ -2665,7 +2665,7 @@ function selectGasCustom() {
     dryers.forEach(function (m, idx) {
       var opt = document.createElement("option");
       opt.value = m.id;
-      opt.textContent = "Unit #" + (idx + 1) + " · " + machineDisplayName(m);
+      opt.textContent = "Unit #" + (idx + 1) + " Ãƒâ€šÃ‚Â· " + machineDisplayName(m);
       if (m.id === gasFormState.dryerRefId) opt.selected = true;
       select.appendChild(opt);
     });
@@ -2807,7 +2807,7 @@ function selectGasCustom() {
 
   function listrikMachineLabel(m, index) {
     var jenis = JENIS_MESIN_LABEL_CLIENT[m.jenis] || "Mesin";
-    return "Unit #" + (index + 1) + " · " + jenis + " · " + (m.durasiMenit || 0) + " mnt";
+    return "Unit #" + (index + 1) + " Ãƒâ€šÃ‚Â· " + jenis + " Ãƒâ€šÃ‚Â· " + (m.durasiMenit || 0) + " mnt";
   }
 
   /**
@@ -2877,7 +2877,7 @@ function selectGasCustom() {
         }
         listrikCabangCache = res.data.cabang;
         listrikFormState = res.data.record;
-        document.getElementById("listrikTitle").textContent = "Analisa Biaya Listrik · " + (listrikCabangCache.namaLaundry || "(Tanpa nama)");
+        document.getElementById("listrikTitle").textContent = "Analisa Biaya Listrik Ãƒâ€šÃ‚Â· " + (listrikCabangCache.namaLaundry || "(Tanpa nama)");
         renderListrikForm();
         setSaveStatus("", "");
       })
@@ -3045,7 +3045,7 @@ function selectGasCustom() {
         }
         airCabangCache = res.data.cabang;
         airFormState = res.data.record;
-        document.getElementById("airTitle").textContent = "Analisa Biaya Air · " + (airCabangCache.namaLaundry || "(Tanpa nama)");
+        document.getElementById("airTitle").textContent = "Analisa Biaya Air Ãƒâ€šÃ‚Â· " + (airCabangCache.namaLaundry || "(Tanpa nama)");
         renderAirForm();
         setSaveStatus("", "");
       })
@@ -3065,7 +3065,7 @@ function selectGasCustom() {
 
     showScreen("notaKasirForm");
     document.getElementById("notaKasirTitle").textContent =
-      "Admin/Nota Kasir" + (notaKasirCabangCache.namaLaundry ? " · " + notaKasirCabangCache.namaLaundry : "");
+      "Admin/Nota Kasir" + (notaKasirCabangCache.namaLaundry ? " Ãƒâ€šÃ‚Â· " + notaKasirCabangCache.namaLaundry : "");
     renderNotaKasirForm();
     setSaveStatus("", "");
 
@@ -3079,7 +3079,7 @@ function selectGasCustom() {
         notaKasirCabangCache = res.data.cabang || notaKasirCabangCache;
         notaKasirFormState = res.data.record || notaKasirFormState;
         document.getElementById("notaKasirTitle").textContent =
-          "Admin/Nota Kasir" + (notaKasirCabangCache.namaLaundry ? " · " + notaKasirCabangCache.namaLaundry : "");
+          "Admin/Nota Kasir" + (notaKasirCabangCache.namaLaundry ? " Ãƒâ€šÃ‚Â· " + notaKasirCabangCache.namaLaundry : "");
         renderNotaKasirForm();
         setSaveStatus("", "");
       })
@@ -4028,7 +4028,7 @@ window.saveAirForm = saveAirForm;
   function createBiayaTetapDepresiasiRowHtml(row) {
     return '' +
       '<div class="fc-dynamic-row fc-dep-row" data-key="' + escapeJsAttr(row.key || "") + '" data-group="' + escapeJsAttr(row.group || "") + '" data-machine-ref-id="' + escapeJsAttr(row.machineRefId || "") + '" data-nama-mesin="' + escapeJsAttr(row.namaMesin || "") + '" data-jenis-mesin="' + escapeJsAttr(row.jenisMesin || "") + '" data-jumlah-unit="' + Number(row.jumlahUnit || 0) + '">' +
-        '<div class="fc-row-top"><div><div class="fc-row-title">' + escapeHtml(row.namaMesin || "Mesin") + '</div><div class="fc-row-subtitle">Tipe: ' + escapeHtml(row.jenisMesin || "-") + ' · Unit: ' + Number(row.jumlahUnit || 0) + '</div></div></div>' +
+        '<div class="fc-row-top"><div><div class="fc-row-title">' + escapeHtml(row.namaMesin || "Mesin") + '</div><div class="fc-row-subtitle">Tipe: ' + escapeHtml(row.jenisMesin || "-") + ' Ãƒâ€šÃ‚Â· Unit: ' + Number(row.jumlahUnit || 0) + '</div></div></div>' +
         '<div class="fc-input-grid three">' +
           '<div class="field"><label>Harga beli / unit</label><input type="number" class="fc-dep-harga" min="0" step="1" value="' + Number(row.hargaBeliPerUnit || 0) + '" oninput="refreshBiayaTetapPreview()"></div>' +
           '<div class="field"><label>Nilai residu / unit</label><input type="number" class="fc-dep-residu" min="0" step="1" value="' + Number(row.nilaiResiduPerUnit || 0) + '" oninput="refreshBiayaTetapPreview()"></div>' +
@@ -4415,7 +4415,7 @@ window.saveAirForm = saveAirForm;
     var breakdownHtml = layanan.map(function (item) {
       var harga = Number(item.hargaJual || 0);
       var margin = Number(item.margin || 0);
-      var label = harga > 0 ? money0(harga) + ' · Margin ' + money0(margin) + ' · % Margin ' + formatNum(Number(item.marginPercent || 0)) + '%' : 'Belum diisi';
+      var label = harga > 0 ? money0(harga) + ' Ãƒâ€šÃ‚Â· Margin ' + money0(margin) + ' Ãƒâ€šÃ‚Â· % Margin ' + formatNum(Number(item.marginPercent || 0)) + '%' : 'Belum diisi';
       return '<div class="fc-list-breakdown-row"><span class="k">' + escapeHtml(item.title || '-') + '</span><span class="v">' + escapeHtml(label) + '</span></div>';
     }).join("");
 
