@@ -2966,9 +2966,9 @@ function selectGasCustom() {
 
     var hintEl = document.getElementById("listrikPompaHint");
     if (summary.totalUnitMesinCuci > 0) {
-      hintEl.textContent = "Dialokasikan rata ke " + summary.totalUnitMesinCuci + " unit mesin cuci di profil cabang ini (ÃƒÂ¢Ã¢â‚¬Â°Ã‹â€  " + formatNum(summary.wattPompaPerMesinCuci) + " W / mesin).";
+      hintEl.textContent = "Dialokasikan rata ke " + summary.totalUnitMesinCuci + " unit mesin cuci di profil cabang ini (\u2248 " + formatNum(summary.wattPompaPerMesinCuci) + " W / mesin).";
     } else {
-      hintEl.textContent = "Belum ada mesin cuci di profil cabang ini ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â beban pompa belum bisa dialokasikan.";
+      hintEl.textContent = "Belum ada mesin cuci di profil cabang ini \u2014 beban pompa belum bisa dialokasikan.";
     }
   }
 
