@@ -146,15 +146,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           </div>
           <div class="menu-arrow">&#8594;</div>
         </div>
-
-        <div class="menu-card dashboard-card tone-volt" onclick="showScreen('strukturHPPList'); openStrukturHPPOutletList();">
-          <div class="menu-icon">&#127919;</div>
-          <div class="menu-body">
-            <div class="menu-title">Target Titik Impas (BEP)</div>
-            <div class="dashboard-card-summary is-loading" id="dashboardBEPSummary">Memuat data...</div>
-          </div>
-          <div class="menu-arrow">&#8594;</div>
-        </div>
       </div>
     </section>
 
@@ -1435,7 +1426,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     loadDashboardHPP(cId);
     loadDashboardHargaLayanan(cId);
     loadDashboardFixedCost(cId);
-    loadDashboardBEP(cId);
   }
 
   function loadDashboardCabang(cabangId) {
@@ -1661,71 +1651,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
         setDashboardCardError("dashboardFixedCostSummary", err && err.message ? err.message : String(err));
       })
       .getDashboardFixedCostSummary(cabangId);
-  }
-  function loadDashboardBEP(cabangId) {
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
-          setDashboardCardError("dashboardBEPSummary", res && res.error ? res.error : "Data BEP belum bisa dihitung.");
-          return;
-        }
-        var d = res.data || {};
-        var warnings = Array.isArray(d.warnings) ? d.warnings : [];
-        var html = "";
-
-        if (d.bepLoadPerBulan <= 0) {
-          html = '<div class="bep-incomplete">' +
-            '<div class="bep-incomplete-title">Data belum lengkap</div>' +
-            '<div class="bep-incomplete-list">' +
-              warnings.map(function(w) { return '<span>' + escapeHtml(w) + '</span>'; }).join("") +
-            '</div>' +
-          '</div>';
-        } else {
-          html = '<div class="bep-card">' +
-            '<div class="bep-section">' +
-              '<div class="bep-row">' +
-                '<div class="bep-item">' +
-                  '<span class="bep-label">Load / Bulan</span>' +
-                  '<span class="bep-value">' + escapeHtml(formatNum(d.bepLoadPerBulan, 0)) + '</span>' +
-                  '<span class="bep-unit">load</span>' +
-                '</div>' +
-                '<div class="bep-item">' +
-                  '<span class="bep-label">Omset / Bulan</span>' +
-                  '<span class="bep-value bep-omset">' + formatRp(d.bepOmsetPerBulan) + '</span>' +
-                '</div>' +
-              '</div>' +
-              '<div class="bep-row">' +
-                '<div class="bep-item">' +
-                  '<span class="bep-label">Load / Minggu</span>' +
-                  '<span class="bep-value">' + escapeHtml(formatNum(d.bepLoadPerMinggu, 0)) + '</span>' +
-                  '<span class="bep-unit">load</span>' +
-                '</div>' +
-                '<div class="bep-item">' +
-                  '<span class="bep-label">Omset / Minggu</span>' +
-                  '<span class="bep-value bep-omset">' + formatRp(d.bepOmsetPerMinggu) + '</span>' +
-                '</div>' +
-              '</div>' +
-              '<div class="bep-row">' +
-                '<div class="bep-item">' +
-                  '<span class="bep-label">Load / Hari</span>' +
-                  '<span class="bep-value">' + escapeHtml(formatNum(d.bepLoadPerHari, 1)) + '</span>' +
-                  '<span class="bep-unit">load</span>' +
-                '</div>' +
-                '<div class="bep-item">' +
-                  '<span class="bep-label">Omset / Hari</span>' +
-                  '<span class="bep-value bep-omset">' + formatRp(d.bepOmsetPerHari) + '</span>' +
-                '</div>' +
-              '</div>' +
-            '</div>' +
-            (warnings.length > 0 ? '<div class="bep-warning">' + warnings.map(function(w) { return escapeHtml(w); }).join(" · ") + '</div>' : "") +
-          '</div>';
-        }
-        setDashboardCardHtml("dashboardBEPSummary", html);
-      })
-      .withFailureHandler(function (err) {
-        setDashboardCardError("dashboardBEPSummary", err && err.message ? err.message : String(err));
-      })
-      .getDashboardBEPSummary(cabangId);
   }
 
   window.openScreenCabangList = function () {
