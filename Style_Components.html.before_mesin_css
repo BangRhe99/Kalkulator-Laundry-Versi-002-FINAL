@@ -265,62 +265,18 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
 
   .profil-outlet-mesin {
     display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .profil-mesin-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    padding: 8px 14px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    background: var(--panel-2);
-    min-width: 80px;
-  }
-
-  .profil-mesin-item.sage {
-    border-color: rgba(var(--sage-rgb, 80, 160, 140), 0.25);
-    background: rgba(var(--sage-rgb, 80, 160, 140), 0.05);
-  }
-
-  .profil-mesin-item.brass {
-    border-color: rgba(var(--brass-rgb, 180, 130, 60), 0.25);
-    background: rgba(var(--brass-rgb, 180, 130, 60), 0.05);
-  }
-
-  .profil-mesin-count {
-    font-size: 20px;
-    font-weight: 700;
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .profil-mesin-item.sage .profil-mesin-count {
-    color: var(--sage);
-  }
-
-  .profil-mesin-item.brass .profil-mesin-count {
-    color: var(--brass);
-  }
-
-  .profil-mesin-type {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    gap: 16px;
+    font-size: 11.5px;
     color: var(--text-dim);
+    font-weight: 500;
   }
 
-  .profil-mesin-kategori {
-    font-size: 10px;
-    font-weight: 500;
-    color: var(--text-faint);
-    text-transform: lowercase;
-    letter-spacing: 0.03em;
+  .profil-outlet-mesin span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
+  /* === END PROFIL OUTLET CARD PREMIUM === */
   .dashboard-kpi-row {
     display: flex;
     gap: 8px;

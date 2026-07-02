@@ -1473,8 +1473,16 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                 '</div>' +
               '</div>' +
               '<div class="profil-outlet-mesin">' +
-                '<span>' + escapeHtml(String(row.totalUnitCuci || 0)) + ' unit cuci</span>' +
-                '<span>' + escapeHtml(String(row.totalUnitPengering || 0)) + ' unit kering</span>' +
+                '<div class="profil-mesin-item sage">' +
+                  '<span class="profil-mesin-count">' + escapeHtml(String(row.totalUnitCuci || 0)) + '</span>' +
+                  '<span class="profil-mesin-type">washer</span>' +
+                  '<span class="profil-mesin-kategori">' + escapeHtml(row.jenisCuci || 'home') + '</span>' +
+                '</div>' +
+                '<div class="profil-mesin-item brass">' +
+                  '<span class="profil-mesin-count">' + escapeHtml(String(row.totalUnitPengering || 0)) + '</span>' +
+                  '<span class="profil-mesin-type">dryer</span>' +
+                  '<span class="profil-mesin-kategori">' + escapeHtml(row.jenisKering || 'commercial') + '</span>' +
+                '</div>' +
               '</div>' +
             '</div>'
           );
