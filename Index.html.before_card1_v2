@@ -1450,36 +1450,36 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           var jamTutup = row.jamTutupMenit != null ? row.jamTutupMenit : 0;
           var totalMenit = jamTutup > jamBuka ? jamTutup - jamBuka : (jamTutup + 1440 - jamBuka);
           var jamOps = Math.floor(totalMenit / 60);
-          var jamBukaStr = Math.floor(jamBuka/60) + '.' + (jamBuka%60 < 10 ? '0' : '') + (jamBuka%60);
-          var jamTutupStr = Math.floor(jamTutup/60) + '.' + (jamTutup%60 < 10 ? '0' : '') + (jamTutup%60);
-          var kategoriLabel = row.kategoriLayanan === 'self_service' ? 'Self Service' : (row.kategoriLayanan === 'drop_off' ? 'Drop Off' : (row.kategoriLayanan || '-'));
+          var jamBukaStr = Math.floor(jamBuka/60) + "." + (jamBuka%60 < 10 ? "0" : "") + (jamBuka%60);
+          var jamTutupStr = Math.floor(jamTutup/60) + "." + (jamTutup%60 < 10 ? "0" : "") + (jamTutup%60);
+          var kategoriLabel = row.kategoriLayanan === "self_service" ? "Self Service" : (row.kategoriLayanan === "drop_off" ? "Drop Off" : (row.kategoriLayanan || "-"));
           return (
-            '<div class="profil-outlet-card">' +
-              '<div class="profil-outlet-meta">' +
-                '<span class="profil-outlet-kategori">' + escapeHtml(kategoriLabel) + '</span>' +
-                '<span class="profil-outlet-jam">' + jamBukaStr + ' \u2013 ' + jamTutupStr + ' \u00B7 ' + jamOps + ' jam</span>' +
-              '</div>' +
-              '<div class="profil-outlet-kpi">' +
-                '<div class="profil-kpi-item">' +
-                  '<span class="profil-kpi-label">Cuci / bulan</span>' +
-                  '<span class="profil-kpi-value">' + escapeHtml(formatNum(row.loadCuciPerBulan || 0)) + '</span>' +
-                  '<span class="profil-kpi-unit">load</span>' +
-                '</div>' +
-                '<div class="profil-kpi-divider"></div>' +
-                '<div class="profil-kpi-item">' +
-                  '<span class="profil-kpi-label">Kering / bulan</span>' +
-                  '<span class="profil-kpi-value">' + escapeHtml(formatNum(row.loadKeringPerBulan || 0)) + '</span>' +
-                  '<span class="profil-kpi-unit">load</span>' +
-                '</div>' +
-              '</div>' +
-              '<div class="profil-outlet-mesin">' +
-                '<span>' + escapeHtml(String(row.totalUnitCuci || 0)) + ' unit cuci</span>' +
-                '<span>' + escapeHtml(String(row.totalUnitPengering || 0)) + ' unit kering</span>' +
-              '</div>' +
-            '</div>'
+            "<div class=""profil-outlet-card"">" +
+              "<div class=""profil-outlet-meta"">" +
+                "<span class=""profil-outlet-kategori"">" + escapeHtml(kategoriLabel) + "</span>" +
+                "<span class=""profil-outlet-jam"">" + jamBukaStr + " \u2013 " + jamTutupStr + " \u00B7 " + jamOps + " jam</span>" +
+              "</div>" +
+              "<div class=""profil-outlet-kpi"">" +
+                "<div class=""profil-kpi-item"">" +
+                  "<span class=""profil-kpi-label"">Cuci / bulan</span>" +
+                  "<span class=""profil-kpi-value"">" + escapeHtml(formatNum(row.loadCuciPerBulan || 0)) + "</span>" +
+                  "<span class=""profil-kpi-unit"">load</span>" +
+                "</div>" +
+                "<div class=""profil-kpi-divider""></div>" +
+                "<div class=""profil-kpi-item"">" +
+                  "<span class=""profil-kpi-label"">Kering / bulan</span>" +
+                  "<span class=""profil-kpi-value"">" + escapeHtml(formatNum(row.loadKeringPerBulan || 0)) + "</span>" +
+                  "<span class=""profil-kpi-unit"">load</span>" +
+                "</div>" +
+              "</div>" +
+              "<div class=""profil-outlet-mesin"">" +
+                "<span>\u26FA Cuci: " + escapeHtml(row.totalUnitCuci || 0) + " unit</span>" +
+                "<span>\u26FA Kering: " + escapeHtml(row.totalUnitPengering || 0) + " unit</span>" +
+              "</div>" +
+            "</div>"
           );
-        }).join('');
-        setDashboardCardHtml('dashboardCabangSummary', html);
+        }).join("");
+        setDashboardCardHtml("dashboardCabangSummary", html);
       })
       .withFailureHandler(function (err) {
         setDashboardCardError("dashboardCabangSummary", err && err.message ? err.message : String(err));
