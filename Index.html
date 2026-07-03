@@ -1553,6 +1553,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             missingHtml +
           '</div>';
         }).join('');
+        setDashboardCardHtml("dashboardMasterBiayaSummary", html);
       })
       .withFailureHandler(function (err) {
         setDashboardCardError("dashboardMasterBiayaSummary", err && err.message ? err.message : String(err));
