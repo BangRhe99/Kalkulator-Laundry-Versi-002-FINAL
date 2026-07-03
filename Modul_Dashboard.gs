@@ -206,8 +206,8 @@ function getDashboardMasterBiayaSummary(cabangId) {
       try {
         if (typeof getBiayaNotaKasir === "function") {
           const notaRes = getBiayaNotaKasir(cabangId);
-          if (notaRes && notaRes.ok && notaRes.data && notaRes.data.record) {
-            const notaPerLoad = dashboardNumber_(notaRes.data.record.totalBiayaNotaKasirPerLoad, 0);
+          if (notaRes && notaRes.ok && notaRes.data && notaRes.data.summary) {
+            const notaPerLoad = dashboardNumber_(notaRes.data.summary.totalBiayaNotaKasirPerLoad, 0);
             if (notaPerLoad > 0) {
               komponenBiaya.push({ key: "nota", label: "Nota/Kasir", biayaPerLoad: dashboardRound2_(notaPerLoad) });
               totalBiayaPerLoad += notaPerLoad;
