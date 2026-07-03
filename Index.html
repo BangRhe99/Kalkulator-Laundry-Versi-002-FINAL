@@ -1563,41 +1563,39 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
 
   function loadDashboardHPP(cabangId) {
     google.script.run
-      .withSuccessHandler(function (res) {
         if (!res || !res.ok) {
           setDashboardCardError("dashboardHppSummary", res && res.error ? res.error : "Data HPP belum bisa dibaca.");
           return;
         }
-
         var data = res.data || {};
         var rows = Array.isArray(data.rows) ? data.rows : [];
-
         if (!rows.length) {
           setDashboardCardHtml("dashboardHppSummary", '<div class="dashboard-empty">Belum ada outlet untuk dihitung HPP.</div>');
           return;
         }
-
-        var shown = rows.slice(0, 3);
-        var html =
-          '<div class="dashboard-outlet-list">' +
-            shown.map(function (row) {
-              var value = 'HPP belum siap';
-              if (row.isReady) {
-                value = row.hppCuciKering > 0
-                  ? 'CK ' + formatDashboardRp(row.hppCuciKering)
-                  : 'Range ' + formatDashboardRp(row.hppMin) + '-' + formatDashboardRp(row.hppMax);
-              }
-              var pill = row.warningsCount > 0
-                ? '<span class="dashboard-status-pill warning">' + escapeHtml(row.warningsCount) + ' warning</span>'
-                : '<span class="dashboard-status-pill ok">OK</span>';
-              return (
-                '<div class="dashboard-outlet-row ' + (row.isReady ? 'is-ok' : 'is-warning') + '">' +
-                  '<span class="dashboard-outlet-value">' + escapeHtml(value) + ' ' + pill + '</span>' +
-                '</div>'
-              );
-            }).join('') +
-          '</div>' +
-          dashboardMoreRowsText(rows.length, shown.length);
+        var shown = rows.slice(0, 1);
+        var html = shown.map(function (row) {
+          var layananList = Array.isArray(row.layananList) ? row.layananList : [];
+          var pill = row.warningsCount > 0
+            ? '<span class="dashboard-status-pill warning">' + escapeHtml(String(row.warningsCount)) + ' warning</span>'
+            : '<span class="dashboard-status-pill ok">Lengkap</span>';
+          var listHtml = layananList.map(function(svc, idx) {
+            var tag = '';
+            if (layananList.length > 1) {
+              if (idx === 0) tag = '<span class="hpp-tag tertinggi">tertinggi</span>';
+              else if (idx === layananList.length - 1) tag = '<span class="hpp-tag terendah">terendah</span>';
+            }
+            return '<div class="hpp-layanan-row">' +
+              '<span class="hpp-layanan-label">' + escapeHtml(svc.title || '') + tag + '</span>' +
+              '<span class="hpp-layanan-value">' + formatRp(svc.total) + '</span>' +
+            '</div>';
+          }).join('');
+          var emptyHtml = !layananList.length ? '<div class="dashboard-empty">HPP belum siap dihitung.</div>' : '';
+          return '<div class="hpp-card">' +
+            '<div class="hpp-header"><div class="hpp-status">' + pill + '</div></div>' +
+            (layananList.length > 0 ? '<div class="hpp-layanan-list">' + listHtml + '</div>' : emptyHtml) +
+          '</div>';
+        }).join('');
         setDashboardCardHtml('dashboardHppSummary', html);
       })
       .withFailureHandler(function (err) {

@@ -278,18 +278,22 @@ function getDashboardHPPSummary(cabangId) {
       } catch (e) {
         errorText = e && e.message ? e.message : String(e);
       }
-
       const totals = [];
-
+      const layananList = [];
       layanan.forEach(function (svc) {
         if (!svc) return;
         const total = dashboardNumber_(svc.total, 0);
-        if (total > 0) totals.push(total);
+        if (total > 0) {
+          totals.push(total);
+          layananList.push({ key: svc.key || "", title: svc.title || "", total: dashboardRound2_(total) });
+        }
         if (String(svc.key || "") === "cuci_kering") {
           hppCuciKering = dashboardRound2_(total);
         }
       });
 
+
+      layananList.sort(function(a,b){ return b.total - a.total; });
       const isReady = totals.length > 0;
 
       return {
@@ -299,6 +303,7 @@ function getDashboardHPPSummary(cabangId) {
         hppMin: isReady ? dashboardRound2_(Math.min.apply(null, totals)) : 0,
         hppMax: isReady ? dashboardRound2_(Math.max.apply(null, totals)) : 0,
         hppCuciKering: hppCuciKering,
+        layananList: layananList,
         warningsCount: warnings.length + (errorText ? 1 : 0),
         errorText: errorText
       };
