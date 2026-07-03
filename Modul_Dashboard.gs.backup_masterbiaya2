@@ -153,69 +153,6 @@ function getDashboardMasterBiayaSummary(cabangId) {
         }
       } catch (e) {}
       if (notaComplete) lengkapCount++; else missing.push("Nota/Kasir");
-      // Ambil nilai biaya per load per komponen
-      const komponenBiaya = [];
-      let totalBiayaPerLoad = 0;
-
-      try {
-        if (typeof listBiayaGas === "function") {
-          const gasRes = listBiayaGas(cabangId);
-          if (gasRes && gasRes.ok && gasRes.data && gasRes.data.items) {
-            let gasTotalPerLoad = 0;
-            dashboardArray_(gasRes.data.items).forEach(function(g) {
-              gasTotalPerLoad += dashboardNumber_((g.summary || {}).biayaPerLoad, 0);
-            });
-            if (gasTotalPerLoad > 0) {
-              komponenBiaya.push({ key: "gas", label: "Gas LPG", biayaPerLoad: dashboardRound2_(gasTotalPerLoad) });
-              totalBiayaPerLoad += gasTotalPerLoad;
-            }
-          }
-        }
-      } catch(e) {}
-
-      try {
-        if (typeof getBiayaListrik === "function") {
-          const listrikRes = getBiayaListrik(cabangId);
-          if (listrikRes && listrikRes.ok && listrikRes.data && listrikRes.data.summary) {
-            const rataListrik = dashboardNumber_(listrikRes.data.summary.rataRataBiayaPerLoad, 0);
-            if (rataListrik > 0) {
-              komponenBiaya.push({ key: "listrik", label: "Listrik", biayaPerLoad: dashboardRound2_(rataListrik) });
-              totalBiayaPerLoad += rataListrik;
-            }
-          }
-        }
-      } catch(e) {}
-
-      try {
-        if (typeof getBiayaAir === "function") {
-          const airRes = getBiayaAir(cabangId);
-          if (airRes && airRes.ok && airRes.data && airRes.data.record) {
-            const airPerLoad = dashboardNumber_(airRes.data.record.biayaPerLoad, 0);
-            if (airPerLoad > 0) {
-              komponenBiaya.push({ key: "air", label: "Air", biayaPerLoad: dashboardRound2_(airPerLoad) });
-              totalBiayaPerLoad += airPerLoad;
-            }
-          }
-        }
-      } catch(e) {}
-
-      try {
-        if (typeof getBiayaNotaKasir === "function") {
-          const notaRes = getBiayaNotaKasir(cabangId);
-          if (notaRes && notaRes.ok && notaRes.data && notaRes.data.record) {
-            const notaPerLoad = dashboardNumber_(notaRes.data.record.totalBiayaNotaKasirPerLoad, 0);
-            if (notaPerLoad > 0) {
-              komponenBiaya.push({ key: "nota", label: "Nota/Kasir", biayaPerLoad: dashboardRound2_(notaPerLoad) });
-              totalBiayaPerLoad += notaPerLoad;
-            }
-          }
-        }
-      } catch(e) {}
-
-      totalBiayaPerLoad = dashboardRound2_(totalBiayaPerLoad);
-      komponenBiaya.forEach(function(k) {
-        k.persen = totalBiayaPerLoad > 0 ? dashboardRound2_(k.biayaPerLoad / totalBiayaPerLoad * 100) : 0;
-      });
 
       return {
         cabangId: cabangId,
@@ -223,10 +160,6 @@ function getDashboardMasterBiayaSummary(cabangId) {
         lengkapCount: lengkapCount,
         totalKomponen: 4,
         isComplete: lengkapCount === 4,
-        missing: missing,
-        komponenBiaya: komponenBiaya,
-        totalBiayaPerLoad: totalBiayaPerLoad
-      };
         missing: missing
       };
     });
