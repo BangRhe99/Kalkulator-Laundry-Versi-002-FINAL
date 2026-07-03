@@ -190,12 +190,11 @@ function getDashboardMasterBiayaSummary(cabangId) {
           }
         }
       } catch(e) {}
-
       try {
         if (typeof getBiayaAir === "function") {
           const airRes = getBiayaAir(cabangId);
-          if (airRes && airRes.ok && airRes.data && airRes.data.record) {
-            const airPerLoad = dashboardNumber_(airRes.data.record.biayaPerLoad, 0);
+          if (airRes && airRes.ok && airRes.data && airRes.data.summary) {
+            const airPerLoad = dashboardNumber_(airRes.data.summary.biayaPerLoad, 0);
             if (airPerLoad > 0) {
               komponenBiaya.push({ key: "air", label: "Air", biayaPerLoad: dashboardRound2_(airPerLoad) });
               totalBiayaPerLoad += airPerLoad;
