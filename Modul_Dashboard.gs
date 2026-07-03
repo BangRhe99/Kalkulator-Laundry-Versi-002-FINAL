@@ -227,8 +227,6 @@ function getDashboardMasterBiayaSummary(cabangId) {
         komponenBiaya: komponenBiaya,
         totalBiayaPerLoad: totalBiayaPerLoad
       };
-        missing: missing
-      };
     });
 
     const completeOutlet = rows.filter(function (row) { return row.isComplete; }).length;
