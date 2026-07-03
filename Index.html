@@ -114,7 +114,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
         <div class="menu-card dashboard-card tone-flame" onclick="openScreenMasterBiaya()">
           <div class="menu-icon">&#128293;</div>
           <div class="menu-body">
-            <div class="menu-title">Master Biaya Produksi</div>
+            <div class="menu-title">Master Biaya</div>
             <div class="dashboard-card-summary is-loading" id="dashboardMasterBiayaSummary">Memuat data...</div>
           </div>
           <div class="menu-arrow">&#8594;</div>
@@ -1515,49 +1515,26 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
 
         var data = res.data || {};
         var rows = Array.isArray(data.rows) ? data.rows : [];
+
         if (!rows.length) {
           setDashboardCardHtml("dashboardMasterBiayaSummary", '<div class="dashboard-empty">Belum ada outlet untuk dicek.</div>');
           return;
         }
-
-        var shown = rows.slice(0, 1);
-        var html = shown.map(function (row) {
-          var komponen = Array.isArray(row.komponenBiaya) ? row.komponenBiaya : [];
-          var total = row.totalBiayaPerLoad || 0;
-          var pill = row.isComplete
-            ? '<span class="dashboard-status-pill ok">Lengkap</span>'
-            : '<span class="dashboard-status-pill warning">' + escapeHtml(row.lengkapCount || 0) + '/4</span>';
-
-          var komponenHtml = komponen.map(function(k) {
-            return '<div class="mb-komponen-row">' +
-              '<div class="mb-komponen-top">' +
-                '<span class="mb-komponen-label">' + escapeHtml(k.label) + '</span>' +
-                '<span class="mb-komponen-value">' + formatRp(k.biayaPerLoad) + '</span>' +
-                '<span class="mb-komponen-persen">' + escapeHtml(String(k.persen || 0)) + '%</span>' +
-              '</div>' +
-              '<div class="mb-progress-bar">' +
-                '<div class="mb-progress-fill mb-' + escapeHtml(k.key) + '" style="width:' + escapeHtml(String(Math.min(k.persen || 0, 100))) + '%"></div>' +
-              '</div>' +
-            '</div>';
-          }).join('');
-
-          var missingHtml = '';
-          if (!row.isComplete && Array.isArray(row.missing) && row.missing.length) {
-            missingHtml = '<div class="mb-missing">Belum diisi: ' + escapeHtml(row.missing.join(', ')) + '</div>';
-          }
-
-          return '<div class="mb-card">' +
-            '<div class="mb-header">' +
-              '<div class="mb-total-block">' +
-                '<span class="mb-total-label">Total biaya / load</span>' +
-                '<span class="mb-total-value">' + (total > 0 ? formatRp(total) : '-') + '</span>' +
-              '</div>' +
-              '<div class="mb-status">' + pill + '</div>' +
-            '</div>' +
-            (komponen.length > 0 ? '<div class="mb-komponen-list">' + komponenHtml + '</div>' : '') +
-            missingHtml +
-          '</div>';
-        }).join('');
+        var shown = rows.slice(0, 3);
+        var html =
+          '<div class="dashboard-outlet-list">' +
+            shown.map(function (row) {
+              var pill = row.isComplete
+                ? '<span class="dashboard-status-pill ok">Lengkap</span>'
+                : '<span class="dashboard-status-pill warning">Belum lengkap</span>';
+              return (
+                '<div class="dashboard-outlet-row ' + (row.isComplete ? 'is-ok' : 'is-warning') + '">' +
+                  '<span class="dashboard-outlet-value">' + escapeHtml(row.lengkapCount || 0) + '/4 ' + pill + '</span>' +
+                '</div>'
+              );
+            }).join("") +
+          '</div>' +
+          dashboardMoreRowsText(rows.length, shown.length);
         setDashboardCardHtml("dashboardMasterBiayaSummary", html);
       })
       .withFailureHandler(function (err) {
