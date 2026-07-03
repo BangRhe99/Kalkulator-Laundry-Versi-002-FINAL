@@ -177,7 +177,12 @@ function getDashboardMasterBiayaSummary(cabangId) {
         if (typeof getBiayaListrik === "function") {
           const listrikRes = getBiayaListrik(cabangId);
           if (listrikRes && listrikRes.ok && listrikRes.data && listrikRes.data.summary) {
-            const rataListrik = dashboardNumber_(listrikRes.data.summary.rataRataBiayaPerLoad, 0);
+            const cuciArr = Array.isArray(listrikRes.data.summary.cuci) ? listrikRes.data.summary.cuci : [];
+            const pengeringArr = Array.isArray(listrikRes.data.summary.pengering) ? listrikRes.data.summary.pengering : [];
+            const pompaPerLoad = cuciArr.length > 0 ? dashboardNumber_(cuciArr[0].rpPompaPerLoad, 0) : 0;
+            const washerPerLoad = cuciArr.length > 0 ? dashboardNumber_(cuciArr[0].rpListrikPerLoad, 0) : 0;
+            const dryerPerLoad = pengeringArr.length > 0 ? dashboardNumber_(pengeringArr[0].rpListrikPerLoad, 0) : 0;
+            const rataListrik = pompaPerLoad + washerPerLoad + dryerPerLoad;
             if (rataListrik > 0) {
               komponenBiaya.push({ key: "listrik", label: "Listrik", biayaPerLoad: dashboardRound2_(rataListrik) });
               totalBiayaPerLoad += rataListrik;
