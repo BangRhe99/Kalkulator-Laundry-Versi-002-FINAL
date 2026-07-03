@@ -514,8 +514,12 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
     padding: 6px 10px;
     background: rgba(180, 130, 60, 0.08);
     border-radius: var(--radius);
-    border: 1px solid rgba(180, 130, 60, 0.2);
   }
+  .mb-bar-wrap { display: flex; align-items: center; gap: 6px; flex: 1; }
+  .mb-komponen-row.zero .mb-komponen-label,
+  .mb-komponen-row.zero .mb-komponen-persen { opacity: 0.35; }
+  .mb-zero-label { font-size: 10px; color: var(--text-faint); font-style: italic; }
+
   /* === END MASTER BIAYA CARD === */
   .dashboard-kpi-row {
     display: flex;
