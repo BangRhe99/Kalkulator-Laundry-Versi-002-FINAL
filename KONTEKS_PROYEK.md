@@ -138,6 +138,23 @@ menunjuk lokasi eksekusi, bukan lokasi asli error. `node --check` lebih akurat.
 - JANGAN string replace multi-baris tanpa verifikasi kecocokan dulu
 - JANGAN splice yang memotong baris pembuka handler (`.withSuccessHandler(...)`)
 - JANGAN pakai `$lines` variabel lama setelah file diubah — selalu `Get-Content` ulang
+- **JANGAN salah hitung index `$before`/`$after` saat splice** — ini penyebab bug
+  paling sering di sesi 2026-07-04 (baris duplikat, baris hilang, kurung kurawal
+  timpang). Selalu `Get-Content | Select-Object -Skip N -First M` untuk verifikasi
+  hasil SEBELUM lanjut ke langkah berikutnya, jangan asumsi splice berhasil.
+- **Semua fungsi yang dipanggil dari `onclick="..."` di HTML WAJIB pakai
+  `window.namaFungsi = function () {...}`**, BUKAN `function namaFungsi() {...}`
+  biasa — karena seluruh script utama Index.html dibungkus IIFE
+  `(function () {...})()` (baris ~821-4889). Fungsi biasa di dalam IIFE tidak
+  terjangkau dari onclick (scope global), errornya baru muncul saat tombol
+  diklik (`ReferenceError: ... is not defined`), TIDAK muncul saat load halaman.
+- **Tombol kecil di dalam card yang punya `onclick` navigasi** (misal seluruh
+  `.menu-card` bisa diklik pindah layar) WAJIB `event.stopPropagation()` di
+  handler tombolnya, kalau tidak klik tombol kecil ikut memicu navigasi pindah
+  layar yang tidak diinginkan.
+- **File `.gs` tidak bisa langsung `node --check`** (ekstensi tidak dikenali) —
+  copy dulu ke `.js` sementara (`Copy-Item nama.gs nama_check.js`), baru cek,
+  lalu hapus.
 
 ---
 
@@ -227,58 +244,120 @@ Struktur biaya per layanan:
 
 ## STATUS FITUR DASHBOARD
 
-### SELESAI:
+### SELESAI (semua 6 card dashboard sudah didesain ulang & live-tested):
 
 **Header:** Icon mesin cuci SVG + "Kalkulator Laundry" (spasi terpisah), gap 6px, word-spacing -3px
 
 **Filter Outlet:** Pill filter kanan atas sejajar "Dashboard Bisnis", klik → overlay
 pilih outlet (tersimpan di localStorage), teks "1 outlet aktif" kecil di bawah pill
 
-**Card Profil Outlet:** Badge kategori + jam operasional, 2 KPI besar Cuci/Kering
-(warna brass), mini-card Washer (sage) + Dryer (brass), label "N washer · home"
-dan "N dryer · commercial"
+**Card Profil Outlet:** Badge kategori + jam operasional (format leading-zero
+`07.00 – 21.00`). 2 KPI besar `Kap. Cuci / bulan` (sage) & `Kap. Kering / bulan`
+(brass), rata kiri semua. Tiap KPI ada baris "Okupansi N% [?]" — tombol `?` tap
+untuk buka tooltip penjelasan singkat (hover otomatis di desktop lewat
+`@media (hover:hover)`). Mini-card Washer/Dryer `flex:1` (sejajar penuh, bukan
+rata kiri), tampilkan durasi mesin kalau ada data (`"home · 30 menit"`).
+JS: `window.toggleOkupansiTooltip`.
+*Bug yang diperbaiki:* `listCabang()` ternyata TIDAK menyertakan array
+`mesinCuci`/`mesinPengering` (cuma summary ringkas) → `getDashboardCabangSummary`
+sekarang ambil detail lengkap lewat `getCabang(id)` untuk `jenisCuci`,
+`jenisKering`, `durasiCuci`, `durasiKering`, `okupansiCuci`, `okupansiKering`.
 
-**Card Master Biaya Produksi (Opsi B: Dominasi Biaya):** Breakdown komponen
-di-sort tertinggi→terendah (by persen), progress bar per komponen (Gas=brass,
-Listrik=volt, Air=sage, Nota=text-dim), pill status "Lengkap"/"N/4 komponen",
-komponen 0 pakai class `.zero`. CSS: `.mb-*` di `Style_Components.html`
-(`.mb-bar-wrap` & `.mb-progress-bar` WAJIB `flex:1`)
+**Card Master Biaya Produksi:** Pill "Lengkap"/"N/4 komponen" **dihapus total**.
+Bar chart diperbesar (`height:6px`, `border-radius:3px` persegi, bukan pill
+tipis). Label komponen fixed `width:74px` (kolom sejajar rapi seperti tabel),
+kolom persentase & nominal juga fixed width, gap dirapatkan. Angka dibulatkan
+(`money0()`). Komponen yang sudah diisi tapi nilainya Rp0 (misal Air pakai
+sumur) tetap tampil dengan label **"Rp 0 (tanpa biaya)"**, tidak hilang dari
+daftar — backend pakai flag `gasComplete`/`listrikComplete`/`airComplete`/
+`notaComplete` (form pernah diisi), bukan `nilai > 0`.
 
-**Card Struktur Biaya HPP · Variable Cost:** Breakdown HPP per jenis layanan
-di-sort tertinggi→terendah, tag "tertinggi"(merah)/"terendah"(sage) kalau >1
-layanan, pill status "Lengkap"/"N warning". CSS: `.hpp-*` di
-`Style_Module_HPP.html`. Detail lengkap tetap di layar detail (klik card)
+**Card Struktur Biaya HPP · Variable Cost:** Redesign total — jadi **3
+mini-card collapsible**: HPP Cuci Saja / HPP Kering Saja / HPP Cuci Kering.
+Tiap mini-card: baris ringkasan (judul + total Rp + panah ⌄), klik → detail
+per komponen (label, persen, nominal) muncul di bawah, panah berputar 180°.
+"Lengkap"/"TERTINGGI"/"TERENDAH" dihapus semua. Ketiga layanan SELALU tampil
+(tidak lagi disortir/disembunyikan berdasar nilai). CSS: `.hpp-mini-*` di
+`Style_Module_HPP.html`. JS: `window.toggleHppDetail`.
 
-**Card Target Titik Impas (BEP):** Sudah diaudit — field backend↔frontend cocok
-(`bepLoadPerBulan`, `bepOmsetPerBulan`, dst.), rumus `FixedCost / MarginPerLoad`
-matematis benar, CSS `.bep-*` sudah ada. **Belum ditest live di browser** — perlu
-dicek dengan outlet yang datanya lengkap (Fixed Cost + HPP + Harga Layanan terisi).
-Catatan: rataHPP & rataHarga dihitung rata-rata sederhana lintas layanan
-(bukan tertimbang volume load) — ini keputusan desain, bukan bug.
+**Card Harga Layanan:** Pill status "Aman"/"Perhatian"/"Ada yang rugi"
+**dihapus total** (warna bar sudah cukup jadi sinyal). Tiap baris layanan bisa
+diklik → detail **HPP, Harga Jual, Margin** (Rupiah) muncul di bawah, pola
+sama seperti card HPP. CSS: `.hl-item`, `.hl-detail-*`. JS: `window.toggleHlDetail`.
 
-**Bug Backend Dashboard yang SUDAH DIPERBAIKI:**
-- **Listrik:** field `summary.rataRataBiayaPerLoad` tidak ada → diganti hitung
-  dari `summary.cuci[0]` + `summary.pengering[0]` (pompa+washer+dryer)
-- **Air:** salah ambil dari `record.biayaPerLoad` → dibetulkan ke `summary.biayaPerLoad`
-- **Nota/Kasir:** salah ambil dari `record.totalBiayaNotaKasirPerLoad` →
-  dibetulkan ke `summary.totalBiayaNotaKasirPerLoad`
-- Konsekuensi: backend hanya push komponen dengan biayaPerLoad > 0 (bukan bug)
+**Card Biaya Tetap Outlet (Fixed Cost):** Pill "Terisi"/"Belum diisi"
+**dihapus**. Angka dibulatkan, "per bulan" ditaruh sejajar nominal (font kecil,
+bukan di baris terpisah). Klik nominal → detail **6 komponen** (Sewa Outlet,
+Gaji Karyawan, Internet, Penyusutan Mesin, Biaya Perawatan, Operasional
+Lainnya) muncul di bawah. JS: `window.toggleFcDetail`.
+
+**Card Target Titik Impas (BEP):** Ditambah **grafik garis BEP native SVG**
+(tanpa library) — garis Omset (sage) vs Total Biaya (brass) berpotongan di
+titik BEP, zona rugi (merah muda tipis)/untung (sage tipis), label angka di
+ujung sumbu X (load maksimum grafik) & Y (Rp maksimum grafik). Semua angka
+dibulatkan tanpa desimal (termasuk Load/Hari yang sebelumnya 1 desimal). Teks
+kecil "load" di bawah angka Load/Bulan-Minggu-Hari dihapus (sudah terwakili di
+label judul). Fungsi: `buildBepChartSvg(d)`.
+*Belum selesai — lihat Prioritas Berikutnya #1:* label sumbu Y grafik saat ini
+pakai skala arbitrer (`bepLoadPerBulan × 1.8`), BUKAN target omset maksimum
+riil bisnis. User minta diganti dengan kapasitas maksimum sungguhan, tapi ini
+butuh fitur baru "Kontribusi Omset" dulu (lihat detail di Prioritas #1).
 
 ---
 
 ### PRIORITAS BERIKUTNYA
 
-1. **Test live card BEP** di browser dengan outlet berdata lengkap
+1. **[PENDING KEPUTUSAN USER] Fitur "Kontribusi Omset" + garis Target Omset
+   Maksimum di grafik BEP.** User berhenti di sini untuk istirahat, tinggal
+   lanjutkan dari titik ini. Konteks:
+   - Tujuan: ganti label skala sumbu Y grafik BEP (saat ini angka arbitrer
+     1.8× BEP) dengan **Target Omset Maksimum riil** berdasarkan kapasitas
+     mesin outlet.
+   - Kendala: outlet Self Service punya 3 layanan (Cuci Saja, Kering Saja,
+     Cuci Kering) yang berbagi 2 sumber daya (mesin cuci & mesin pengering).
+     Cuci Kering pakai KEDUANYA sekaligus, jadi kapasitas maksimum bukan
+     penjumlahan sederhana — dibatasi oleh mesin yang jadi *bottleneck*.
+   - Solusi yang disepakati arahnya: user usul form input baru **"Kontribusi
+     Omset"** — owner set sendiri persentase kontribusi tiap layanan
+     (misal Cuci Saja 50%, Kering Saja 5%, Cuci Kering 45%, total 100%).
+   - Rumus yang perlu dibangun:
+     - Pemakaian mesin cuci = (%CuciSaja + %CuciKering) × total transaksi
+     - Pemakaian mesin pengering = (%KeringSaja + %CuciKering) × total transaksi
+     - Total transaksi maksimum = yang lebih membatasi antara kapasitas mesin
+       cuci vs pengering (`summary.cuci.loadMaksimalPerHari` &
+       `summary.kering.loadMaksimalPerHari`, sudah ada di
+       `Modul_Cabang.gs:362`, computeGroupLoad_ — ini SUMBER KEBENARAN
+       TUNGGAL kapasitas, jangan hitung ulang dengan cara lain)
+     - Omset maksimum = total transaksi maksimum × harga rata-rata tertimbang
+   - Yang perlu dibangun kalau lanjut penuh: field data baru + migrasi default
+     di `Modul_Cabang.gs`, form input 3 kolom persentase di layar Profil
+     Outlet (validasi total = 100%), rumus bottleneck di backend, baru garis
+     "Target Omset Maksimum" + gridline Y-axis di `buildBepChartSvg`.
+   - Alternatif sementara (kalau tidak mau kerjain penuh dulu): pakai
+     pendekatan bottleneck dengan asumsi kontribusi default, fitur
+     "Kontribusi Omset" sesungguhnya jadi task terpisah nanti.
+   - **User belum memilih salah satu opsi ini — tanyakan dulu di awal sesi
+     berikutnya sebelum lanjut.**
 2. **Card "Kap. Setrika" untuk kategori Drop Off/Kiloan & Hybrid** (belum dikerjakan):
    - Satuan per jam (beda dari Cuci/Kering yang per bulan)
    - Form input data setrika di menu Profil Outlet belum aktif — harus dibuat dulu sebelum card dashboard bisa jalan
    - Gaya visual: statis, elegan, premium — konsisten dengan card Cuci/Kering yang sudah ada
    - Dashboard harus adaptif per kategori outlet: Self Service tetap 2 KPI (Cuci/Kering), Drop Off/Kiloan & Hybrid jadi 3 KPI (+ Setrika)
-3. **Desain ulang card yang belum disentuh:**
-   - Harga Layanan (data: `amanCount`, `tipisCount`, `rugiCount`, `minMarginPercent`, `status`)
-   - Biaya Tetap Outlet / Fixed Cost (data: `hasData`, `totalPerBulan`, `totalPerHari`)
-4. **Perbaikan tampilan layar detail** (Gas, Listrik, Air, Nota)
-5. **Fitur Packing** untuk laundry kiloan/hybrid (komponen biaya ke-5 dan ke-6)
+3. **Backend HPP untuk Drop Off/Kiloan & Hybrid belum ada sama sekali** —
+   `Modul_StrukturBiayaHPP.gs` cuma punya `buildSelfServiceHPPStructure_`
+   (nama fungsinya eksplisit "SelfService"). Untuk kategori lain perlu fungsi
+   BARU untuk layanan: Cuci Saja, Cuci Kering Lipat, Cuci Kering Setrika,
+   Setrika Saja, Bed Cover (mungkin bertambah lagi). Jangan bikin "tampilan
+   fleksibel" dulu sebelum logika backend ini ada — berisiko UI kosong/menyesatkan.
+4. **2 card tambahan untuk Drop Off/Kiloan & Hybrid:** Packing dan Deterjen
+   (komponen biaya ke-5 dan ke-6, disebutkan user tapi belum dirinci detailnya)
+5. **Perbaikan tampilan layar detail** (Gas, Listrik, Air, Nota) — belum disentuh
+6. **Keputusan desain yang SUDAH FINAL (jangan diusulkan ulang):**
+   - Tidak perlu warna berbeda per layanan HPP (sage/brass/volt) — user bilang
+     "nanti kesan norak" kalau kategori lain (Drop Off/Kiloan) yang punya
+     5-6 layanan ikut diwarnai semua. Total HPP tetap netral/hitam.
+   - Warna hanya dipakai untuk Self Service (cuma 2-3 layanan, masih efektif
+     jadi pembeda cepat)
 
 ---
 
@@ -287,29 +366,50 @@ Catatan: rataHPP & rataHarga dihitung rata-rata sederhana lintas layanan
 ### `getDashboardCabangSummary(cabangId)`:
 `cabangId`, `namaLaundry`, `kategoriLayanan`, `totalUnitCuci`, `totalUnitPengering`,
 `loadCuciPerBulan`, `loadKeringPerBulan`, `jamBukaMenit`, `jamTutupMenit`,
-`jenisCuci`, `jenisKering`
+`jenisCuci`, `jenisKering`, `durasiCuci`, `durasiKering` (menit siklus, dari
+mesin pertama), `okupansiCuci`, `okupansiKering` (persen 0-100) — 4 field
+terakhir diambil via `getCabang(cabangId).data.cabang` karena `listCabang()`
+tidak menyertakan array `mesinCuci`/`mesinPengering`/`okupansi`.
 
 ### `getDashboardMasterBiayaSummary(cabangId)`:
 `cabangId`, `namaLaundry`, `lengkapCount`, `totalKomponen(4)`, `isComplete`,
-`missing[]`, `komponenBiaya[]{key, label, biayaPerLoad, persen}`, `totalBiayaPerLoad`
+`missing[]`, `komponenBiaya[]{key, label, biayaPerLoad, persen}`, `totalBiayaPerLoad`.
+Komponen sekarang di-push berdasarkan flag "form pernah diisi"
+(`gasComplete`/`listrikComplete`/`airComplete`/`notaComplete`), BUKAN
+`biayaPerLoad > 0` — supaya komponen yang sengaja Rp0 (misal air sumur) tetap
+tampil, bukan hilang dari daftar.
 
 ### `getDashboardHPPSummary(cabangId)`:
 `cabangId`, `namaLaundry`, `isReady`, `hppMin`, `hppMax`, `hppCuciKering`,
-`warningsCount`, `errorText`, `layananList[]{key, title, total}` (sort
-tertinggi→terendah, hanya total>0)
+`warningsCount`, `errorText`, `layananList[]{key, title, total,
+components[]{key, label, amount, percent}}` — SELALU 3 item (Cuci Saja/Kering
+Saja/Cuci Kering), TIDAK LAGI di-sort atau difilter berdasarkan nilai (urutan
+tetap natural dari backend `buildSelfServiceHPPStructure_`).
 
 ### `getDashboardHargaLayananSummary(cabangId)`:
 `cabangId`, `namaLaundry`, `totalLayanan`, `hargaTerisiCount`, `rugiCount`,
 `tipisCount`, `impasCount`, `amanCount`, `minMarginPercent`, `warningsCount`,
-`status`, `errorText`
+`status`, `errorText`, `layananList[]{key, title, marginPercent, status, hpp,
+hargaJual, margin}` — 3 field terakhir (`hpp`/`hargaJual`/`margin`) baru
+ditambahkan untuk detail collapsible di dashboard.
 
 ### `getDashboardFixedCostSummary(cabangId)`:
-`cabangId`, `namaLaundry`, `hasData`, `totalPerBulan`, `totalPerHari`, `warningsCount`
+`cabangId`, `namaLaundry`, `hasData`, `totalPerBulan`, `totalPerHari`,
+`components[]{key, label, amount}` (6 komponen: sewa, gaji, internet,
+depresiasi, perawatan, lainnya), `warningsCount`
 
 ### `getDashboardBEPSummary(cabangId)`:
 `fixedCostPerBulan`, `rataHPP`, `rataHarga`, `marginPerLoad`, `bepLoadPerBulan`,
 `bepOmsetPerBulan`, `bepLoadPerMinggu`, `bepOmsetPerMinggu`, `bepLoadPerHari`,
-`bepOmsetPerHari`, `warnings[]`, `isComplete`
+`bepOmsetPerHari`, `warnings[]`, `isComplete` (belum berubah — field
+"Target Omset Maksimum" belum ditambahkan, lihat Prioritas #1)
+
+### Kapasitas maksimum mesin (untuk fitur "Kontribusi Omset" mendatang):
+`getCabang(cabangId).data.summary.cuci.loadMaksimalPerHari` dan
+`.summary.kering.loadMaksimalPerHari` — kapasitas 100% okupansi per hari,
+per grup mesin (cuci/pengering terpisah). Sumber: `computeGroupLoad_` di
+`Modul_Cabang.gs:343` (SUMBER KEBENARAN TUNGGAL kapasitas, sudah dipakai juga
+oleh angka "Kapasitas maksimal/hari" di layar detail Profil Outlet).
 
 ---
 
@@ -328,8 +428,13 @@ tertinggi→terendah, hanya total>0)
 ## CARA MULAI SESI BARU
 
 1. Upload file `KONTEKS_PROYEK.md` ini ke Claude (satu file saja, cukup)
-2. Tulis salah satu:
-   - **"Lanjutkan Kalkulator Laundry. Test live card BEP."**
-   - **"Lanjutkan desain Dashboard. Fokus ke card Harga Layanan."**
-   - **"Lanjutkan desain Dashboard. Fokus ke card Biaya Tetap Outlet."**
+2. Tulis: **"Lanjutkan Kalkulator Laundry, lanjut dari yang kemarin."**
 3. Claude langsung paham tanpa penjelasan ulang — rule proyek dan rule desain sudah menyatu di file ini.
+
+### Titik berhenti sesi terakhir (2026-07-04):
+Sedang membahas **Prioritas Berikutnya #1** — fitur "Kontribusi Omset" untuk
+grafik BEP. User belum memilih antara "bangun penuh sekarang" vs "pendekatan
+sementara dulu". **Tanyakan dulu itu di awal sesi**, jangan langsung mengerjakan
+salah satu opsi. Semua konteks teknisnya (rumus bottleneck, field yang perlu
+ditambah, data kapasitas yang sudah tersedia) ada di bagian Prioritas
+Berikutnya #1 di atas.
