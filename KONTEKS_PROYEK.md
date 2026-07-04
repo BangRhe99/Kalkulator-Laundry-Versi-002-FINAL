@@ -1,4 +1,4 @@
-# KONTEKS PROYEK: Kalkulator Laundry Versi 002
+﻿# KONTEKS PROYEK: Kalkulator Laundry Versi 002
 **File ini gabungan dari konteks proyek + rule desain dashboard. Upload file ini saja di awal sesi baru.**
 
 ---
@@ -8,7 +8,7 @@
 - **Nama:** Kalkulator Laundry Versi 002 - FINAL
 - **Platform:** Google Apps Script Web App
 - **GitHub:** https://github.com/BangRhe99/Kalkulator-Laundry-Versi-002-FINAL
-- **URL Produksi:** https://script.google.com/macros/s/AKfycbxW6oL3GjGDUo8WKYOvfR5lIvdgAoNFiEI_hi9BDpsZwbA1oy58iq50w4VvPR5TKnaQw/exec
+- **URL Produksi:** https://script.google.com/macros/s/AKfycbxW6oL3GjGDUo8WKYOvfR5lIvdgAoNFiEI_hi9BDpsZwbA1oy58iq50w4VvvPR5TKnaQw/exec
 - **Folder Lokal:** `C:\Users\user\Documents\Kalkulator-Laundry-Versi-002-FINAL`
 
 ---
