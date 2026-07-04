@@ -1556,9 +1556,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
         var html = shown.map(function (row) {
           var komponen = Array.isArray(row.komponenBiaya) ? row.komponenBiaya : [];
           komponen.sort(function(a,b){ return (b.persen||0)-(a.persen||0); });
-          var pill = row.isComplete
-            ? '<span class="dashboard-status-pill ok">Lengkap</span>'
-            : '<span class="dashboard-status-pill warning">' + escapeHtml(String(row.lengkapCount||0)) + '/4 komponen</span>';
           var komponenHtml = komponen.map(function(k) {
             var isZero = !k.biayaPerLoad || k.biayaPerLoad === 0;
             var cls = isZero ? 'mb-komponen-row zero' : 'mb-komponen-row';
@@ -1571,18 +1568,12 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                   '</div>' +
                   '<span class="mb-komponen-persen">' + String(k.persen||0) + '%</span>' +
                 '</div>' +
-                '<span class="mb-komponen-value">' + (isZero ? '<span class="mb-zero-label">Belum diisi</span>' : formatRp(k.biayaPerLoad)) + '</span>' +
+                '<span class="mb-komponen-value">' + (isZero ? '<span class="mb-zero-label">Belum diisi</span>' : money0(k.biayaPerLoad)) + '</span>' +
               '</div>' +
             '</div>';
           }).join('');
-          var missingHtml = '';
-          if (!row.isComplete && Array.isArray(row.missing) && row.missing.length) {
-            missingHtml = '<div class="mb-missing">Belum diisi: ' + escapeHtml(row.missing.join(', ')) + '</div>';
-          }
           return '<div class="mb-card">' +
-            '<div class="mb-header"><div class="mb-status">' + pill + '</div></div>' +
             (komponen.length > 0 ? '<div class="mb-komponen-list">' + komponenHtml + '</div>' : '') +
-            missingHtml +
           '</div>';
         }).join('');
         setDashboardCardHtml("dashboardMasterBiayaSummary", html);
