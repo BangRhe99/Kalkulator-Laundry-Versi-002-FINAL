@@ -1598,27 +1598,30 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           return;
         }
         var shown = rows.slice(0, 1);
+        var hppShortLabel = {
+          air: 'Air',
+          listrik_washer: 'Washer',
+          listrik_pompa: 'Pompa',
+          app_nota: 'Nota',
+          listrik_dryer: 'Dryer',
+          gas_lpg: 'Gas'
+        };
         var html = shown.map(function (row) {
           var layananList = Array.isArray(row.layananList) ? row.layananList : [];
-          var pill = row.warningsCount > 0
-            ? '<span class="dashboard-status-pill warning">' + escapeHtml(String(row.warningsCount)) + ' warning</span>'
-            : '<span class="dashboard-status-pill ok">Lengkap</span>';
-          var listHtml = layananList.map(function(svc, idx) {
-            var tag = '';
-            if (layananList.length > 1) {
-              if (idx === 0) tag = '<span class="hpp-tag tertinggi">tertinggi</span>';
-              else if (idx === layananList.length - 1) tag = '<span class="hpp-tag terendah">terendah</span>';
-            }
-            return '<div class="hpp-layanan-row">' +
-              '<span class="hpp-layanan-label">' + escapeHtml(svc.title || '') + tag + '</span>' +
-              '<span class="hpp-layanan-value">' + formatRp(svc.total) + '</span>' +
+          var miniHtml = layananList.map(function (svc) {
+            var components = Array.isArray(svc.components) ? svc.components : [];
+            var detailText = components.map(function (c) {
+              var lbl = hppShortLabel[c.key] || c.label || '';
+              return lbl + ' ' + money0(c.amount);
+            }).join(' · ');
+            return '<div class="hpp-mini-card">' +
+              '<div class="hpp-mini-title">' + escapeHtml(svc.title || '') + '</div>' +
+              '<div class="hpp-mini-total">' + money0(svc.total) + '</div>' +
+              (detailText ? '<div class="hpp-mini-detail">' + escapeHtml(detailText) + '</div>' : '') +
             '</div>';
           }).join('');
           var emptyHtml = !layananList.length ? '<div class="dashboard-empty">HPP belum siap dihitung.</div>' : '';
-          return '<div class="hpp-card">' +
-            '<div class="hpp-header"><div class="hpp-status">' + pill + '</div></div>' +
-            (layananList.length > 0 ? '<div class="hpp-layanan-list">' + listHtml + '</div>' : emptyHtml) +
-          '</div>';
+          return layananList.length > 0 ? '<div class="hpp-mini-list">' + miniHtml + '</div>' : emptyHtml;
         }).join('');
         setDashboardCardHtml('dashboardHppSummary', html);
       })

@@ -200,13 +200,31 @@ Jika tampilan rincian HPP, persen komponen, atau total HPP bermasalah, cek file 
 }
 
 /* === DASHBOARD HPP CARD === */
-.hpp-card { display: flex; flex-direction: column; gap: 8px; }
-.hpp-header { display: flex; justify-content: flex-end; }
-.hpp-layanan-list { display: flex; flex-direction: column; gap: 6px; }
-.hpp-layanan-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
-.hpp-layanan-label { color: var(--text-dim); font-weight: 600; display: flex; align-items: center; gap: 6px; }
-.hpp-layanan-value { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
-.hpp-tag { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 999px; text-transform: uppercase; }
-.hpp-tag.tertinggi { background: rgba(200, 80, 60, 0.12); color: var(--red, #c8503c); }
-.hpp-tag.terendah { background: rgba(90, 160, 120, 0.12); color: var(--sage); }
+.hpp-mini-list { display: flex; flex-direction: column; gap: 10px; }
+.hpp-mini-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+}
+.hpp-mini-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.hpp-mini-total {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.hpp-mini-detail {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  line-height: 1.4;
+}
 </style>

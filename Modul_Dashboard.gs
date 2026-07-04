@@ -306,15 +306,16 @@ function getDashboardHPPSummary(cabangId) {
         const total = dashboardNumber_(svc.total, 0);
         if (total > 0) {
           totals.push(total);
-          layananList.push({ key: svc.key || "", title: svc.title || "", total: dashboardRound2_(total) });
         }
+        const components = dashboardArray_(svc.components).map(function(c) {
+          return { key: c.key || "", label: c.label || "", amount: dashboardRound2_(c.amount) };
+        });
+        layananList.push({ key: svc.key || "", title: svc.title || "", total: dashboardRound2_(total), components: components });
         if (String(svc.key || "") === "cuci_kering") {
           hppCuciKering = dashboardRound2_(total);
         }
       });
 
-
-      layananList.sort(function(a,b){ return b.total - a.total; });
       const isReady = totals.length > 0;
 
       return {
