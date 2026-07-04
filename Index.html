@@ -146,7 +146,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           </div>
           <div class="menu-arrow">&#8594;</div>
         </div>
-        <div class="menu-card dashboard-card tone-volt">
         <div class="menu-card dashboard-card tone-volt" onclick="showScreen('strukturHPPList'); openStrukturHPPOutletList();">
           <div class="menu-icon">&#127919;</div>
           <div class="menu-body">
@@ -1460,8 +1459,10 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           var jamTutup = row.jamTutupMenit != null ? row.jamTutupMenit : 0;
           var totalMenit = jamTutup > jamBuka ? jamTutup - jamBuka : (jamTutup + 1440 - jamBuka);
           var jamOps = Math.floor(totalMenit / 60);
-          var jamBukaStr = Math.floor(jamBuka/60) + '.' + (jamBuka%60 < 10 ? '0' : '') + (jamBuka%60);
-          var jamTutupStr = Math.floor(jamTutup/60) + '.' + (jamTutup%60 < 10 ? '0' : '') + (jamTutup%60);
+          var jamBukaH = Math.floor(jamBuka/60); var jamBukaM = jamBuka%60;
+          var jamTutupH = Math.floor(jamTutup/60); var jamTutupM = jamTutup%60;
+          var jamBukaStr = (jamBukaH < 10 ? '0' : '') + jamBukaH + '.' + (jamBukaM < 10 ? '0' : '') + jamBukaM;
+          var jamTutupStr = (jamTutupH < 10 ? '0' : '') + jamTutupH + '.' + (jamTutupM < 10 ? '0' : '') + jamTutupM;
           var kategoriLabel = row.kategoriLayanan === 'self_service' ? 'Self Service' : (row.kategoriLayanan === 'drop_off' ? 'Drop Off' : (row.kategoriLayanan || '-'));
           return (
             '<div class="profil-outlet-card">' +
@@ -1486,12 +1487,12 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                 '<div class="profil-mesin-item sage">' +
                   '<span class="profil-mesin-count">' + escapeHtml(String(row.totalUnitCuci || 0)) + '</span>' +
                   '<span class="profil-mesin-type">washer</span>' +
-                  '<span class="profil-mesin-kategori">' + escapeHtml(row.jenisCuci || 'home') + '</span>' +
+                  '<span class="profil-mesin-kategori">' + escapeHtml(row.jenisCuci || 'home') + (row.durasiCuci > 0 ? ' \u00B7 ' + row.durasiCuci + ' menit' : '') + '</span>' +
                 '</div>' +
                 '<div class="profil-mesin-item brass">' +
                   '<span class="profil-mesin-count">' + escapeHtml(String(row.totalUnitPengering || 0)) + '</span>' +
                   '<span class="profil-mesin-type">dryer</span>' +
-                  '<span class="profil-mesin-kategori">' + escapeHtml(row.jenisKering || 'commercial') + '</span>' +
+                  '<span class="profil-mesin-kategori">' + escapeHtml(row.jenisKering || 'commercial') + (row.durasiKering > 0 ? ' \u00B7 ' + row.durasiKering + ' menit' : '') + '</span>' +
                 '</div>' +
               '</div>' +
             '</div>'

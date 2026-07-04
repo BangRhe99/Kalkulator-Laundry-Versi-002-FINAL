@@ -228,10 +228,6 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
     gap: 2px;
   }
 
-  .profil-kpi-item:last-child {
-    align-items: flex-end;
-  }
-
   .profil-kpi-label {
     font-size: 10.5px;
     color: var(--text-faint);
@@ -243,10 +239,17 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
   .profil-kpi-value {
     font-size: 22px;
     font-weight: 700;
-    color: var(--brass);
     font-variant-numeric: tabular-nums;
     line-height: 1.1;
     letter-spacing: -0.02em;
+  }
+
+  .profil-kpi-item:first-child .profil-kpi-value {
+    color: var(--sage);
+  }
+
+  .profil-kpi-item:last-child .profil-kpi-value {
+    color: var(--brass);
   }
 
   .profil-kpi-unit {
@@ -272,12 +275,13 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 2px;
     padding: 8px 14px;
     border-radius: var(--radius);
     border: 1px solid var(--border);
     background: var(--panel-2);
-    min-width: 80px;
+    flex: 1;
   }
 
   .profil-mesin-item.sage {

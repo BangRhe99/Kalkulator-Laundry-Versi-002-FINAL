@@ -90,8 +90,10 @@ function getDashboardCabangSummary(cabangId) {
         jamBukaMenit: dashboardNumber_(item.jamBukaMenit, 0),
         jamTutupMenit: dashboardNumber_(item.jamTutupMenit, 0),
         jenisCuci: (function() { var arr = dashboardArray_(item.mesinCuci); if (!arr.length) return ""; var j = arr[0].jenis || ""; return j === "rumah_tangga" ? "home" : j === "komersial" ? "commercial" : j; })(),
-        jenisKering: (function() { var arr = dashboardArray_(item.mesinPengering); if (!arr.length) return ""; var j = arr[0].jenis || ""; return j === "konversi" ? "home" : j === "komersial" ? "commercial" : j; })()
-      };
+        jenisCuci: (function() { var arr = dashboardArray_(item.mesinCuci); if (!arr.length) return ""; var j = arr[0].jenis || ""; return j === "rumah_tangga" ? "home" : j === "komersial" ? "commercial" : j; })(),
+        jenisKering: (function() { var arr = dashboardArray_(item.mesinPengering); if (!arr.length) return ""; var j = arr[0].jenis || ""; return j === "konversi" ? "home" : j === "komersial" ? "commercial" : j; })(),
+        durasiCuci: (function() { var arr = dashboardArray_(item.mesinCuci); return arr.length ? dashboardNumber_(arr[0].durasiMenit, 0) : 0; })(),
+        durasiKering: (function() { var arr = dashboardArray_(item.mesinPengering); return arr.length ? dashboardNumber_(arr[0].durasiMenit, 0) : 0; })()
     });
 
     return {
