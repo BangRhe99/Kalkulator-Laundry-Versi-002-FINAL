@@ -202,29 +202,74 @@ Jika tampilan rincian HPP, persen komponen, atau total HPP bermasalah, cek file 
 /* === DASHBOARD HPP CARD === */
 .hpp-mini-list { display: flex; flex-direction: column; gap: 10px; }
 .hpp-mini-card {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 10px 12px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--panel-2);
+  overflow: hidden;
+}
+.hpp-mini-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
 }
 .hpp-mini-title {
+  flex: 1;
   font-size: 11px;
   font-weight: 700;
   color: var(--text-dim);
 }
 .hpp-mini-total {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
-.hpp-mini-detail {
-  font-size: 10.5px;
+.hpp-mini-arrow {
+  font-size: 10px;
   color: var(--text-faint);
-  line-height: 1.4;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+.hpp-mini-card.is-open .hpp-mini-arrow {
+  transform: rotate(180deg);
+}
+.hpp-mini-detail {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px 10px 12px;
+  border-top: 1px solid var(--border);
+}
+.hpp-mini-card.is-open .hpp-mini-detail {
+  display: flex;
+}
+.hpp-mini-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+}
+.hpp-mini-row-label {
+  flex: 1;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.hpp-mini-row-percent {
+  color: var(--text-faint);
+  width: 44px;
+  flex-shrink: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.hpp-mini-row-amount {
+  color: var(--text);
+  font-weight: 600;
+  width: 62px;
+  flex-shrink: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 </style>

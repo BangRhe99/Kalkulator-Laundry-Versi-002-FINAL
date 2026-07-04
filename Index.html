@@ -935,6 +935,13 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     });
   });
 
+  window.toggleHppDetail = function (head, evt) {
+    if (evt) evt.stopPropagation();
+    var card = head.closest(".hpp-mini-card");
+    if (!card) return;
+    card.classList.toggle("is-open");
+  }
+
   function showToast(message, kind) {
     var el = document.getElementById("toast");
     if (!el) return;
@@ -1610,14 +1617,21 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           var layananList = Array.isArray(row.layananList) ? row.layananList : [];
           var miniHtml = layananList.map(function (svc) {
             var components = Array.isArray(svc.components) ? svc.components : [];
-            var detailText = components.map(function (c) {
+            var rowsHtml = components.map(function (c) {
               var lbl = hppShortLabel[c.key] || c.label || '';
-              return lbl + ' ' + money0(c.amount);
-            }).join(' · ');
+              return '<div class="hpp-mini-row">' +
+                '<span class="hpp-mini-row-label">' + escapeHtml(lbl) + '</span>' +
+                '<span class="hpp-mini-row-percent">' + String(c.percent || 0) + '%</span>' +
+                '<span class="hpp-mini-row-amount">' + money0(c.amount) + '</span>' +
+              '</div>';
+            }).join('');
             return '<div class="hpp-mini-card">' +
-              '<div class="hpp-mini-title">' + escapeHtml(svc.title || '') + '</div>' +
-              '<div class="hpp-mini-total">' + money0(svc.total) + '</div>' +
-              (detailText ? '<div class="hpp-mini-detail">' + escapeHtml(detailText) + '</div>' : '') +
+              '<div class="hpp-mini-head" onclick="toggleHppDetail(this, event)">' +
+                '<span class="hpp-mini-title">' + escapeHtml(svc.title || '') + '</span>' +
+                '<span class="hpp-mini-total">' + money0(svc.total) + '</span>' +
+                '<span class="hpp-mini-arrow">&#9662;</span>' +
+              '</div>' +
+              (rowsHtml ? '<div class="hpp-mini-detail">' + rowsHtml + '</div>' : '') +
             '</div>';
           }).join('');
           var emptyHtml = !layananList.length ? '<div class="dashboard-empty">HPP belum siap dihitung.</div>' : '';

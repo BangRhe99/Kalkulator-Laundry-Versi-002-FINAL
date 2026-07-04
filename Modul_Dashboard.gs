@@ -308,7 +308,7 @@ function getDashboardHPPSummary(cabangId) {
           totals.push(total);
         }
         const components = dashboardArray_(svc.components).map(function(c) {
-          return { key: c.key || "", label: c.label || "", amount: dashboardRound2_(c.amount) };
+          return { key: c.key || "", label: c.label || "", amount: dashboardRound2_(c.amount), percent: dashboardRound2_(c.percent) };
         });
         layananList.push({ key: svc.key || "", title: svc.title || "", total: dashboardRound2_(total), components: components });
         if (String(svc.key || "") === "cuci_kering") {
