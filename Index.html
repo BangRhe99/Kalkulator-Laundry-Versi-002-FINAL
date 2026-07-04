@@ -918,7 +918,8 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     }) + "%";
   }
 
-  function toggleOkupansiTooltip(btn) {
+  function toggleOkupansiTooltip(btn, evt) {
+    if (evt) evt.stopPropagation();
     var tip = btn.nextElementSibling;
     var wasOpen = tip && tip.classList.contains("is-open");
     document.querySelectorAll(".okupansi-tooltip.is-open").forEach(function (t) {
@@ -1495,7 +1496,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                   '</div>' +
                   '<div class="profil-kpi-okupansi">' +
                     '<span>Okupansi ' + escapeHtml(String(row.okupansiCuci || 0)) + '%</span>' +
-                    '<button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this)" aria-label="Apa itu okupansi?">?</button>' +
+                    '<button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this, event)" aria-label="Apa itu okupansi?">?</button>' +
                     '<div class="okupansi-tooltip">Okupansi adalah perkiraan seberapa sering mesin dipakai. Okupansi 50% artinya mesin diperkirakan cuma terisi separuh waktu yang tersedia, bukan penuh terus-menerus.</div>' +
                   '</div>' +
                 '</div>' +
@@ -1508,7 +1509,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                   '</div>' +
                   '<div class="profil-kpi-okupansi">' +
                     '<span>Okupansi ' + escapeHtml(String(row.okupansiKering || 0)) + '%</span>' +
-                    '<button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this)" aria-label="Apa itu okupansi?">?</button>' +
+                    '<button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this, event)" aria-label="Apa itu okupansi?">?</button>' +
                     '<div class="okupansi-tooltip">Okupansi adalah perkiraan seberapa sering mesin dipakai. Okupansi 50% artinya mesin diperkirakan cuma terisi separuh waktu yang tersedia, bukan penuh terus-menerus.</div>' +
                   '</div>' +
                 '</div>' +
