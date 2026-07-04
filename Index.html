@@ -997,6 +997,8 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
       '<line x1="' + x0 + '" y1="' + yCost0 + '" x2="' + xMax + '" y2="' + yCostMax + '" stroke="var(--brass)" stroke-width="2"></line>' +
       '<line x1="' + x0 + '" y1="' + yRev0 + '" x2="' + xMax + '" y2="' + yRevMax + '" stroke="var(--sage)" stroke-width="2"></line>' +
       '<circle cx="' + xBep + '" cy="' + yBep + '" r="3.5" fill="var(--text)"></circle>' +
+      '<text x="' + plotL + '" y="' + (plotT + 6) + '" font-size="9" fill="var(--text-faint)">' + escapeHtml(money0(maxY)) + '</text>' +
+      '<text x="' + plotR + '" y="' + (plotB + 13) + '" font-size="9" fill="var(--text-faint)" text-anchor="end">' + escapeHtml(formatNum(maxX, 0)) + ' load</text>' +
     '</svg>';
   }
 
@@ -1826,7 +1828,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                 '<div class="bep-item">' +
                   '<span class="bep-label">Load / Bulan</span>' +
                   '<span class="bep-value">' + escapeHtml(formatNum(d.bepLoadPerBulan, 0)) + '</span>' +
-                  '<span class="bep-unit">load</span>' +
                 '</div>' +
                 '<div class="bep-item">' +
                   '<span class="bep-label">Omset / Bulan</span>' +
@@ -1837,7 +1838,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                 '<div class="bep-item">' +
                   '<span class="bep-label">Load / Minggu</span>' +
                   '<span class="bep-value">' + escapeHtml(formatNum(d.bepLoadPerMinggu, 0)) + '</span>' +
-                  '<span class="bep-unit">load</span>' +
                 '</div>' +
                 '<div class="bep-item">' +
                   '<span class="bep-label">Omset / Minggu</span>' +
@@ -1848,7 +1848,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                 '<div class="bep-item">' +
                   '<span class="bep-label">Load / Hari</span>' +
                   '<span class="bep-value">' + escapeHtml(formatNum(d.bepLoadPerHari, 0)) + '</span>' +
-                  '<span class="bep-unit">load</span>' +
                 '</div>' +
                 '<div class="bep-item">' +
                   '<span class="bep-label">Omset / Hari</span>' +
