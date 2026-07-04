@@ -949,6 +949,13 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     item.classList.toggle("is-open");
   }
 
+  window.toggleFcDetail = function (row, evt) {
+    if (evt) evt.stopPropagation();
+    var card = row.closest(".fc-card");
+    if (!card) return;
+    card.classList.toggle("is-open");
+  }
+
   function showToast(message, kind) {
     var el = document.getElementById("toast");
     if (!el) return;
@@ -1715,17 +1722,26 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           return;
         }
         var d = rows[0];
-        var pill = d.hasData
-          ? '<span class="dashboard-status-pill ok">Terisi</span>'
-          : '<span class="dashboard-status-pill warning">Belum diisi</span>';
+        var components = Array.isArray(d.components) ? d.components : [];
+        var detailHtml = components.map(function (c) {
+          return '<div class="fc-detail-row">' +
+            '<span class="fc-detail-label">' + escapeHtml(c.label || '') + '</span>' +
+            '<span class="fc-detail-value">' + money0(c.amount) + '</span>' +
+          '</div>';
+        }).join('');
         var html =
-          '<div class="fc-head">' + pill + '</div>' +
-          '<div class="fc-main">' + formatDashboardRp(d.totalPerBulan || 0) + '</div>' +
-          '<div class="fc-sublabel">per bulan</div>' +
-          '<div class="fc-divider"></div>' +
-          '<div class="fc-hari">' +
-            '<span class="fc-hari-label">Estimasi per hari</span>' +
-            '<span class="fc-hari-val">' + formatDashboardRp(d.totalPerHari || 0) + '</span>' +
+          '<div class="fc-card">' +
+            '<div class="fc-main-row" onclick="toggleFcDetail(this, event)">' +
+              '<span class="fc-main">' + money0(d.totalPerBulan || 0) + '</span>' +
+              '<span class="fc-main-unit">per bulan</span>' +
+              '<span class="fc-arrow">&#9662;</span>' +
+            '</div>' +
+            '<div class="fc-divider"></div>' +
+            '<div class="fc-hari">' +
+              '<span class="fc-hari-label">Estimasi per hari</span>' +
+              '<span class="fc-hari-val">' + money0(d.totalPerHari || 0) + '</span>' +
+            '</div>' +
+            (detailHtml ? '<div class="fc-detail">' + detailHtml + '</div>' : '') +
           '</div>';
         setDashboardCardHtml('dashboardFixedCostSummary', html);
       })

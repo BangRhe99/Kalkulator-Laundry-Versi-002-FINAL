@@ -1379,12 +1379,19 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
   .hl-note { font-size: 11px; color: var(--text-faint); margin-top: 6px; text-align: center; }
   .hl-empty { font-size: 12px; color: var(--text-faint); text-align: center; padding: 8px 0; }
 
-  .fc-head { display: flex; justify-content: flex-end; margin-bottom: 14px; }
+  .fc-main-row { display: flex; align-items: baseline; gap: 6px; cursor: pointer; margin-bottom: 14px; }
   .fc-main { font-size: 28px; font-weight: 500; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1; }
-  .fc-sublabel { font-size: 12px; color: var(--text-faint); margin-top: 4px; }
+  .fc-main-unit { font-size: 12px; color: var(--text-faint); }
+  .fc-arrow { margin-left: auto; font-size: 11px; color: var(--text-faint); transition: transform 0.2s ease; flex-shrink: 0; }
+  .fc-card.is-open .fc-arrow { transform: rotate(180deg); }
   .fc-divider { height: 1px; background: var(--border); margin: 12px 0; }
   .fc-hari { display: flex; justify-content: space-between; align-items: center; }
   .fc-hari-label { font-size: 12px; color: var(--text-dim); }
   .fc-hari-val { font-size: 13px; font-weight: 500; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .fc-detail { display: none; flex-direction: column; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .fc-card.is-open .fc-detail { display: flex; }
+  .fc-detail-row { display: flex; justify-content: space-between; font-size: 11.5px; }
+  .fc-detail-label { color: var(--text-faint); }
+  .fc-detail-value { color: var(--text-dim); font-weight: 600; font-variant-numeric: tabular-nums; }
 </style>
 

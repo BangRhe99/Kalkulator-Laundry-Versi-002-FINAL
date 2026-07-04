@@ -472,12 +472,17 @@ function getDashboardFixedCostSummary(cabangId) {
       const summary = item.summary || {};
       const warnings = dashboardArray_(item.warnings);
 
+      const components = dashboardArray_(summary.components).map(function (c) {
+        return { key: String(c.key || ""), label: String(c.label || ""), amount: dashboardRound2_(c.amount) };
+      });
+
       return {
         cabangId: String(cabang.id || ""),
         namaLaundry: String(cabang.namaLaundry || "Outlet tanpa nama"),
         hasData: !!item.hasData,
         totalPerBulan: dashboardRound2_(summary.totalPerBulan),
         totalPerHari: dashboardRound2_(summary.totalPerHari),
+        components: components,
         warningsCount: warnings.length
       };
     });
