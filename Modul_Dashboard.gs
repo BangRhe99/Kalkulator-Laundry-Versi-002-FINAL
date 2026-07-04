@@ -119,6 +119,27 @@ function getDashboardCabangSummary(cabangId) {
   }
 }
 
+// Gabungan 6 fungsi Dashboard jadi 1 eksekusi server: browser cukup 1 kali
+// google.script.run, dan cache baca sheet (Util_Penyimpanan.gs) kepakai
+// bersama oleh keenam sub-panggilan di bawah (bukan reset tiap panggilan).
+function getDashboardFullSummary(cabangId) {
+  try {
+    return {
+      ok: true,
+      data: {
+        cabang: getDashboardCabangSummary(cabangId),
+        masterBiaya: getDashboardMasterBiayaSummary(cabangId),
+        hpp: getDashboardHPPSummary(cabangId),
+        hargaLayanan: getDashboardHargaLayananSummary(cabangId),
+        fixedCost: getDashboardFixedCostSummary(cabangId),
+        bep: getDashboardBEPSummary(cabangId)
+      }
+    };
+  } catch (err) {
+    return dashboardError_(err, "getDashboardFullSummary");
+  }
+}
+
 function getDashboardMasterBiayaSummary(cabangId) {
   try {
     const cabangRes = dashboardGetCabangRows_();

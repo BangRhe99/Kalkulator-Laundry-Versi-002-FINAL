@@ -1513,17 +1513,39 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
 
 
     var cId = dashboardSelectedOutletId || null;
-    loadDashboardCabang(cId);
-    loadDashboardMasterBiaya(cId);
-    loadDashboardHPP(cId);
-    loadDashboardHargaLayanan(cId);
-    loadDashboardFixedCost(cId);
-    loadDashboardBEP(cId);
+    google.script.run
+      .withSuccessHandler(function (full) {
+        if (!full || !full.ok) {
+          var msg = full && full.error ? full.error : "Gagal memuat ringkasan dashboard.";
+          renderDashboardCabangCard({ ok: false, error: msg });
+          renderDashboardMasterBiayaCard({ ok: false, error: msg });
+          renderDashboardHPPCard({ ok: false, error: msg });
+          renderDashboardHargaLayananCard({ ok: false, error: msg });
+          renderDashboardFixedCostCard({ ok: false, error: msg });
+          renderDashboardBEPCard({ ok: false, error: msg });
+          return;
+        }
+        var d = full.data || {};
+        renderDashboardCabangCard(d.cabang);
+        renderDashboardMasterBiayaCard(d.masterBiaya);
+        renderDashboardHPPCard(d.hpp);
+        renderDashboardHargaLayananCard(d.hargaLayanan);
+        renderDashboardFixedCostCard(d.fixedCost);
+        renderDashboardBEPCard(d.bep);
+      })
+      .withFailureHandler(function (err) {
+        var msg = err && err.message ? err.message : String(err);
+        renderDashboardCabangCard({ ok: false, error: msg });
+        renderDashboardMasterBiayaCard({ ok: false, error: msg });
+        renderDashboardHPPCard({ ok: false, error: msg });
+        renderDashboardHargaLayananCard({ ok: false, error: msg });
+        renderDashboardFixedCostCard({ ok: false, error: msg });
+        renderDashboardBEPCard({ ok: false, error: msg });
+      })
+      .getDashboardFullSummary(cId);
   }
 
-  function loadDashboardCabang(cabangId) {
-    google.script.run
-      .withSuccessHandler(function (res) {
+  function renderDashboardCabangCard(res) {
         if (!res || !res.ok) {
           setDashboardCardError("dashboardCabangSummary", res && res.error ? res.error : "Data cabang belum bisa dibaca.");
           return;
@@ -1597,16 +1619,9 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           );
         }).join('');
         setDashboardCardHtml('dashboardCabangSummary', html);
-      })
-      .withFailureHandler(function (err) {
-        setDashboardCardError("dashboardCabangSummary", err && err.message ? err.message : String(err));
-      })
-      .getDashboardCabangSummary(cabangId);
   }
 
-  function loadDashboardMasterBiaya(cabangId) {
-    google.script.run
-      .withSuccessHandler(function (res) {
+  function renderDashboardMasterBiayaCard(res) {
         if (!res || !res.ok) {
           setDashboardCardError("dashboardMasterBiayaSummary", res && res.error ? res.error : "Data master biaya belum bisa dibaca.");
           return;
@@ -1644,16 +1659,9 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           '</div>';
         }).join('');
         setDashboardCardHtml("dashboardMasterBiayaSummary", html);
-      })
-      .withFailureHandler(function (err) {
-        setDashboardCardError("dashboardMasterBiayaSummary", err && err.message ? err.message : String(err));
-      })
-      .getDashboardMasterBiayaSummary(cabangId);
   }
 
-  function loadDashboardHPP(cabangId) {
-    google.script.run
-      .withSuccessHandler(function (res) {
+  function renderDashboardHPPCard(res) {
         if (!res || !res.ok) {
           setDashboardCardError("dashboardHppSummary", res && res.error ? res.error : "Data HPP belum bisa dibaca.");
           return;
@@ -1698,15 +1706,8 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           return layananList.length > 0 ? '<div class="hpp-mini-list">' + miniHtml + '</div>' : emptyHtml;
         }).join('');
         setDashboardCardHtml('dashboardHppSummary', html);
-      })
-      .withFailureHandler(function (err) {
-        setDashboardCardError("dashboardHppSummary", err && err.message ? err.message : String(err));
-      })
-      .getDashboardHPPSummary(cabangId);
   }
-  function loadDashboardHargaLayanan(cabangId) {
-    google.script.run
-      .withSuccessHandler(function (res) {
+  function renderDashboardHargaLayananCard(res) {
         if (!res || !res.ok) {
           setDashboardCardError("dashboardHargaLayananSummary", res && res.error ? res.error : "Data harga layanan belum bisa dibaca.");
           return;
@@ -1747,16 +1748,9 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           }
         }
         setDashboardCardHtml('dashboardHargaLayananSummary', html);
-      })
-      .withFailureHandler(function (err) {
-        setDashboardCardError("dashboardHargaLayananSummary", err && err.message ? err.message : String(err));
-      })
-      .getDashboardHargaLayananSummary(cabangId);
   }
 
-  function loadDashboardFixedCost(cabangId) {
-    google.script.run
-      .withSuccessHandler(function (res) {
+  function renderDashboardFixedCostCard(res) {
         if (!res || !res.ok) {
           setDashboardCardError("dashboardFixedCostSummary", res && res.error ? res.error : "Data fixed cost belum bisa dibaca.");
           return;
@@ -1790,15 +1784,8 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             (detailHtml ? '<div class="fc-detail">' + detailHtml + '</div>' : '') +
           '</div>';
         setDashboardCardHtml('dashboardFixedCostSummary', html);
-      })
-      .withFailureHandler(function (err) {
-        setDashboardCardError("dashboardFixedCostSummary", err && err.message ? err.message : String(err));
-      })
-      .getDashboardFixedCostSummary(cabangId);
   }
-  function loadDashboardBEP(cabangId) {
-    google.script.run
-      .withSuccessHandler(function (res) {
+  function renderDashboardBEPCard(res) {
         if (!res || !res.ok) {
           setDashboardCardError("dashboardBEPSummary", res && res.error ? res.error : "Data BEP belum bisa dihitung.");
           return;
@@ -1859,11 +1846,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           '</div>';
         }
         setDashboardCardHtml("dashboardBEPSummary", html);
-      })
-      .withFailureHandler(function (err) {
-        setDashboardCardError("dashboardBEPSummary", err && err.message ? err.message : String(err));
-      })
-      .getDashboardBEPSummary(cabangId);
   }
 
   window.openScreenCabangList = function () {
