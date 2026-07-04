@@ -81,12 +81,17 @@ function getDashboardCabangSummary(cabangId) {
 
       let mesinCuci = [];
       let mesinPengering = [];
+      let okupansiCuci = 0;
+      let okupansiKering = 0;
       try {
         if (typeof getCabang === "function") {
           const detailRes = getCabang(item.id);
           if (detailRes && detailRes.ok && detailRes.data && detailRes.data.cabang) {
             mesinCuci = dashboardArray_(detailRes.data.cabang.mesinCuci);
             mesinPengering = dashboardArray_(detailRes.data.cabang.mesinPengering);
+            var okupansi = detailRes.data.cabang.okupansi || {};
+            okupansiCuci = dashboardNumber_(okupansi.cuciPersen, 0);
+            okupansiKering = dashboardNumber_(okupansi.keringPersen, 0);
           }
         }
       } catch (e) {}
@@ -104,7 +109,9 @@ function getDashboardCabangSummary(cabangId) {
         jenisCuci: (function() { if (!mesinCuci.length) return ""; var j = mesinCuci[0].jenis || ""; return j === "rumah_tangga" ? "home" : j === "komersial" ? "commercial" : j; })(),
         jenisKering: (function() { if (!mesinPengering.length) return ""; var j = mesinPengering[0].jenis || ""; return j === "konversi" ? "home" : j === "komersial" ? "commercial" : j; })(),
         durasiCuci: mesinCuci.length ? dashboardNumber_(mesinCuci[0].durasiMenit, 0) : 0,
-        durasiKering: mesinPengering.length ? dashboardNumber_(mesinPengering[0].durasiMenit, 0) : 0
+        durasiKering: mesinPengering.length ? dashboardNumber_(mesinPengering[0].durasiMenit, 0) : 0,
+        okupansiCuci: okupansiCuci,
+        okupansiKering: okupansiKering
       };
     });
 

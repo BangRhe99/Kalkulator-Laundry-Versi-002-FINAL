@@ -258,6 +258,67 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
     font-weight: 500;
   }
 
+  .profil-kpi-value-row {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .profil-kpi-okupansi {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10.5px;
+    color: var(--text-faint);
+    margin-top: 2px;
+  }
+
+  .okupansi-info-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text-faint);
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .okupansi-tooltip {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 6px;
+    width: 180px;
+    max-width: 55vw;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-dim);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 20;
+  }
+
+  .profil-kpi-item:last-child .okupansi-tooltip {
+    left: auto;
+    right: 0;
+  }
+
+  .okupansi-tooltip.is-open {
+    display: block;
+  }
+
   .profil-kpi-divider {
     width: 1px;
     height: 40px;

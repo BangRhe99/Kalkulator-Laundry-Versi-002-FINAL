@@ -918,6 +918,22 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     }) + "%";
   }
 
+  function toggleOkupansiTooltip(btn) {
+    var tip = btn.nextElementSibling;
+    var wasOpen = tip && tip.classList.contains("is-open");
+    document.querySelectorAll(".okupansi-tooltip.is-open").forEach(function (t) {
+      t.classList.remove("is-open");
+    });
+    if (tip && !wasOpen) tip.classList.add("is-open");
+  }
+
+  document.addEventListener("click", function (e) {
+    if (e.target.closest && e.target.closest(".profil-kpi-okupansi")) return;
+    document.querySelectorAll(".okupansi-tooltip.is-open").forEach(function (t) {
+      t.classList.remove("is-open");
+    });
+  });
+
   function showToast(message, kind) {
     var el = document.getElementById("toast");
     if (!el) return;
@@ -1473,14 +1489,28 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
               '<div class="profil-outlet-kpi">' +
                 '<div class="profil-kpi-item">' +
                   '<span class="profil-kpi-label">Kap. Cuci / bulan</span>' +
-                  '<span class="profil-kpi-value">' + escapeHtml(formatNum(row.loadCuciPerBulan || 0)) + '</span>' +
-                  '<span class="profil-kpi-unit">load</span>' +
+                  '<div class="profil-kpi-value-row">' +
+                    '<span class="profil-kpi-value">' + escapeHtml(formatNum(row.loadCuciPerBulan || 0)) + '</span>' +
+                    '<span class="profil-kpi-unit">load</span>' +
+                  '</div>' +
+                  '<div class="profil-kpi-okupansi">' +
+                    '<span>Okupansi ' + escapeHtml(String(row.okupansiCuci || 0)) + '%</span>' +
+                    '<button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this)" aria-label="Apa itu okupansi?">?</button>' +
+                    '<div class="okupansi-tooltip">Okupansi adalah perkiraan seberapa sering mesin dipakai. Okupansi 50% artinya mesin diperkirakan cuma terisi separuh waktu yang tersedia, bukan penuh terus-menerus.</div>' +
+                  '</div>' +
                 '</div>' +
                 '<div class="profil-kpi-divider"></div>' +
                 '<div class="profil-kpi-item">' +
                   '<span class="profil-kpi-label">Kap. Kering / bulan</span>' +
-                  '<span class="profil-kpi-value">' + escapeHtml(formatNum(row.loadKeringPerBulan || 0)) + '</span>' +
-                  '<span class="profil-kpi-unit">load</span>' +
+                  '<div class="profil-kpi-value-row">' +
+                    '<span class="profil-kpi-value">' + escapeHtml(formatNum(row.loadKeringPerBulan || 0)) + '</span>' +
+                    '<span class="profil-kpi-unit">load</span>' +
+                  '</div>' +
+                  '<div class="profil-kpi-okupansi">' +
+                    '<span>Okupansi ' + escapeHtml(String(row.okupansiKering || 0)) + '%</span>' +
+                    '<button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this)" aria-label="Apa itu okupansi?">?</button>' +
+                    '<div class="okupansi-tooltip">Okupansi adalah perkiraan seberapa sering mesin dipakai. Okupansi 50% artinya mesin diperkirakan cuma terisi separuh waktu yang tersedia, bukan penuh terus-menerus.</div>' +
+                  '</div>' +
                 '</div>' +
               '</div>' +
               '<div class="profil-outlet-mesin">' +
