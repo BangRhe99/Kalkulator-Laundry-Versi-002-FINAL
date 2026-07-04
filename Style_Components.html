@@ -544,7 +544,11 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
     font-size: 11px;
     font-weight: 600;
     color: var(--text-dim);
-    flex: 1;
+    width: 74px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .mb-komponen-value {
