@@ -227,6 +227,12 @@ Jika tampilan gas, listrik, air, atau admin/nota bermasalah, mulai cek dari file
      lega (>=1100px). Di bawah itu (termasuk banyak jendela laptop yang tidak
      maksimal), tetap 1 kolom penuh spt mobile - supaya jam operasional & grid
      mesin (4 field) tidak berdesakan/kepotong di kolom sempit. */
+  /* .wrap global dibatasi 480px (lihat Style_Base.html) supaya tampilan mobile-first
+     tetap rapi. Screen Profil Outlet (screenForm) butuh lebih lega karena ada
+     layout 2 kolom (form + pratinjau) - dilebarkan KHUSUS untuk screen ini saja,
+     screen lain tidak terpengaruh. */
+  body:has(#screenForm.active) .wrap { width: min(100%, 1080px); }
+
   @media (min-width: 1100px) {
     .layout-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
     .layout-grid .col-input { display: flex; flex-direction: column; }

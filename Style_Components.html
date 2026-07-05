@@ -906,7 +906,14 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
   }
 
   .time-picker-row { display: flex; align-items: center; gap: 6px; }
-  .time-picker-row select { text-align: center; }
+  .time-picker-row select {
+    text-align: center;
+    flex: 0 0 64px;
+    width: 64px;
+    min-width: 64px;
+    padding: 10px 20px 10px 10px;
+    background-position: right 8px center;
+  }
   .time-picker-row .colon { font-family: var(--font-mono); color: var(--text-faint); font-size: 16px; }
 
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
