@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ============================================================================
  * MODUL: MASTER BIAYA — LISTRIK
  * ============================================================================
@@ -73,6 +73,7 @@ function defaultBiayaListrik_() {
     wattMesinCuci: 0,
     wattMesinPengering: 0,
     wattPompaAir: 0,
+    wattSetrikaListrik: 0,
     createdAt: null,
     updatedAt: null,
   };
@@ -115,7 +116,7 @@ function getBiayaListrik(cabangId) {
     return {
       ok: true,
       data: {
-        cabang: { id: cabang.id, namaLaundry: cabang.profil.namaLaundry, mesinCuci: cabang.mesinCuci, mesinPengering: cabang.mesinPengering },
+        cabang: { id: cabang.id, namaLaundry: cabang.profil.namaLaundry, mesinCuci: cabang.mesinCuci, mesinPengering: cabang.mesinPengering, mesinSetrika: cabang.mesinSetrika, kategoriLayanan: cabang.kategoriLayanan },
         record: record,
         summary: computeBiayaListrikSummary_(record, cabang),
       },
@@ -189,6 +190,7 @@ function sanitizeBiayaListrik_(input) {
   out.wattMesinCuci = clamp_(toNumber_(input && input.wattMesinCuci, 0), 0, 100000);
   out.wattMesinPengering = clamp_(toNumber_(input && input.wattMesinPengering, 0), 0, 100000);
   out.wattPompaAir = clamp_(toNumber_(input && input.wattPompaAir, 0), 0, 100000);
+  out.wattSetrikaListrik = clamp_(toNumber_(input && input.wattSetrikaListrik, 0), 0, 100000);
 
   out.createdAt = (input && input.createdAt) || null;
   out.updatedAt = (input && input.updatedAt) || null;
@@ -230,11 +232,40 @@ function computeBiayaListrikSummary_(record, cabang) {
     return computeListrikBarisMesin_(m, record.wattMesinPengering, 0, tdl);
   });
 
+  const setrikaRincian = (cabang.mesinSetrika || [])
+    .filter(function (m) { return m.jenis === "listrik"; })
+    .map(function (m) {
+      return computeListrikSetrikaBaris_(m, record.wattSetrikaListrik, tdl);
+    });
+
   return {
     totalUnitMesinCuci: totalUnitCuci,
     wattPompaPerMesinCuci: wattPompaPerMesinCuci,
     cuci: cuciRincian,
     pengering: pengeringRincian,
+    setrika: setrikaRincian,
+  };
+}
+
+/**
+ * computeListrikSetrikaBaris_ menghitung biaya listrik SATU baris mesin setrika
+ * listrik. BEDA dari cuci/pengering: basisnya PER JAM (bukan per load), karena
+ * kapasitas setrika memang dicatat per jam (kapasitasKgPerJam), bukan per siklus.
+ * Baris bertipe "uap" tidak dihitung sama sekali di sini (difilter di pemanggil),
+ * karena setrika uap tidak punya komponen biaya listrik.
+ */
+function computeListrikSetrikaBaris_(m, wattSetrika, tdlPerKwh) {
+  const watt = toNumber_(wattSetrika, 0);
+  const kwhPerJam = watt > 0 ? watt / 1000 : 0;
+  const rpListrikPerJam = round2_(kwhPerJam * tdlPerKwh);
+
+  return {
+    machineId: m.id,
+    jenis: m.jenis,
+    jumlahUnit: toInt_(m.jumlahUnit, 0),
+    kapasitasKgPerJam: toNumber_(m.kapasitasKgPerJam, 0),
+    rpListrikPerJam: rpListrikPerJam,
+    statusValid: watt > 0,
   };
 }
 

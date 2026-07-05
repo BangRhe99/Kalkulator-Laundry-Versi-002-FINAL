@@ -594,6 +594,19 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           <input type="number" inputmode="decimal" min="0" step="1" id="listrikWattPompa" placeholder="280">
           <div class="field-hint" id="listrikPompaHint">Dialokasikan rata ke setiap mesin cuci yang ada di profil cabang ini.</div>
         </div>
+
+        <div class="listrik-kategori-card full" id="listrikSetrikaCard" style="display:none;">
+          <div class="listrik-kategori-top">
+            <div class="title-group" style="display:flex;align-items:center;gap:8px;">
+              <span class="listrik-kategori-icon setrika">&#9889;</span>
+              <span class="name setrika">Setrika Listrik</span>
+            </div>
+          </div>
+          <label for="listrikWattSetrika">Daya / mesin (Watt)</label>
+          <input type="number" inputmode="decimal" min="0" step="1" id="listrikWattSetrika" placeholder="300">
+          <div class="field-hint">Dihitung per jam, bukan per load â€” sesuai kapasitas mesin setrika di profil cabang ini.</div>
+          <div class="listrik-rincian-list" id="listrikRincianSetrika"></div>
+        </div>
       </div>
     </section>
 
@@ -3215,11 +3228,28 @@ function selectGasCustom() {
       return computeBaris(m, Number(record.wattMesinPengering) || 0, 0);
     });
 
+    var wattSetrika = Number(record.wattSetrikaListrik) || 0;
+    var setrikaRincian = (cabang.mesinSetrika || [])
+      .filter(function (m) { return m.jenis === "listrik"; })
+      .map(function (m) {
+        var kwhPerJam = wattSetrika > 0 ? wattSetrika / 1000 : 0;
+        var rpListrikPerJam = round2(kwhPerJam * tdl);
+        return {
+          machineId: m.id,
+          jenis: m.jenis,
+          jumlahUnit: Number(m.jumlahUnit) || 0,
+          kapasitasKgPerJam: Number(m.kapasitasKgPerJam) || 0,
+          rpListrikPerJam: rpListrikPerJam,
+          statusValid: wattSetrika > 0
+        };
+      });
+
     return {
       totalUnitMesinCuci: totalUnitCuci,
       wattPompaPerMesinCuci: wattPompaPerMesinCuci,
       cuci: cuciRincian,
-      pengering: pengeringRincian
+      pengering: pengeringRincian,
+      setrika: setrikaRincian
     };
   }
 
@@ -3263,6 +3293,7 @@ function selectGasCustom() {
     document.getElementById("listrikWattCuci").value = listrikFormState.wattMesinCuci || "";
     document.getElementById("listrikWattKering").value = listrikFormState.wattMesinPengering || "";
     document.getElementById("listrikWattPompa").value = listrikFormState.wattPompaAir || "";
+    document.getElementById("listrikWattSetrika").value = listrikFormState.wattSetrikaListrik || "";
   }
 
   function renderListrikForm() {
@@ -3325,6 +3356,35 @@ function selectGasCustom() {
    * renderListrikPreview: pratinjau real-time berdasarkan listrikFormState
    * SAAT INI (sebelum disimpan), supaya user lihat hasil sambil mengetik.
    */
+  function renderListrikRincianSetrika(containerId, rincianRows) {
+    var el = document.getElementById(containerId);
+    el.innerHTML = "";
+
+    if (rincianRows.length === 0) {
+      el.innerHTML = "<div class=\"listrik-rincian-empty\">Belum ada mesin setrika listrik di profil cabang ini.</div>";
+      return;
+    }
+
+    rincianRows.forEach(function (r, index) {
+      var label = "Unit setrika #" + (index + 1) + " Â· " + (r.jumlahUnit || 0) + " unit";
+      var row = document.createElement("div");
+      row.className = "listrik-rincian-row";
+
+      if (!r.statusValid) {
+        row.innerHTML =
+          "<span class=\"k\">" + escapeHtml(label) + "</span>" +
+          "<span class=\"v muted\">watt belum diisi</span>";
+        el.appendChild(row);
+        return;
+      }
+
+      row.innerHTML =
+        "<span class=\"k\">" + escapeHtml(label) + "</span>" +
+        "<span class=\"v\">" + formatRupiah(r.rpListrikPerJam) + " / jam</span>";
+      el.appendChild(row);
+    });
+  }
+
   function renderListrikPreview() {
     if (!listrikCabangCache) return;
     var summary = computeBiayaListrikSummaryClient(listrikFormState, listrikCabangCache);
@@ -3337,6 +3397,16 @@ function selectGasCustom() {
       hintEl.textContent = "Dialokasikan rata ke " + summary.totalUnitMesinCuci + " unit mesin cuci di profil cabang ini (\u2248 " + formatNum(summary.wattPompaPerMesinCuci) + " W / mesin).";
     } else {
       hintEl.textContent = "Belum ada mesin cuci di profil cabang ini \u2014 beban pompa belum bisa dialokasikan.";
+    }
+
+    var setrikaCard = document.getElementById("listrikSetrikaCard");
+    if (setrikaCard) {
+      var adaSetrikaListrik = (listrikCabangCache.mesinSetrika || []).some(function (m) { return m.jenis === "listrik"; });
+      var showSetrika = isKiloanKategori(listrikCabangCache.kategoriLayanan) && adaSetrikaListrik;
+      setrikaCard.style.display = showSetrika ? "" : "none";
+      if (showSetrika) {
+        renderListrikRincianSetrika("listrikRincianSetrika", summary.setrika);
+      }
     }
   }
 
@@ -3389,6 +3459,10 @@ function selectGasCustom() {
     });
     document.getElementById("listrikWattPompa").addEventListener("input", function (e) {
       listrikFormState.wattPompaAir = Number(e.target.value) || 0;
+      renderListrikPreview();
+    });
+    document.getElementById("listrikWattSetrika").addEventListener("input", function (e) {
+      listrikFormState.wattSetrikaListrik = Number(e.target.value) || 0;
       renderListrikPreview();
     });
   }
