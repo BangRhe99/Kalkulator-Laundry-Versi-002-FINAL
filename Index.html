@@ -228,6 +228,26 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             <div class="machine-summary-list" id="rKeringDetail"></div>
           </div>
         </div>
+        <div id="rSetrikaWrap" style="display:none;">
+          <div class="summary-panel">
+            <div class="summary-section-label">Mesin setrika</div>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div class="label">Total unit</div>
+                <div class="num" id="rSetrikaUnit">0</div>
+              </div>
+              <div class="stat-card brass">
+                <div class="label">Kapasitas maksimal/jam</div>
+                <div class="num" id="rSetrikaMax">0<span class="unit">kg</span></div>
+              </div>
+            </div>
+            <div class="scale-table">
+              <div class="scale-row highlight"><span class="k">Kg per jam (setelah okupansi)</span><span class="v" id="rSetrikaJam">0 kg</span></div>
+            </div>
+            <div class="group-divider">Rincian unit</div>
+            <div class="machine-summary-list" id="rSetrikaDetail"></div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -297,9 +317,29 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             </div>
           </section>
 
-          <section class="panel" data-panel="okupansi">
+          <section class="panel" data-panel="setrika" id="panelSetrika" style="display:none;">
             <div class="panel-head" onclick="togglePanel(this)">
               <span class="idx">04</span>
+              <h2>Mesin setrika</h2>
+              <span class="chev">&#9660;</span>
+            </div>
+            <div class="panel-body">
+              <div class="machine-list" id="mesinSetrikaList"></div>
+              <div class="empty-hint" id="mesinSetrikaEmpty">Belum ada mesin setrika. Tambahkan baris pertama.</div>
+              <button class="add-btn" onclick="addMachine('mesinSetrika')">+ Tambah mesin setrika</button>
+              <div class="meter-block" style="margin-top: 14px;">
+                <div class="meter-label-row">
+                  <span class="name">Okupansi mesin setrika</span>
+                  <span class="val" id="setrikaPersenVal">70%</span>
+                </div>
+                <input type="range" id="setrikaPersen" min="0" max="100" step="5" value="70">
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" data-panel="okupansi">
+            <div class="panel-head" onclick="togglePanel(this)">
+              <span class="idx">05</span>
               <h2>Okupansi &amp; kategori layanan</h2>
               <span class="chev">&#9660;</span>
             </div>
@@ -366,6 +406,23 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
               <div class="scale-row"><span class="k">Load per hari</span><span class="v" id="outKeringHari">0 load</span></div>
               <div class="scale-row"><span class="k">Load per minggu</span><span class="v" id="outKeringMinggu">0 load</span></div>
               <div class="scale-row"><span class="k">Load per bulan</span><span class="v" id="outKeringBulan">0 load</span></div>
+            </div>
+          </section>
+
+          <section class="summary-panel" id="outSetrikaPanel" style="display:none;">
+            <div class="summary-section-label">Pratinjau kapasitas setrika</div>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div class="label">Total unit</div>
+                <div class="num" id="outSetrikaUnit">0</div>
+              </div>
+              <div class="stat-card brass">
+                <div class="label">Maksimal/jam</div>
+                <div class="num" id="outSetrikaMax">0<span class="unit">kg</span></div>
+              </div>
+            </div>
+            <div class="scale-table">
+              <div class="scale-row"><span class="k">Kg per jam (setelah okupansi)</span><span class="v" id="outSetrikaJam">0 kg</span></div>
             </div>
           </section>
         </div>
@@ -1174,13 +1231,31 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     };
   }
 
+  function computeGroupSetrika(rows, okupansiPersen) {
+    var totalUnit = 0;
+    var kapasitasMaksimalKgPerJam = 0;
+    for (var i = 0; i < rows.length; i++) {
+      var m = rows[i];
+      var unit = Number(m.jumlahUnit) || 0;
+      totalUnit += unit;
+      kapasitasMaksimalKgPerJam += (Number(m.kapasitasKgPerJam) || 0) * unit;
+    }
+    var fraksi = Math.min(Math.max(Number(okupansiPersen) || 0, 0), 100) / 100;
+    return {
+      totalUnit: totalUnit,
+      kapasitasMaksimalKgPerJam: round2(kapasitasMaksimalKgPerJam),
+      kapasitasKgPerJam: round2(kapasitasMaksimalKgPerJam * fraksi)
+    };
+  }
+
   function computeSummary(cabang) {
     var totalMenit = computeDurasiOperasional(cabang.profil.jamBukaMenit, cabang.profil.jamTutupMenit);
     return {
       totalMenitPerHari: totalMenit,
       totalJamPerHari: round2(totalMenit / 60),
       cuci: computeGroupLoad(cabang.mesinCuci, totalMenit, cabang.okupansi.cuciPersen),
-      kering: computeGroupLoad(cabang.mesinPengering, totalMenit, cabang.okupansi.keringPersen)
+      kering: computeGroupLoad(cabang.mesinPengering, totalMenit, cabang.okupansi.keringPersen),
+      setrika: computeGroupSetrika(cabang.mesinSetrika || [], cabang.okupansi.setrikaPersen)
     };
   }
 
@@ -2164,6 +2239,18 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     document.getElementById("rKeringBulan").textContent = formatNum(summary.kering.loadPerBulan) + " load";
     renderMachineSummaryDetail("rKeringDetail", cabang.mesinPengering, "konversi", "Konversi", "komersial", "Komersial");
 
+    var rSetrikaWrap = document.getElementById("rSetrikaWrap");
+    if (rSetrikaWrap) {
+      var showSetrika = isKiloanKategori(cabang.kategoriLayanan);
+      rSetrikaWrap.style.display = showSetrika ? "" : "none";
+      if (showSetrika) {
+        document.getElementById("rSetrikaUnit").textContent = summary.setrika.totalUnit;
+        document.getElementById("rSetrikaMax").innerHTML = formatNum(summary.setrika.kapasitasMaksimalKgPerJam) + "<span class=\"unit\">kg</span>";
+        document.getElementById("rSetrikaJam").textContent = formatNum(summary.setrika.kapasitasKgPerJam) + " kg";
+        renderSetrikaSummaryDetail("rSetrikaDetail", cabang.mesinSetrika || []);
+      }
+    }
+
     renderFooter();
   }
 
@@ -2184,6 +2271,25 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
       row.innerHTML =
         "<span class=\"name\">" + jenisTxt + " &middot; " + (m.jumlahUnit || 0) + " unit</span>" +
         "<span class=\"detail\">" + (m.kapasitasKg || 0) + " kg &middot; " + (m.durasiMenit || 0) + " mnt</span>";
+      el.appendChild(row);
+    });
+  }
+
+  function renderSetrikaSummaryDetail(containerId, rows) {
+    var el = document.getElementById(containerId);
+    el.innerHTML = "";
+    if (rows.length === 0) {
+      el.innerHTML = "<div class=\"empty-hint\">Belum ada mesin ditambahkan.</div>";
+      return;
+    }
+    var jenisLabel = { listrik: "Setrika Listrik", uap: "Setrika Uap" };
+    rows.forEach(function (m) {
+      var row = document.createElement("div");
+      row.className = "machine-summary-row";
+      var jenisTxt = jenisLabel[m.jenis] || "Belum dipilih";
+      row.innerHTML =
+        "<span class=\"name\">" + jenisTxt + " &middot; " + (m.jumlahUnit || 0) + " unit</span>" +
+        "<span class=\"detail\">" + (m.kapasitasKgPerJam || 0) + " kg/jam</span>";
       el.appendChild(row);
     });
   }
@@ -2232,8 +2338,9 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
       profil: { namaLaundry: "", jamBukaMenit: 8 * 60, jamTutupMenit: 21 * 60 },
       mesinCuci: [],
       mesinPengering: [],
+      mesinSetrika: [],
       kategoriLayanan: "self_service",
-      okupansi: { cuciPersen: 70, keringPersen: 70 },
+      okupansi: { cuciPersen: 70, keringPersen: 70, setrikaPersen: 70 },
       createdAt: null,
       updatedAt: null
     };
@@ -2303,9 +2410,12 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
   }
 
   function machineRowTemplate(group, row, index) {
+    var isSetrika = group === "mesinSetrika";
     var jenisOptions = group === "mesinCuci"
       ? [["", "Pilih jenis"], ["rumah_tangga", "Rumah tangga"], ["komersial", "Komersial"]]
-      : [["", "Pilih jenis"], ["konversi", "Konversi"], ["komersial", "Komersial"]];
+      : isSetrika
+        ? [["", "Pilih jenis"], ["listrik", "Setrika Listrik"], ["uap", "Setrika Uap"]]
+        : [["", "Pilih jenis"], ["konversi", "Konversi"], ["komersial", "Komersial"]];
 
     var optsHtml = jenisOptions.map(function (o) {
       var sel = (o[0] === row.jenis) ? "selected" : "";
@@ -2316,17 +2426,21 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     div.className = "machine-row";
     div.setAttribute("data-id", row.id);
 
+    var fieldsHtml = isSetrika
+      ? "<div class=\"field\"><label>Jenis</label><select data-field=\"jenis\">" + optsHtml + "</select></div>" +
+        "<div class=\"field\"><label>Kapasitas (kg/jam)</label><input type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"0.5\" data-field=\"kapasitasKgPerJam\" value=\"" + (row.kapasitasKgPerJam || "") + "\"></div>" +
+        "<div class=\"field\"><label>Jumlah unit</label><input type=\"number\" inputmode=\"numeric\" min=\"0\" step=\"1\" data-field=\"jumlahUnit\" value=\"" + (row.jumlahUnit != null ? row.jumlahUnit : 1) + "\"></div>"
+      : "<div class=\"field\"><label>Jenis</label><select data-field=\"jenis\">" + optsHtml + "</select></div>" +
+        "<div class=\"field\"><label>Kapasitas (kg)</label><input type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"0.5\" data-field=\"kapasitasKg\" value=\"" + (row.kapasitasKg || "") + "\"></div>" +
+        "<div class=\"field\"><label>Durasi (menit)</label><input type=\"number\" inputmode=\"numeric\" min=\"0\" step=\"1\" data-field=\"durasiMenit\" value=\"" + (row.durasiMenit || "") + "\"></div>" +
+        "<div class=\"field\"><label>Jumlah unit</label><input type=\"number\" inputmode=\"numeric\" min=\"0\" step=\"1\" data-field=\"jumlahUnit\" value=\"" + (row.jumlahUnit != null ? row.jumlahUnit : 1) + "\"></div>";
+
     div.innerHTML =
       "<div class=\"machine-row-top\">" +
         "<span class=\"tag\">unit #" + (index + 1) + "</span>" +
         "<button class=\"icon-btn\" type=\"button\" aria-label=\"Hapus baris ini\" onclick=\"removeMachine('" + group + "','" + row.id + "')\">&#10005;</button>" +
       "</div>" +
-      "<div class=\"machine-grid\">" +
-        "<div class=\"field\"><label>Jenis</label><select data-field=\"jenis\">" + optsHtml + "</select></div>" +
-        "<div class=\"field\"><label>Kapasitas (kg)</label><input type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"0.5\" data-field=\"kapasitasKg\" value=\"" + (row.kapasitasKg || "") + "\"></div>" +
-        "<div class=\"field\"><label>Durasi (menit)</label><input type=\"number\" inputmode=\"numeric\" min=\"0\" step=\"1\" data-field=\"durasiMenit\" value=\"" + (row.durasiMenit || "") + "\"></div>" +
-        "<div class=\"field\"><label>Jumlah unit</label><input type=\"number\" inputmode=\"numeric\" min=\"0\" step=\"1\" data-field=\"jumlahUnit\" value=\"" + (row.jumlahUnit != null ? row.jumlahUnit : 1) + "\"></div>" +
-      "</div>";
+      "<div class=\"machine-grid\">" + fieldsHtml + "</div>";
 
     div.querySelector("select[data-field='jenis']").addEventListener("change", function (e) {
       updateMachineField(group, row.id, "jenis", e.target.value);
@@ -2341,13 +2455,22 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
   }
 
   function renderMachineList(group) {
-    var listEl = document.getElementById(group === "mesinCuci" ? "mesinCuciList" : "mesinPengeringList");
-    var emptyEl = document.getElementById(group === "mesinCuci" ? "mesinCuciEmpty" : "mesinPengeringEmpty");
-    var rows = formState[group];
+    var ids = {
+      mesinCuci: ["mesinCuciList", "mesinCuciEmpty"],
+      mesinPengering: ["mesinPengeringList", "mesinPengeringEmpty"],
+      mesinSetrika: ["mesinSetrikaList", "mesinSetrikaEmpty"]
+    };
+    var listEl = document.getElementById(ids[group][0]);
+    var emptyEl = document.getElementById(ids[group][1]);
+    var rows = formState[group] || [];
     listEl.innerHTML = "";
     if (rows.length === 0) { emptyEl.style.display = "block"; return; }
     emptyEl.style.display = "none";
     rows.forEach(function (row, index) { listEl.appendChild(machineRowTemplate(group, row, index)); });
+  }
+
+  function isKiloanKategori(kategori) {
+    return kategori === "drop_off" || kategori === "hybrid";
   }
 
   function renderFormOutputs() {
@@ -2365,6 +2488,10 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     document.getElementById("outKeringMinggu").textContent = formatNum(summary.kering.loadPerMinggu) + " load";
     document.getElementById("outKeringBulan").textContent = formatNum(summary.kering.loadPerBulan) + " load";
 
+    document.getElementById("outSetrikaUnit").textContent = summary.setrika.totalUnit;
+    document.getElementById("outSetrikaMax").innerHTML = formatNum(summary.setrika.kapasitasMaksimalKgPerJam) + "<span class=\"unit\">kg</span>";
+    document.getElementById("outSetrikaJam").textContent = formatNum(summary.setrika.kapasitasKgPerJam) + " kg";
+
     renderDurasiReadout();
   }
 
@@ -2373,12 +2500,19 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     document.getElementById("cuciPersenVal").textContent = formState.okupansi.cuciPersen + "%";
     document.getElementById("keringPersen").value = formState.okupansi.keringPersen;
     document.getElementById("keringPersenVal").textContent = formState.okupansi.keringPersen + "%";
+    document.getElementById("setrikaPersen").value = formState.okupansi.setrikaPersen;
+    document.getElementById("setrikaPersenVal").textContent = formState.okupansi.setrikaPersen + "%";
   }
 
   function renderKategoriUI() {
     document.querySelectorAll("#kategoriPills .pill").forEach(function (p) {
       p.classList.toggle("active", p.getAttribute("data-val") === formState.kategoriLayanan);
     });
+    var show = isKiloanKategori(formState.kategoriLayanan);
+    var panelSetrika = document.getElementById("panelSetrika");
+    var outSetrikaPanel = document.getElementById("outSetrikaPanel");
+    if (panelSetrika) panelSetrika.style.display = show ? "" : "none";
+    if (outSetrikaPanel) outSetrikaPanel.style.display = show ? "" : "none";
   }
 
   function renderForm() {
@@ -2391,6 +2525,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     renderKategoriUI();
     renderMachineList("mesinCuci");
     renderMachineList("mesinPengering");
+    renderMachineList("mesinSetrika");
     renderFormOutputs();
 
     document.querySelectorAll("#screenForm .panel").forEach(function (p) { p.classList.remove("collapsed"); });
@@ -2411,10 +2546,14 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
   };
 
   window.addMachine = function (group) {
-    formState[group].push({ id: localId(), jenis: "", kapasitasKg: 0, durasiMenit: 0, jumlahUnit: 1 });
+    var defaultRow = group === "mesinSetrika"
+      ? { id: localId(), jenis: "", kapasitasKgPerJam: 0, jumlahUnit: 1 }
+      : { id: localId(), jenis: "", kapasitasKg: 0, durasiMenit: 0, jumlahUnit: 1 };
+    formState[group].push(defaultRow);
     renderMachineList(group);
     renderFormOutputs();
-    var listEl = document.getElementById(group === "mesinCuci" ? "mesinCuciList" : "mesinPengeringList");
+    var ids = { mesinCuci: "mesinCuciList", mesinPengering: "mesinPengeringList", mesinSetrika: "mesinSetrikaList" };
+    var listEl = document.getElementById(ids[group]);
     var lastRow = listEl.lastElementChild;
     if (lastRow) {
       var firstSelect = lastRow.querySelector("select");
@@ -2451,6 +2590,11 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     });
     document.getElementById("keringPersen").addEventListener("input", function (e) {
       formState.okupansi.keringPersen = Number(e.target.value);
+      renderOkupansiUI();
+      renderFormOutputs();
+    });
+    document.getElementById("setrikaPersen").addEventListener("input", function (e) {
+      formState.okupansi.setrikaPersen = Number(e.target.value);
       renderOkupansiUI();
       renderFormOutputs();
     });
