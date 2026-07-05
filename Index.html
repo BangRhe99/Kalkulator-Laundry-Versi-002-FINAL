@@ -1636,12 +1636,18 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     document.getElementById("outletPickerOverlay").classList.remove("show");
   };
 
+  var dashboardRequestSeq = 0;
+
   function refreshDashboard(skipCabangCardLoading) {
     if (!document.getElementById("dashboardCabangSummary")) return;
+
+    dashboardRequestSeq += 1;
+    var mySeq = dashboardRequestSeq;
 
     setDashboardAllLoading(skipCabangCardLoading);
     google.script.run
       .withSuccessHandler(function (res) {
+        if (mySeq !== dashboardRequestSeq) return;
         if (res && res.ok) {
           cabangListCache = res.data || [];
           ensureDashboardOutletSelection_();
@@ -1654,6 +1660,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     var cId = dashboardSelectedOutletId || null;
     google.script.run
       .withSuccessHandler(function (full) {
+        if (mySeq !== dashboardRequestSeq) return;
         if (!full || !full.ok) {
           var msg = full && full.error ? full.error : "Gagal memuat ringkasan dashboard.";
           renderDashboardCabangCard({ ok: false, error: msg });
@@ -1673,6 +1680,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
         renderDashboardBEPCard(d.bep);
       })
       .withFailureHandler(function (err) {
+        if (mySeq !== dashboardRequestSeq) return;
         var msg = err && err.message ? err.message : String(err);
         renderDashboardCabangCard({ ok: false, error: msg });
         renderDashboardMasterBiayaCard({ ok: false, error: msg });
