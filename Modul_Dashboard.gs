@@ -102,7 +102,7 @@ function getDashboardCabangSummary(cabangId) {
         jamBukaMenit: dashboardNumber_(item.jamBukaMenit, 0),
         jamTutupMenit: dashboardNumber_(item.jamTutupMenit, 0),
         jenisCuci: (function() { if (!mesinCuci.length) return ""; var j = mesinCuci[0].jenis || ""; return j === "rumah_tangga" ? "home" : j === "komersial" ? "commercial" : j; })(),
-        jenisKering: (function() { if (!mesinPengering.length) return ""; var j = mesinPengering[0].jenis || ""; return j === "konversi" ? "home" : j === "komersial" ? "commercial" : j; })(),
+        jenisKering: (function() { if (!mesinPengering.length) return ""; var j = mesinPengering[0].jenis || ""; return j === "komersial" ? "commercial" : j; })(),
         durasiCuci: mesinCuci.length ? dashboardNumber_(mesinCuci[0].durasiMenit, 0) : 0,
         durasiKering: mesinPengering.length ? dashboardNumber_(mesinPengering[0].durasiMenit, 0) : 0,
         okupansiCuci: okupansiCuci,
