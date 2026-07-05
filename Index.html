@@ -291,9 +291,24 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             </div>
           </section>
 
-          <section class="panel" data-panel="cuci">
+          <section class="panel" data-panel="kategori">
             <div class="panel-head" onclick="togglePanel(this)">
               <span class="idx">02</span>
+              <h2>Kategori layanan</h2>
+              <span class="chev">&#9660;</span>
+            </div>
+            <div class="panel-body">
+              <div class="pill-group" id="kategoriPills">
+                <div class="pill active" data-val="self_service">Self Service</div>
+                <div class="pill" data-val="drop_off">Drop off / kiloan</div>
+                <div class="pill" data-val="hybrid">Hybrid</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" data-panel="cuci">
+            <div class="panel-head" onclick="togglePanel(this)">
+              <span class="idx">03</span>
               <h2>Mesin cuci</h2>
               <span class="chev">&#9660;</span>
             </div>
@@ -301,12 +316,19 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
               <div class="machine-list" id="mesinCuciList"></div>
               <div class="empty-hint" id="mesinCuciEmpty">Belum ada mesin cuci. Tambahkan baris pertama.</div>
               <button class="add-btn" onclick="addMachine('mesinCuci')">+ Tambah mesin cuci</button>
+              <div class="meter-block" style="margin-top: 14px;">
+                <div class="meter-label-row">
+                  <span class="name">Okupansi mesin cuci</span>
+                  <span class="val" id="cuciPersenVal">70%</span>
+                </div>
+                <input type="range" id="cuciPersen" min="0" max="100" step="5" value="70">
+              </div>
             </div>
           </section>
 
           <section class="panel" data-panel="kering">
             <div class="panel-head" onclick="togglePanel(this)">
-              <span class="idx">03</span>
+              <span class="idx">04</span>
               <h2>Mesin pengering</h2>
               <span class="chev">&#9660;</span>
             </div>
@@ -314,12 +336,19 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
               <div class="machine-list" id="mesinPengeringList"></div>
               <div class="empty-hint" id="mesinPengeringEmpty">Belum ada mesin pengering. Tambahkan baris pertama.</div>
               <button class="add-btn" onclick="addMachine('mesinPengering')">+ Tambah mesin pengering</button>
+              <div class="meter-block" style="margin-top: 14px;">
+                <div class="meter-label-row">
+                  <span class="name">Okupansi mesin pengering</span>
+                  <span class="val" id="keringPersenVal">70%</span>
+                </div>
+                <input type="range" id="keringPersen" min="0" max="100" step="5" value="70">
+              </div>
             </div>
           </section>
 
           <section class="panel" data-panel="setrika" id="panelSetrika" style="display:none;">
             <div class="panel-head" onclick="togglePanel(this)">
-              <span class="idx">04</span>
+              <span class="idx">05</span>
               <h2>Mesin setrika</h2>
               <span class="chev">&#9660;</span>
             </div>
@@ -333,37 +362,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                   <span class="val" id="setrikaPersenVal">70%</span>
                 </div>
                 <input type="range" id="setrikaPersen" min="0" max="100" step="5" value="70">
-              </div>
-            </div>
-          </section>
-
-          <section class="panel" data-panel="okupansi">
-            <div class="panel-head" onclick="togglePanel(this)">
-              <span class="idx">05</span>
-              <h2>Okupansi &amp; kategori layanan</h2>
-              <span class="chev">&#9660;</span>
-            </div>
-            <div class="panel-body">
-              <div class="meter-block">
-                <div class="meter-label-row">
-                  <span class="name">Okupansi mesin cuci</span>
-                  <span class="val" id="cuciPersenVal">70%</span>
-                </div>
-                <input type="range" id="cuciPersen" min="0" max="100" step="5" value="70">
-              </div>
-              <div class="meter-block">
-                <div class="meter-label-row">
-                  <span class="name">Okupansi mesin pengering</span>
-                  <span class="val" id="keringPersenVal">70%</span>
-                </div>
-                <input type="range" id="keringPersen" min="0" max="100" step="5" value="70">
-              </div>
-
-              <div class="group-divider">Kategori layanan</div>
-              <div class="pill-group" id="kategoriPills">
-                <div class="pill active" data-val="self_service">Self Service</div>
-                <div class="pill" data-val="drop_off">Drop off / kiloan</div>
-                <div class="pill" data-val="hybrid">Hybrid</div>
               </div>
             </div>
           </section>

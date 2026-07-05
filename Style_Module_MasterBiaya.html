@@ -215,16 +215,26 @@ Jika tampilan gas, listrik, air, atau admin/nota bermasalah, mulai cek dari file
   @media (min-width: 760px) {
     body { padding: 28px 32px 90px; }
     .wrap { max-width: 1080px; }
-    .layout-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
-    .layout-grid .col-input { display: flex; flex-direction: column; }
-    .layout-grid .col-output { position: sticky; top: 24px; }
-    .machine-grid { grid-template-columns: repeat(4, 1fr); }
     .stat-grid { grid-template-columns: repeat(2, 1fr); }
     .footer-bar { justify-content: flex-end; padding: 16px 32px; }
     .footer-bar .wrap-inner { max-width: 320px; }
     #screenList .list-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     #screenRingkasan .ringkasan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
     #screenGasList .gas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  }
+
+  /* Form Profil Outlet (screenForm) baru pecah 2 kolom di layar yang benar-benar
+     lega (>=1100px). Di bawah itu (termasuk banyak jendela laptop yang tidak
+     maksimal), tetap 1 kolom penuh spt mobile - supaya jam operasional & grid
+     mesin (4 field) tidak berdesakan/kepotong di kolom sempit. */
+  @media (min-width: 1100px) {
+    .layout-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+    .layout-grid .col-input { display: flex; flex-direction: column; }
+    .layout-grid .col-output { position: sticky; top: 24px; }
+  }
+
+  @media (min-width: 760px) {
+    .machine-grid { grid-template-columns: repeat(2, 1fr); }
   }
 
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
