@@ -440,7 +440,8 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
         <div class="pill volt" data-val="listrik" onclick="selectKategoriBiaya('listrik')">Listrik</div>
         <div class="pill sage" data-val="air" onclick="selectKategoriBiaya('air')">Air</div>
         <div class="pill brass" data-val="notaKasir" onclick="selectKategoriBiaya('notaKasir')">Admin/Nota</div>
-        <div class="pill disabled" title="Segera hadir">Deterjen</div>
+        <div class="pill" data-val="chemical" onclick="selectKategoriBiaya('chemical')">Chemical</div>
+        <div class="pill" data-val="packing" onclick="selectKategoriBiaya('packing')">Packing</div>
       </div>
 
       <div class="group-divider">Pilih cabang</div>
@@ -533,6 +534,148 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
               </div>
             </div>
             <div class="gas-warning" id="gfWarning" style="display:none;"></div>
+          </div>
+
+        </div>
+      </section>
+    </section>
+
+    <!-- ===================================================================
+         LAYAR: DAFTAR BIAYA CHEMICAL milik satu cabang
+    =================================================================== -->
+    <section class="screen" id="screenChemicalList">
+      <div class="list-header">
+        <h1 id="chemicalListTitle">Analisa Biaya Chemical</h1>
+        <span class="count" id="chemicalListCount">0 data</span>
+      </div>
+      <div id="chemicalListEmpty" class="empty-state" style="display:none;">
+        <div class="icon">&#129514;</div>
+        <p>Belum ada data chemical untuk cabang ini.<br>Tambahkan item pertama (deterjen, softener, parfum, dll) untuk mulai menghitung.</p>
+      </div>
+      <div class="gas-grid" id="chemicalList"></div>
+      <div class="gas-card-result" id="chemicalTotalBox" style="margin-top:4px; margin-bottom:14px;">
+        <div class="gas-result-grid" style="grid-template-columns: 1fr;">
+          <div class="gas-result-cell highlight"><div class="label">Total biaya chemical / Kg</div><div class="val" id="chemicalTotalPerKg">Rp 0</div></div>
+        </div>
+      </div>
+      <button class="add-cabang-btn flame" onclick="openChemicalFormNew()">+ Tambah item chemical</button>
+    </section>
+
+    <!-- ===================================================================
+         LAYAR: FORM TAMBAH/EDIT BIAYA CHEMICAL
+    =================================================================== -->
+    <section class="screen" id="screenChemicalForm">
+      <section class="panel" data-panel="chemical">
+        <div class="panel-head">
+          <h2 id="chemicalFormTitle">Analisa Biaya Chemical</h2>
+        </div>
+        <div class="panel-body">
+
+          <div class="field">
+            <label for="chemicalNama">Nama item</label>
+            <input type="text" id="chemicalNama" placeholder="Contoh: Deterjen, Softener, Parfum, Pelicin">
+          </div>
+
+          <div class="field">
+            <label for="chemicalHargaBeli">Harga beli per kemasan (Rp)</label>
+            <input type="number" inputmode="decimal" min="0" step="0.01" id="chemicalHargaBeli" placeholder="Contoh: 25000">
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label for="chemicalIsiKemasan">Isi per kemasan</label>
+              <input type="number" inputmode="decimal" min="0" step="0.01" id="chemicalIsiKemasan" placeholder="Contoh: 1000">
+            </div>
+            <div class="field">
+              <label for="chemicalSatuanKemasan">Satuan</label>
+              <input type="text" id="chemicalSatuanKemasan" placeholder="gram, ml, pcs">
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="chemicalTakaranPerKg">Takaran pemakaian per Kg cucian</label>
+            <input type="number" inputmode="decimal" min="0" step="0.01" id="chemicalTakaranPerKg" placeholder="Contoh: 15">
+            <div class="field-hint">Pakai satuan yang sama dengan isi kemasan di atas.</div>
+          </div>
+
+          <div class="group-divider">Hasil otomatis</div>
+          <div class="gas-card-result" style="border-top:none; padding-top:0; margin-top:0;">
+            <div class="gas-result-grid" style="grid-template-columns: 1fr 1fr;">
+              <div class="gas-result-cell"><div class="label">Harga per satuan</div><div class="val" id="cfHargaPerUnit">Rp 0</div></div>
+              <div class="gas-result-cell highlight"><div class="label">Biaya per Kg</div><div class="val" id="cfBiayaPerKg">Rp 0</div></div>
+            </div>
+            <div class="gas-warning" id="cfWarning" style="display:none;"></div>
+          </div>
+
+        </div>
+      </section>
+    </section>
+
+    <!-- ===================================================================
+         LAYAR: DAFTAR BIAYA PACKING milik satu cabang
+    =================================================================== -->
+    <section class="screen" id="screenPackingList">
+      <div class="list-header">
+        <h1 id="packingListTitle">Analisa Biaya Packing</h1>
+        <span class="count" id="packingListCount">0 data</span>
+      </div>
+      <div id="packingListEmpty" class="empty-state" style="display:none;">
+        <div class="icon">&#128230;</div>
+        <p>Belum ada data packing untuk cabang ini.<br>Tambahkan item pertama (plastik, label, dus, dll) untuk mulai menghitung.</p>
+      </div>
+      <div class="gas-grid" id="packingList"></div>
+      <div class="gas-card-result" id="packingTotalBox" style="margin-top:4px; margin-bottom:14px;">
+        <div class="gas-result-grid" style="grid-template-columns: 1fr;">
+          <div class="gas-result-cell highlight"><div class="label">Total biaya packing / Kg</div><div class="val" id="packingTotalPerKg">Rp 0</div></div>
+        </div>
+      </div>
+      <button class="add-cabang-btn flame" onclick="openPackingFormNew()">+ Tambah item packing</button>
+    </section>
+
+    <!-- ===================================================================
+         LAYAR: FORM TAMBAH/EDIT BIAYA PACKING
+    =================================================================== -->
+    <section class="screen" id="screenPackingForm">
+      <section class="panel" data-panel="packing">
+        <div class="panel-head">
+          <h2 id="packingFormTitle">Analisa Biaya Packing</h2>
+        </div>
+        <div class="panel-body">
+
+          <div class="field">
+            <label for="packingNama">Nama item</label>
+            <input type="text" id="packingNama" placeholder="Contoh: Plastik HD, Label, Dus, Isolasi">
+          </div>
+
+          <div class="field">
+            <label for="packingHargaBeli">Harga beli per kemasan (Rp)</label>
+            <input type="number" inputmode="decimal" min="0" step="0.01" id="packingHargaBeli" placeholder="Contoh: 25000">
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label for="packingIsiKemasan">Isi per kemasan</label>
+              <input type="number" inputmode="decimal" min="0" step="0.01" id="packingIsiKemasan" placeholder="Contoh: 1000">
+            </div>
+            <div class="field">
+              <label for="packingSatuanKemasan">Satuan</label>
+              <input type="text" id="packingSatuanKemasan" placeholder="gram, ml, pcs">
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="packingTakaranPerKg">Takaran pemakaian per Kg cucian</label>
+            <input type="number" inputmode="decimal" min="0" step="0.01" id="packingTakaranPerKg" placeholder="Contoh: 15">
+            <div class="field-hint">Pakai satuan yang sama dengan isi kemasan di atas.</div>
+          </div>
+
+          <div class="group-divider">Hasil otomatis</div>
+          <div class="gas-card-result" style="border-top:none; padding-top:0; margin-top:0;">
+            <div class="gas-result-grid" style="grid-template-columns: 1fr 1fr;">
+              <div class="gas-result-cell"><div class="label">Harga per satuan</div><div class="val" id="pfHargaPerUnit">Rp 0</div></div>
+              <div class="gas-result-cell highlight"><div class="label">Biaya per Kg</div><div class="val" id="pfBiayaPerKg">Rp 0</div></div>
+            </div>
+            <div class="gas-warning" id="pfWarning" style="display:none;"></div>
           </div>
 
         </div>
@@ -1177,7 +1320,13 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     listrikCabangId: null,
     airCabangId: null,
     notaKasirCabangId: null,
-    biayaTetapCabangId: null
+    biayaTetapCabangId: null,
+    chemicalCabangId: null,
+    chemicalEditingId: null,
+    chemicalIsNew: false,
+    packingCabangId: null,
+    packingEditingId: null,
+    packingIsNew: false
   };
   var cabangListCache = [];
   var formState = null;
@@ -1186,6 +1335,18 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
   var gasCabangCache = null;   // { id, namaLaundry, mesinPengering }
   var gasItemsCache = [];      // [{ record, summary }]
   var gasFormState = null;     // record biayaGas yang sedang diedit/dibuat
+
+  // Cache khusus Master Biaya Chemical, diisi tiap kali masuk ke screenChemicalList.
+  var chemicalCabangCache = null; // { id, namaLaundry }
+  var chemicalItemsCache = [];    // [{ record, summary }]
+  var chemicalTotalCache = 0;     // total biaya chemical per Kg (semua item dijumlah)
+  var chemicalFormState = null;   // record biayaChemical yang sedang diedit/dibuat
+
+  // Cache khusus Master Biaya Packing, diisi tiap kali masuk ke screenPackingList.
+  var packingCabangCache = null; // { id, namaLaundry }
+  var packingItemsCache = [];    // [{ record, summary }]
+  var packingTotalCache = 0;     // total biaya packing per Kg (semua item dijumlah)
+  var packingFormState = null;   // record biayaPacking yang sedang diedit/dibuat
 
   // Cache khusus Master Biaya Listrik, diisi tiap kali masuk ke screenListrikForm.
   var listrikCabangCache = null; // { id, namaLaundry, mesinCuci, mesinPengering }
@@ -1334,6 +1495,10 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     masterBiaya: "screenMasterBiaya",
     gasList: "screenGasList",
     gasForm: "screenGasForm",
+    chemicalList: "screenChemicalList",
+    chemicalForm: "screenChemicalForm",
+    packingList: "screenPackingList",
+    packingForm: "screenPackingForm",
     listrikForm: "screenListrikForm",
     airForm: "screenAirForm",
     notaKasirForm: "screenNotaKasirForm",
@@ -1378,6 +1543,34 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     case "gasForm":
       if (view.gasCabangId) {
         openGasList(view.gasCabangId);
+      } else {
+        showScreen("masterBiaya");
+        refreshBiayaPickCabangList();
+      }
+      break;
+
+    case "chemicalList":
+      showScreen("masterBiaya");
+      refreshBiayaPickCabangList();
+      break;
+
+    case "chemicalForm":
+      if (view.chemicalCabangId) {
+        openChemicalList(view.chemicalCabangId);
+      } else {
+        showScreen("masterBiaya");
+        refreshBiayaPickCabangList();
+      }
+      break;
+
+    case "packingList":
+      showScreen("masterBiaya");
+      refreshBiayaPickCabangList();
+      break;
+
+    case "packingForm":
+      if (view.packingCabangId) {
+        openPackingList(view.packingCabangId);
       } else {
         showScreen("masterBiaya");
         refreshBiayaPickCabangList();
@@ -2039,6 +2232,8 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
       view.screen === "list" ||
       view.screen === "masterBiaya" ||
       view.screen === "gasList" ||
+      view.screen === "chemicalList" ||
+      view.screen === "packingList" ||
       view.screen === "strukturHPPList" ||
       view.screen === "strukturHPPDetail" ||
       view.screen === "hargaLayananList" ||
@@ -2104,6 +2299,44 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
 
       content.appendChild(gasCancelBtn);
       content.appendChild(gasSaveBtn);
+      return;
+    }
+
+    if (view.screen === "chemicalForm") {
+      bar.style.display = "flex";
+
+      var chemicalCancelBtn = document.createElement("button");
+      chemicalCancelBtn.className = "btn-secondary";
+      chemicalCancelBtn.textContent = "Batal";
+      chemicalCancelBtn.onclick = function () { openChemicalList(view.chemicalCabangId); };
+
+      var chemicalSaveBtn = document.createElement("button");
+      chemicalSaveBtn.className = "btn-primary flame";
+      chemicalSaveBtn.id = "chemicalSaveBtn";
+      chemicalSaveBtn.textContent = view.chemicalIsNew ? "Simpan item chemical" : "Simpan perubahan";
+      chemicalSaveBtn.onclick = saveChemicalForm;
+
+      content.appendChild(chemicalCancelBtn);
+      content.appendChild(chemicalSaveBtn);
+      return;
+    }
+
+    if (view.screen === "packingForm") {
+      bar.style.display = "flex";
+
+      var packingCancelBtn = document.createElement("button");
+      packingCancelBtn.className = "btn-secondary";
+      packingCancelBtn.textContent = "Batal";
+      packingCancelBtn.onclick = function () { openPackingList(view.packingCabangId); };
+
+      var packingSaveBtn = document.createElement("button");
+      packingSaveBtn.className = "btn-primary flame";
+      packingSaveBtn.id = "packingSaveBtn";
+      packingSaveBtn.textContent = view.packingIsNew ? "Simpan item packing" : "Simpan perubahan";
+      packingSaveBtn.onclick = savePackingForm;
+
+      content.appendChild(packingCancelBtn);
+      content.appendChild(packingSaveBtn);
       return;
     }
 
@@ -2807,6 +3040,8 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
         if (view.kategoriBiayaAktif === "listrik") { openListrikForm(item.id); }
         else if (view.kategoriBiayaAktif === "air") { openAirForm(item.id); }
         else if (view.kategoriBiayaAktif === "notaKasir") { openNotaKasirForm(item.id); }
+        else if (view.kategoriBiayaAktif === "chemical") { openChemicalList(item.id); }
+        else if (view.kategoriBiayaAktif === "packing") { openPackingList(item.id); }
         else { openGasList(item.id); }
       };
       row.innerHTML =
@@ -3251,6 +3486,556 @@ function selectGasCustom() {
           handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:updateBiayaGas" }, "menyimpan perubahan data gas");
         })
         .updateBiayaGas(view.gasEditingId, gasFormState);
+    }
+  }
+
+  /**
+   * ===========================================================================
+   * SECTION: MASTER BIAYA — CHEMICAL (Deterjen, Softener, Parfum, Pelicin, dll)
+   * ===========================================================================
+   * Sama seperti section Gas di atas, tapi TANPA acuan mesin (dryerRefId) —
+   * basis hitungannya murni per Kg cucian, bukan per load. Item bebas
+   * ditambah/dihapus (bukan daftar tetap), karena tiap laundry pakai
+   * kombinasi chemical yang berbeda-beda.
+   * ===========================================================================
+   */
+
+  function openChemicalList(cabangId) {
+    view.chemicalCabangId = cabangId;
+    showScreen("chemicalList");
+    document.getElementById("chemicalListTitle").textContent = "Analisa Biaya Chemical";
+    document.getElementById("chemicalListCount").textContent = "memuat...";
+    document.getElementById("chemicalList").innerHTML = "";
+    document.getElementById("chemicalListEmpty").style.display = "none";
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "memuat data biaya chemical");
+          showScreen("masterBiaya");
+          refreshBiayaPickCabangList();
+          return;
+        }
+        chemicalCabangCache = res.data.cabang;
+        chemicalItemsCache = res.data.items;
+        chemicalTotalCache = res.data.totalBiayaPerKg;
+        document.getElementById("chemicalListTitle").textContent = "Analisa Biaya Chemical · " + (chemicalCabangCache.namaLaundry || "(Tanpa nama)");
+        renderChemicalList();
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listBiayaChemical" }, "memuat data biaya chemical");
+        showScreen("masterBiaya");
+        refreshBiayaPickCabangList();
+      })
+      .listBiayaChemical(cabangId);
+  }
+  window.openChemicalList = openChemicalList;
+
+  function renderChemicalList() {
+    var listEl = document.getElementById("chemicalList");
+    var emptyEl = document.getElementById("chemicalListEmpty");
+    var countEl = document.getElementById("chemicalListCount");
+    var totalEl = document.getElementById("chemicalTotalPerKg");
+
+    countEl.textContent = chemicalItemsCache.length + " data";
+    totalEl.textContent = formatRupiah(chemicalTotalCache || 0);
+    listEl.innerHTML = "";
+
+    if (chemicalItemsCache.length === 0) {
+      emptyEl.style.display = "block";
+      return;
+    }
+    emptyEl.style.display = "none";
+
+    chemicalItemsCache.forEach(function (entry) {
+      var record = entry.record;
+      var summary = entry.summary;
+
+      var card = document.createElement("div");
+      card.className = "gas-card";
+
+      var warningHtml = summary.statusValid ? "" :
+        "<div class=\"gas-warning\">Isi kemasan atau takaran belum lengkap, biaya belum bisa dihitung.</div>";
+
+      card.innerHTML =
+        "<div class=\"gas-card-top\">" +
+          "<div class=\"title-group\">" +
+            "<span class=\"flame-dot\"></span>" +
+            "<h3>" + escapeHtml(record.nama || "(Tanpa nama)") + "</h3>" +
+          "</div>" +
+          "<div class=\"actions\">" +
+            "<button class=\"icon-btn\" type=\"button\" aria-label=\"Edit\" data-action=\"edit\">&#9998;</button>" +
+            "<button class=\"icon-btn\" type=\"button\" aria-label=\"Hapus\" data-action=\"delete\">&#10005;</button>" +
+          "</div>" +
+        "</div>" +
+        "<div class=\"meta-row\"><span class=\"meta-label\">Harga beli</span><span class=\"meta-val\">" + formatRupiah(record.hargaBeli) + " / " + formatNum(record.isiKemasan) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
+        "<div class=\"meta-row\"><span class=\"meta-label\">Takaran per Kg</span><span class=\"meta-val\">" + formatNum(record.takaranPerKg) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
+        "<div class=\"gas-card-result\">" +
+          "<div class=\"gas-result-grid\">" +
+            "<div class=\"gas-result-cell\"><div class=\"label\">Harga / satuan</div><div class=\"val\">" + formatRupiah(summary.hargaPerUnit) + "</div></div>" +
+            "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / Kg</div><div class=\"val\">" + formatRupiah(summary.biayaPerKg) + "</div></div>" +
+          "</div>" +
+          warningHtml +
+        "</div>";
+
+      card.querySelector("[data-action='edit']").addEventListener("click", function () { openChemicalFormEdit(record.id); });
+      card.querySelector("[data-action='delete']").addEventListener("click", function () { openConfirmDeleteChemical(record); });
+
+      listEl.appendChild(card);
+    });
+  }
+
+  function openConfirmDeleteChemical(record) {
+    document.getElementById("confirmTitle").textContent = "Hapus item chemical ini?";
+    document.getElementById("confirmText").textContent =
+      "Data chemical \"" + (record.nama || "ini") + "\" akan dihapus permanen dan tidak bisa dikembalikan.";
+    document.getElementById("confirmOverlay").classList.add("show");
+
+    var btn = document.getElementById("confirmDeleteBtn");
+    btn.onclick = function () { confirmDeleteChemical(record.id); };
+  }
+
+  function confirmDeleteChemical(id) {
+    var btn = document.getElementById("confirmDeleteBtn");
+    btn.disabled = true;
+    btn.textContent = "Menghapus...";
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = "Hapus";
+        closeConfirm();
+        if (!res || !res.ok) { handleBackendError(res, "menghapus data chemical"); return; }
+        showToast("Data chemical berhasil dihapus.", "ok");
+        openChemicalList(view.chemicalCabangId);
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = "Hapus";
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:deleteBiayaChemical" }, "menghapus data chemical");
+      })
+      .deleteBiayaChemical(id);
+  }
+
+  function defaultChemicalRecord(cabangId) {
+    return {
+      id: null,
+      cabangId: cabangId,
+      nama: "",
+      hargaBeli: 0,
+      isiKemasan: 0,
+      satuanKemasan: "",
+      takaranPerKg: 0,
+      createdAt: null,
+      updatedAt: null
+    };
+  }
+
+  window.openChemicalFormNew = function () {
+    if (!chemicalCabangCache) { showToast("Pilih cabang terlebih dahulu.", "err"); return; }
+    view.chemicalIsNew = true;
+    view.chemicalEditingId = null;
+    chemicalFormState = defaultChemicalRecord(view.chemicalCabangId);
+    showScreen("chemicalForm");
+    document.getElementById("chemicalFormTitle").textContent = "Tambah Item Chemical";
+    renderChemicalForm();
+    setSaveStatus("", "");
+  };
+
+  function openChemicalFormEdit(id) {
+    view.chemicalIsNew = false;
+    view.chemicalEditingId = id;
+    showScreen("chemicalForm");
+    document.getElementById("chemicalFormTitle").textContent = "Edit Item Chemical";
+    setSaveStatus("Memuat...", "busy");
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "memuat data chemical untuk diedit");
+          openChemicalList(view.chemicalCabangId);
+          return;
+        }
+        chemicalFormState = res.data.record;
+        renderChemicalForm();
+        setSaveStatus("", "");
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaChemical" }, "memuat data chemical untuk diedit");
+        openChemicalList(view.chemicalCabangId);
+      })
+      .getBiayaChemical(id);
+  }
+
+  function syncChemicalFormFieldsFromState() {
+    document.getElementById("chemicalNama").value = chemicalFormState.nama || "";
+    document.getElementById("chemicalHargaBeli").value = chemicalFormState.hargaBeli || "";
+    document.getElementById("chemicalIsiKemasan").value = chemicalFormState.isiKemasan || "";
+    document.getElementById("chemicalSatuanKemasan").value = chemicalFormState.satuanKemasan || "";
+    document.getElementById("chemicalTakaranPerKg").value = chemicalFormState.takaranPerKg || "";
+  }
+
+  function renderChemicalForm() {
+    syncChemicalFormFieldsFromState();
+    renderChemicalFormPreview();
+  }
+
+  function computeBiayaChemicalSummaryClient(record) {
+    var hargaPerUnit = record.isiKemasan > 0 ? round2(record.hargaBeli / record.isiKemasan) : 0;
+    var biayaPerKg = round2(hargaPerUnit * record.takaranPerKg);
+    return {
+      hargaPerUnit: hargaPerUnit,
+      biayaPerKg: biayaPerKg,
+      statusValid: record.isiKemasan > 0 && record.takaranPerKg > 0
+    };
+  }
+
+  function renderChemicalFormPreview() {
+    var summary = computeBiayaChemicalSummaryClient(chemicalFormState);
+    document.getElementById("cfHargaPerUnit").textContent = formatRupiah(summary.hargaPerUnit);
+    document.getElementById("cfBiayaPerKg").textContent = formatRupiah(summary.biayaPerKg);
+
+    var warnEl = document.getElementById("cfWarning");
+    if (!summary.statusValid) {
+      warnEl.style.display = "block";
+      warnEl.textContent = "Isi kemasan dan takaran per Kg harus lebih dari 0 supaya biaya bisa dihitung.";
+    } else {
+      warnEl.style.display = "none";
+    }
+  }
+
+  function bindChemicalFormInputs() {
+    document.getElementById("chemicalNama").addEventListener("input", function (e) {
+      chemicalFormState.nama = e.target.value;
+    });
+    document.getElementById("chemicalHargaBeli").addEventListener("input", function (e) {
+      chemicalFormState.hargaBeli = Number(e.target.value) || 0;
+      renderChemicalFormPreview();
+    });
+    document.getElementById("chemicalIsiKemasan").addEventListener("input", function (e) {
+      chemicalFormState.isiKemasan = Number(e.target.value) || 0;
+      renderChemicalFormPreview();
+    });
+    document.getElementById("chemicalSatuanKemasan").addEventListener("input", function (e) {
+      chemicalFormState.satuanKemasan = e.target.value;
+    });
+    document.getElementById("chemicalTakaranPerKg").addEventListener("input", function (e) {
+      chemicalFormState.takaranPerKg = Number(e.target.value) || 0;
+      renderChemicalFormPreview();
+    });
+  }
+
+  function saveChemicalForm() {
+    if (!chemicalFormState.nama || !chemicalFormState.nama.trim()) {
+      showToast("Isi nama item chemical terlebih dahulu.", "err");
+      document.getElementById("chemicalNama").classList.add("input-err");
+      return;
+    }
+    document.getElementById("chemicalNama").classList.remove("input-err");
+
+    var btn = document.getElementById("chemicalSaveBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "Menyimpan..."; }
+    setSaveStatus("Menyimpan...", "busy");
+
+    function onDone(res, actionLabel, restoreLabel) {
+      if (btn) { btn.disabled = false; btn.textContent = restoreLabel; }
+      if (!res || !res.ok) { handleBackendError(res, actionLabel); return; }
+      showToast("Data biaya chemical tersimpan.", "ok");
+      setSaveStatus("Tersimpan", "ok");
+      openChemicalList(view.chemicalCabangId);
+    }
+
+    if (view.chemicalIsNew) {
+      google.script.run
+        .withSuccessHandler(function (res) { onDone(res, "menyimpan data chemical baru", "Simpan item chemical"); })
+        .withFailureHandler(function (err) {
+          if (btn) { btn.disabled = false; btn.textContent = "Simpan item chemical"; }
+          handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:createBiayaChemical" }, "menyimpan data chemical baru");
+        })
+        .createBiayaChemical(chemicalFormState);
+    } else {
+      google.script.run
+        .withSuccessHandler(function (res) { onDone(res, "menyimpan perubahan data chemical", "Simpan perubahan"); })
+        .withFailureHandler(function (err) {
+          if (btn) { btn.disabled = false; btn.textContent = "Simpan perubahan"; }
+          handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:updateBiayaChemical" }, "menyimpan perubahan data chemical");
+        })
+        .updateBiayaChemical(view.chemicalEditingId, chemicalFormState);
+    }
+  }
+
+  /**
+   * ===========================================================================
+   * SECTION: MASTER BIAYA — PACKING (Plastik HD, Label, Dus, Isolasi, dll)
+   * ===========================================================================
+   * Sama seperti section Gas di atas, tapi TANPA acuan mesin (dryerRefId) —
+   * basis hitungannya murni per Kg cucian, bukan per load. Item bebas
+   * ditambah/dihapus (bukan daftar tetap), karena tiap laundry pakai
+   * kombinasi packing yang berbeda-beda.
+   * ===========================================================================
+   */
+
+  function openPackingList(cabangId) {
+    view.packingCabangId = cabangId;
+    showScreen("packingList");
+    document.getElementById("packingListTitle").textContent = "Analisa Biaya Packing";
+    document.getElementById("packingListCount").textContent = "memuat...";
+    document.getElementById("packingList").innerHTML = "";
+    document.getElementById("packingListEmpty").style.display = "none";
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "memuat data biaya packing");
+          showScreen("masterBiaya");
+          refreshBiayaPickCabangList();
+          return;
+        }
+        packingCabangCache = res.data.cabang;
+        packingItemsCache = res.data.items;
+        packingTotalCache = res.data.totalBiayaPerKg;
+        document.getElementById("packingListTitle").textContent = "Analisa Biaya Packing · " + (packingCabangCache.namaLaundry || "(Tanpa nama)");
+        renderPackingList();
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listBiayaPacking" }, "memuat data biaya packing");
+        showScreen("masterBiaya");
+        refreshBiayaPickCabangList();
+      })
+      .listBiayaPacking(cabangId);
+  }
+  window.openPackingList = openPackingList;
+
+  function renderPackingList() {
+    var listEl = document.getElementById("packingList");
+    var emptyEl = document.getElementById("packingListEmpty");
+    var countEl = document.getElementById("packingListCount");
+    var totalEl = document.getElementById("packingTotalPerKg");
+
+    countEl.textContent = packingItemsCache.length + " data";
+    totalEl.textContent = formatRupiah(packingTotalCache || 0);
+    listEl.innerHTML = "";
+
+    if (packingItemsCache.length === 0) {
+      emptyEl.style.display = "block";
+      return;
+    }
+    emptyEl.style.display = "none";
+
+    packingItemsCache.forEach(function (entry) {
+      var record = entry.record;
+      var summary = entry.summary;
+
+      var card = document.createElement("div");
+      card.className = "gas-card";
+
+      var warningHtml = summary.statusValid ? "" :
+        "<div class=\"gas-warning\">Isi kemasan atau takaran belum lengkap, biaya belum bisa dihitung.</div>";
+
+      card.innerHTML =
+        "<div class=\"gas-card-top\">" +
+          "<div class=\"title-group\">" +
+            "<span class=\"flame-dot\"></span>" +
+            "<h3>" + escapeHtml(record.nama || "(Tanpa nama)") + "</h3>" +
+          "</div>" +
+          "<div class=\"actions\">" +
+            "<button class=\"icon-btn\" type=\"button\" aria-label=\"Edit\" data-action=\"edit\">&#9998;</button>" +
+            "<button class=\"icon-btn\" type=\"button\" aria-label=\"Hapus\" data-action=\"delete\">&#10005;</button>" +
+          "</div>" +
+        "</div>" +
+        "<div class=\"meta-row\"><span class=\"meta-label\">Harga beli</span><span class=\"meta-val\">" + formatRupiah(record.hargaBeli) + " / " + formatNum(record.isiKemasan) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
+        "<div class=\"meta-row\"><span class=\"meta-label\">Takaran per Kg</span><span class=\"meta-val\">" + formatNum(record.takaranPerKg) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
+        "<div class=\"gas-card-result\">" +
+          "<div class=\"gas-result-grid\">" +
+            "<div class=\"gas-result-cell\"><div class=\"label\">Harga / satuan</div><div class=\"val\">" + formatRupiah(summary.hargaPerUnit) + "</div></div>" +
+            "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / Kg</div><div class=\"val\">" + formatRupiah(summary.biayaPerKg) + "</div></div>" +
+          "</div>" +
+          warningHtml +
+        "</div>";
+
+      card.querySelector("[data-action='edit']").addEventListener("click", function () { openPackingFormEdit(record.id); });
+      card.querySelector("[data-action='delete']").addEventListener("click", function () { openConfirmDeletePacking(record); });
+
+      listEl.appendChild(card);
+    });
+  }
+
+  function openConfirmDeletePacking(record) {
+    document.getElementById("confirmTitle").textContent = "Hapus item packing ini?";
+    document.getElementById("confirmText").textContent =
+      "Data packing \"" + (record.nama || "ini") + "\" akan dihapus permanen dan tidak bisa dikembalikan.";
+    document.getElementById("confirmOverlay").classList.add("show");
+
+    var btn = document.getElementById("confirmDeleteBtn");
+    btn.onclick = function () { confirmDeletePacking(record.id); };
+  }
+
+  function confirmDeletePacking(id) {
+    var btn = document.getElementById("confirmDeleteBtn");
+    btn.disabled = true;
+    btn.textContent = "Menghapus...";
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = "Hapus";
+        closeConfirm();
+        if (!res || !res.ok) { handleBackendError(res, "menghapus data packing"); return; }
+        showToast("Data packing berhasil dihapus.", "ok");
+        openPackingList(view.packingCabangId);
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = "Hapus";
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:deleteBiayaPacking" }, "menghapus data packing");
+      })
+      .deleteBiayaPacking(id);
+  }
+
+  function defaultPackingRecord(cabangId) {
+    return {
+      id: null,
+      cabangId: cabangId,
+      nama: "",
+      hargaBeli: 0,
+      isiKemasan: 0,
+      satuanKemasan: "",
+      takaranPerKg: 0,
+      createdAt: null,
+      updatedAt: null
+    };
+  }
+
+  window.openPackingFormNew = function () {
+    if (!packingCabangCache) { showToast("Pilih cabang terlebih dahulu.", "err"); return; }
+    view.packingIsNew = true;
+    view.packingEditingId = null;
+    packingFormState = defaultPackingRecord(view.packingCabangId);
+    showScreen("packingForm");
+    document.getElementById("packingFormTitle").textContent = "Tambah Item Packing";
+    renderPackingForm();
+    setSaveStatus("", "");
+  };
+
+  function openPackingFormEdit(id) {
+    view.packingIsNew = false;
+    view.packingEditingId = id;
+    showScreen("packingForm");
+    document.getElementById("packingFormTitle").textContent = "Edit Item Packing";
+    setSaveStatus("Memuat...", "busy");
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "memuat data packing untuk diedit");
+          openPackingList(view.packingCabangId);
+          return;
+        }
+        packingFormState = res.data.record;
+        renderPackingForm();
+        setSaveStatus("", "");
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaPacking" }, "memuat data packing untuk diedit");
+        openPackingList(view.packingCabangId);
+      })
+      .getBiayaPacking(id);
+  }
+
+  function syncPackingFormFieldsFromState() {
+    document.getElementById("packingNama").value = packingFormState.nama || "";
+    document.getElementById("packingHargaBeli").value = packingFormState.hargaBeli || "";
+    document.getElementById("packingIsiKemasan").value = packingFormState.isiKemasan || "";
+    document.getElementById("packingSatuanKemasan").value = packingFormState.satuanKemasan || "";
+    document.getElementById("packingTakaranPerKg").value = packingFormState.takaranPerKg || "";
+  }
+
+  function renderPackingForm() {
+    syncPackingFormFieldsFromState();
+    renderPackingFormPreview();
+  }
+
+  function computeBiayaPackingSummaryClient(record) {
+    var hargaPerUnit = record.isiKemasan > 0 ? round2(record.hargaBeli / record.isiKemasan) : 0;
+    var biayaPerKg = round2(hargaPerUnit * record.takaranPerKg);
+    return {
+      hargaPerUnit: hargaPerUnit,
+      biayaPerKg: biayaPerKg,
+      statusValid: record.isiKemasan > 0 && record.takaranPerKg > 0
+    };
+  }
+
+  function renderPackingFormPreview() {
+    var summary = computeBiayaPackingSummaryClient(packingFormState);
+    document.getElementById("pfHargaPerUnit").textContent = formatRupiah(summary.hargaPerUnit);
+    document.getElementById("pfBiayaPerKg").textContent = formatRupiah(summary.biayaPerKg);
+
+    var warnEl = document.getElementById("pfWarning");
+    if (!summary.statusValid) {
+      warnEl.style.display = "block";
+      warnEl.textContent = "Isi kemasan dan takaran per Kg harus lebih dari 0 supaya biaya bisa dihitung.";
+    } else {
+      warnEl.style.display = "none";
+    }
+  }
+
+  function bindPackingFormInputs() {
+    document.getElementById("packingNama").addEventListener("input", function (e) {
+      packingFormState.nama = e.target.value;
+    });
+    document.getElementById("packingHargaBeli").addEventListener("input", function (e) {
+      packingFormState.hargaBeli = Number(e.target.value) || 0;
+      renderPackingFormPreview();
+    });
+    document.getElementById("packingIsiKemasan").addEventListener("input", function (e) {
+      packingFormState.isiKemasan = Number(e.target.value) || 0;
+      renderPackingFormPreview();
+    });
+    document.getElementById("packingSatuanKemasan").addEventListener("input", function (e) {
+      packingFormState.satuanKemasan = e.target.value;
+    });
+    document.getElementById("packingTakaranPerKg").addEventListener("input", function (e) {
+      packingFormState.takaranPerKg = Number(e.target.value) || 0;
+      renderPackingFormPreview();
+    });
+  }
+
+  function savePackingForm() {
+    if (!packingFormState.nama || !packingFormState.nama.trim()) {
+      showToast("Isi nama item packing terlebih dahulu.", "err");
+      document.getElementById("packingNama").classList.add("input-err");
+      return;
+    }
+    document.getElementById("packingNama").classList.remove("input-err");
+
+    var btn = document.getElementById("packingSaveBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "Menyimpan..."; }
+    setSaveStatus("Menyimpan...", "busy");
+
+    function onDone(res, actionLabel, restoreLabel) {
+      if (btn) { btn.disabled = false; btn.textContent = restoreLabel; }
+      if (!res || !res.ok) { handleBackendError(res, actionLabel); return; }
+      showToast("Data biaya packing tersimpan.", "ok");
+      setSaveStatus("Tersimpan", "ok");
+      openPackingList(view.packingCabangId);
+    }
+
+    if (view.packingIsNew) {
+      google.script.run
+        .withSuccessHandler(function (res) { onDone(res, "menyimpan data packing baru", "Simpan item packing"); })
+        .withFailureHandler(function (err) {
+          if (btn) { btn.disabled = false; btn.textContent = "Simpan item packing"; }
+          handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:createBiayaPacking" }, "menyimpan data packing baru");
+        })
+        .createBiayaPacking(packingFormState);
+    } else {
+      google.script.run
+        .withSuccessHandler(function (res) { onDone(res, "menyimpan perubahan data packing", "Simpan perubahan"); })
+        .withFailureHandler(function (err) {
+          if (btn) { btn.disabled = false; btn.textContent = "Simpan perubahan"; }
+          handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:updateBiayaPacking" }, "menyimpan perubahan data packing");
+        })
+        .updateBiayaPacking(view.packingEditingId, packingFormState);
     }
   }
 
@@ -5214,6 +5999,8 @@ window.saveAirForm = saveAirForm;
       initTimeSelects();
       bindStaticFormInputs();
       bindGasFormInputs();
+      bindChemicalFormInputs();
+      bindPackingFormInputs();
       bindListrikFormInputs();
 
       if (loadingEl) loadingEl.style.display = "none";

@@ -249,6 +249,8 @@ function deleteCabang(id) {
     deleteBiayaGasByCabang_(sheet, id);
     deleteBiayaListrikByCabang_(sheet, id);
     deleteBiayaAirByCabang_(sheet, id);
+    deleteBiayaChemicalByCabang_(sheet, id);
+    deleteBiayaPackingByCabang_(sheet, id);
     return { ok: true, data: { id: id } };
   } catch (err) {
     return errorResponse_(err, "deleteCabang");

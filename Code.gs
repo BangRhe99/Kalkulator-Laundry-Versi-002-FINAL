@@ -85,6 +85,8 @@ const DATA_SHEET_NAME = "_data_operasional";
 const KEY_META = "meta";
 const KEY_CABANG_ORDER = "cabang_order";
 const KEY_BIAYA_GAS_ORDER = "biayaGas_order";
+const KEY_BIAYA_CHEMICAL_ORDER = "biayaChemical_order";
+const KEY_BIAYA_PACKING_ORDER = "biayaPacking_order";
 const KEY_LEGACY_V1 = "operasional_v1";
 
 // ----------------------------------------------------------------------------
