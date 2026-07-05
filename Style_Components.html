@@ -209,6 +209,8 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
   }
 
   .profil-outlet-jam {
+    display: inline-flex;
+    align-items: center;
     font-size: 11px;
     color: var(--text-faint);
     font-variant-numeric: tabular-nums;
@@ -258,6 +260,8 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
   .profil-kpi-item {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    text-align: center;
     gap: 2px;
   }
 
@@ -352,6 +356,19 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
     right: 0;
   }
 
+  .profil-outlet-okupansi-info {
+    display: inline-flex;
+    vertical-align: middle;
+    margin-left: 4px;
+  }
+
+  .profil-outlet-okupansi-info .okupansi-tooltip {
+    left: auto;
+    right: 0;
+    width: 200px;
+    max-width: 70vw;
+  }
+
   .okupansi-tooltip.is-open {
     display: block;
   }
@@ -435,8 +452,14 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
     font-size: 10px;
     font-weight: 500;
     color: var(--text-faint);
-    text-transform: lowercase;
     letter-spacing: 0.03em;
+  }
+
+  .profil-mesin-durasi {
+    font-size: 9.5px;
+    font-weight: 500;
+    color: var(--text-faint);
+    letter-spacing: 0.02em;
   }
 
   /* === BEP CARD === */

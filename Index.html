@@ -1665,25 +1665,29 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                     '<span class="profil-kpi-value">' + escapeHtml(formatNum(row.kapasitasSetrikaKgPerJam || 0)) + '</span>' +
                     '<span class="profil-kpi-unit">kg/jam</span>' +
                   '</div>' +
-                  '<div class="profil-kpi-okupansi">' +
-                    '<span>Okupansi ' + escapeHtml(String(row.okupansiSetrika || 0)) + '%</span>' +
-                    '<button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this, event)" aria-label="Apa itu okupansi?">?</button>' +
-                    '<div class="okupansi-tooltip">Okupansi adalah perkiraan seberapa sering mesin dipakai. Okupansi 50% artinya mesin diperkirakan cuma terisi separuh waktu yang tersedia, bukan penuh terus-menerus.</div>' +
-                  '</div>' +
+                  '<div class="profil-kpi-okupansi">Okupansi ' + escapeHtml(String(row.okupansiSetrika || 0)) + '%</div>' +
                 '</div>'
           );
+          var jenisSetrikaLabel = row.jenisSetrika === 'listrik' ? 'Setrika Listrik' : (row.jenisSetrika === 'uap' ? 'Setrika Uap' : 'Belum dipilih');
           var setrikaMesinHtml = !hasSetrika ? '' : (
                 '<div class="profil-mesin-item volt">' +
                   '<span class="profil-mesin-count">' + escapeHtml(String(row.totalUnitSetrika || 0)) + '</span>' +
                   '<span class="profil-mesin-type">setrika</span>' +
-                  '<span class="profil-mesin-kategori">' + escapeHtml(row.jenisSetrika === 'listrik' ? 'listrik' : row.jenisSetrika === 'uap' ? 'uap' : '-') + (row.kapasitasSetrikaKgPerJam > 0 ? ' Â· ' + formatNum(row.kapasitasSetrikaKgPerJam) + ' kg/jam' : '') + '</span>' +
+                  '<span class="profil-mesin-kategori">' + escapeHtml(jenisSetrikaLabel) + '</span>' +
+                  (row.kapasitasSetrikaKgPerJam > 0 ? '<span class="profil-mesin-durasi">' + formatNum(row.kapasitasSetrikaKgPerJam) + ' kg/jam</span>' : '') +
                 '</div>'
           );
           return (
             '<div class="profil-outlet-card">' +
               '<div class="profil-outlet-meta">' +
                 '<span class="profil-outlet-kategori">' + escapeHtml(kategoriLabel) + '</span>' +
-                '<span class="profil-outlet-jam">' + jamBukaStr + ' \u2013 ' + jamTutupStr + ' \u00B7 ' + jamOps + ' jam</span>' +
+                '<span class="profil-outlet-jam">' +
+                  jamBukaStr + ' \u2013 ' + jamTutupStr + ' \u00B7 ' + jamOps + ' jam' +
+                  '<span class="profil-kpi-okupansi profil-outlet-okupansi-info">' +
+                    '<button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this, event)" aria-label="Apa itu okupansi?">?</button>' +
+                    '<div class="okupansi-tooltip">Okupansi adalah perkiraan seberapa sering mesin dipakai. Okupansi 50% artinya mesin diperkirakan cuma terisi separuh waktu yang tersedia, bukan penuh terus-menerus.</div>' +
+                  '</span>' +
+                '</span>' +
               '</div>' +
               '<div class="profil-outlet-kpi' + (hasSetrika ? ' kpi-3col' : '') + '">' +
                 '<div class="profil-kpi-item cuci">' +
@@ -1692,11 +1696,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                     '<span class="profil-kpi-value">' + escapeHtml(formatNum(row.loadCuciPerBulan || 0)) + '</span>' +
                     '<span class="profil-kpi-unit">load</span>' +
                   '</div>' +
-                  '<div class="profil-kpi-okupansi">' +
-                    '<span>Okupansi ' + escapeHtml(String(row.okupansiCuci || 0)) + '%</span>' +
-                    '<button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this, event)" aria-label="Apa itu okupansi?">?</button>' +
-                    '<div class="okupansi-tooltip">Okupansi adalah perkiraan seberapa sering mesin dipakai. Okupansi 50% artinya mesin diperkirakan cuma terisi separuh waktu yang tersedia, bukan penuh terus-menerus.</div>' +
-                  '</div>' +
+                  '<div class="profil-kpi-okupansi">Okupansi ' + escapeHtml(String(row.okupansiCuci || 0)) + '%</div>' +
                 '</div>' +
                 '<div class="profil-kpi-divider"></div>' +
                 '<div class="profil-kpi-item kering">' +
@@ -1705,11 +1705,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                     '<span class="profil-kpi-value">' + escapeHtml(formatNum(row.loadKeringPerBulan || 0)) + '</span>' +
                     '<span class="profil-kpi-unit">load</span>' +
                   '</div>' +
-                  '<div class="profil-kpi-okupansi">' +
-                    '<span>Okupansi ' + escapeHtml(String(row.okupansiKering || 0)) + '%</span>' +
-                    '<button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this, event)" aria-label="Apa itu okupansi?">?</button>' +
-                    '<div class="okupansi-tooltip">Okupansi adalah perkiraan seberapa sering mesin dipakai. Okupansi 50% artinya mesin diperkirakan cuma terisi separuh waktu yang tersedia, bukan penuh terus-menerus.</div>' +
-                  '</div>' +
+                  '<div class="profil-kpi-okupansi">Okupansi ' + escapeHtml(String(row.okupansiKering || 0)) + '%</div>' +
                 '</div>' +
                 setrikaKpiHtml +
               '</div>' +
@@ -1717,12 +1713,14 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                 '<div class="profil-mesin-item sage">' +
                   '<span class="profil-mesin-count">' + escapeHtml(String(row.totalUnitCuci || 0)) + '</span>' +
                   '<span class="profil-mesin-type">washer</span>' +
-                  '<span class="profil-mesin-kategori">' + escapeHtml(row.jenisCuci || 'home') + (row.durasiCuci > 0 ? ' \u00B7 ' + row.durasiCuci + ' menit' : '') + '</span>' +
+                  '<span class="profil-mesin-kategori">' + escapeHtml(row.jenisCuci || 'home') + '</span>' +
+                  (row.durasiCuci > 0 ? '<span class="profil-mesin-durasi">' + row.durasiCuci + ' menit</span>' : '') +
                 '</div>' +
                 '<div class="profil-mesin-item brass">' +
                   '<span class="profil-mesin-count">' + escapeHtml(String(row.totalUnitPengering || 0)) + '</span>' +
                   '<span class="profil-mesin-type">dryer</span>' +
-                  '<span class="profil-mesin-kategori">' + escapeHtml(row.jenisKering || 'commercial') + (row.durasiKering > 0 ? ' \u00B7 ' + row.durasiKering + ' menit' : '') + '</span>' +
+                  '<span class="profil-mesin-kategori">' + escapeHtml(row.jenisKering || 'commercial') + '</span>' +
+                  (row.durasiKering > 0 ? '<span class="profil-mesin-durasi">' + row.durasiKering + ' menit</span>' : '') +
                 '</div>' +
                 setrikaMesinHtml +
               '</div>' +
