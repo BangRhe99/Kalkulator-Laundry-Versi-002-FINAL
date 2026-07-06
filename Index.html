@@ -3372,7 +3372,7 @@ function selectGasCustom() {
   }
 
   function syncGasFormFieldsFromState() {
-    document.getElementById("gasHarga").value = gasFormState.hargaPerTabung || "";
+    document.getElementById("gasHarga").value = gasFormState.hargaPerTabung ? Number(gasFormState.hargaPerTabung).toLocaleString("id-ID") : "";
     document.getElementById("gasEstimasiJam").value = gasFormState.estimasiPemakaianJam || "";
   }
 
@@ -3422,8 +3422,9 @@ function selectGasCustom() {
 
     document.getElementById("gasHarga").addEventListener("input", function (e) {
       var digitsOnly = e.target.value.replace(/[^0-9]/g, "");
-      if (digitsOnly !== e.target.value) e.target.value = digitsOnly;
-      gasFormState.hargaPerTabung = Number(digitsOnly) || 0;
+      var numVal = Number(digitsOnly) || 0;
+      gasFormState.hargaPerTabung = numVal;
+      e.target.value = numVal > 0 ? numVal.toLocaleString("id-ID") : "";
       renderGasFormPreview();
     });
 
