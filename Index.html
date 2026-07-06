@@ -579,7 +579,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
 
           <div class="field">
             <label for="chemicalHargaBeli">Harga beli per kemasan (Rp)</label>
-            <input type="number" inputmode="decimal" min="0" step="0.01" id="chemicalHargaBeli" placeholder="Contoh: 25000">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="chemicalHargaBeli" placeholder="Contoh: 25.000">
           </div>
 
           <div class="row2">
@@ -650,7 +650,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
 
           <div class="field">
             <label for="packingHargaBeli">Harga beli per kemasan (Rp)</label>
-            <input type="number" inputmode="decimal" min="0" step="0.01" id="packingHargaBeli" placeholder="Contoh: 25000">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="packingHargaBeli" placeholder="Contoh: 25.000">
           </div>
 
           <div class="row2">
@@ -3552,7 +3552,7 @@ function selectGasCustom() {
     var totalEl = document.getElementById("chemicalTotalPerKg");
 
     countEl.textContent = chemicalItemsCache.length + " data";
-    totalEl.textContent = formatRupiah(chemicalTotalCache || 0);
+    totalEl.textContent = money0(chemicalTotalCache || 0);
     listEl.innerHTML = "";
 
     if (chemicalItemsCache.length === 0) {
@@ -3582,12 +3582,12 @@ function selectGasCustom() {
             "<button class=\"icon-btn\" type=\"button\" aria-label=\"Hapus\" data-action=\"delete\">&#10005;</button>" +
           "</div>" +
         "</div>" +
-        "<div class=\"meta-row\"><span class=\"meta-label\">Harga beli</span><span class=\"meta-val\">" + formatRupiah(record.hargaBeli) + " / " + formatNum(record.isiKemasan) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
+        "<div class=\"meta-row\"><span class=\"meta-label\">Harga beli</span><span class=\"meta-val\">" + money0(record.hargaBeli) + " / " + formatNum(record.isiKemasan) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
         "<div class=\"meta-row\"><span class=\"meta-label\">Takaran per Kg</span><span class=\"meta-val\">" + formatNum(record.takaranPerKg) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
         "<div class=\"gas-card-result\">" +
           "<div class=\"gas-result-grid\">" +
-            "<div class=\"gas-result-cell\"><div class=\"label\">Harga / satuan</div><div class=\"val\">" + formatRupiah(summary.hargaPerUnit) + "</div></div>" +
-            "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / Kg</div><div class=\"val\">" + formatRupiah(summary.biayaPerKg) + "</div></div>" +
+            "<div class=\"gas-result-cell\"><div class=\"label\">Harga / satuan</div><div class=\"val\">" + money0(summary.hargaPerUnit) + "</div></div>" +
+            "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / Kg</div><div class=\"val\">" + money0(summary.biayaPerKg) + "</div></div>" +
           "</div>" +
           warningHtml +
         "</div>";
@@ -3683,7 +3683,7 @@ function selectGasCustom() {
 
   function syncChemicalFormFieldsFromState() {
     document.getElementById("chemicalNama").value = chemicalFormState.nama || "";
-    document.getElementById("chemicalHargaBeli").value = chemicalFormState.hargaBeli || "";
+    document.getElementById("chemicalHargaBeli").value = chemicalFormState.hargaBeli ? Number(chemicalFormState.hargaBeli).toLocaleString("id-ID") : "";
     document.getElementById("chemicalIsiKemasan").value = chemicalFormState.isiKemasan || "";
     document.getElementById("chemicalSatuanKemasan").value = chemicalFormState.satuanKemasan || "";
     document.getElementById("chemicalTakaranPerKg").value = chemicalFormState.takaranPerKg || "";
@@ -3706,8 +3706,8 @@ function selectGasCustom() {
 
   function renderChemicalFormPreview() {
     var summary = computeBiayaChemicalSummaryClient(chemicalFormState);
-    document.getElementById("cfHargaPerUnit").textContent = formatRupiah(summary.hargaPerUnit);
-    document.getElementById("cfBiayaPerKg").textContent = formatRupiah(summary.biayaPerKg);
+    document.getElementById("cfHargaPerUnit").textContent = money0(summary.hargaPerUnit);
+    document.getElementById("cfBiayaPerKg").textContent = money0(summary.biayaPerKg);
 
     var warnEl = document.getElementById("cfWarning");
     if (!summary.statusValid) {
@@ -3723,7 +3723,10 @@ function selectGasCustom() {
       chemicalFormState.nama = e.target.value;
     });
     document.getElementById("chemicalHargaBeli").addEventListener("input", function (e) {
-      chemicalFormState.hargaBeli = Number(e.target.value) || 0;
+      var digitsOnly = e.target.value.replace(/[^0-9]/g, "");
+      var numVal = Number(digitsOnly) || 0;
+      chemicalFormState.hargaBeli = numVal;
+      e.target.value = numVal > 0 ? numVal.toLocaleString("id-ID") : "";
       renderChemicalFormPreview();
     });
     document.getElementById("chemicalIsiKemasan").addEventListener("input", function (e) {
@@ -3827,7 +3830,7 @@ function selectGasCustom() {
     var totalEl = document.getElementById("packingTotalPerKg");
 
     countEl.textContent = packingItemsCache.length + " data";
-    totalEl.textContent = formatRupiah(packingTotalCache || 0);
+    totalEl.textContent = money0(packingTotalCache || 0);
     listEl.innerHTML = "";
 
     if (packingItemsCache.length === 0) {
@@ -3857,12 +3860,12 @@ function selectGasCustom() {
             "<button class=\"icon-btn\" type=\"button\" aria-label=\"Hapus\" data-action=\"delete\">&#10005;</button>" +
           "</div>" +
         "</div>" +
-        "<div class=\"meta-row\"><span class=\"meta-label\">Harga beli</span><span class=\"meta-val\">" + formatRupiah(record.hargaBeli) + " / " + formatNum(record.isiKemasan) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
+        "<div class=\"meta-row\"><span class=\"meta-label\">Harga beli</span><span class=\"meta-val\">" + money0(record.hargaBeli) + " / " + formatNum(record.isiKemasan) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
         "<div class=\"meta-row\"><span class=\"meta-label\">Takaran per Kg</span><span class=\"meta-val\">" + formatNum(record.takaranPerKg) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
         "<div class=\"gas-card-result\">" +
           "<div class=\"gas-result-grid\">" +
-            "<div class=\"gas-result-cell\"><div class=\"label\">Harga / satuan</div><div class=\"val\">" + formatRupiah(summary.hargaPerUnit) + "</div></div>" +
-            "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / Kg</div><div class=\"val\">" + formatRupiah(summary.biayaPerKg) + "</div></div>" +
+            "<div class=\"gas-result-cell\"><div class=\"label\">Harga / satuan</div><div class=\"val\">" + money0(summary.hargaPerUnit) + "</div></div>" +
+            "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / Kg</div><div class=\"val\">" + money0(summary.biayaPerKg) + "</div></div>" +
           "</div>" +
           warningHtml +
         "</div>";
@@ -3958,7 +3961,7 @@ function selectGasCustom() {
 
   function syncPackingFormFieldsFromState() {
     document.getElementById("packingNama").value = packingFormState.nama || "";
-    document.getElementById("packingHargaBeli").value = packingFormState.hargaBeli || "";
+    document.getElementById("packingHargaBeli").value = packingFormState.hargaBeli ? Number(packingFormState.hargaBeli).toLocaleString("id-ID") : "";
     document.getElementById("packingIsiKemasan").value = packingFormState.isiKemasan || "";
     document.getElementById("packingSatuanKemasan").value = packingFormState.satuanKemasan || "";
     document.getElementById("packingTakaranPerKg").value = packingFormState.takaranPerKg || "";
@@ -3981,8 +3984,8 @@ function selectGasCustom() {
 
   function renderPackingFormPreview() {
     var summary = computeBiayaPackingSummaryClient(packingFormState);
-    document.getElementById("pfHargaPerUnit").textContent = formatRupiah(summary.hargaPerUnit);
-    document.getElementById("pfBiayaPerKg").textContent = formatRupiah(summary.biayaPerKg);
+    document.getElementById("pfHargaPerUnit").textContent = money0(summary.hargaPerUnit);
+    document.getElementById("pfBiayaPerKg").textContent = money0(summary.biayaPerKg);
 
     var warnEl = document.getElementById("pfWarning");
     if (!summary.statusValid) {
@@ -3998,7 +4001,10 @@ function selectGasCustom() {
       packingFormState.nama = e.target.value;
     });
     document.getElementById("packingHargaBeli").addEventListener("input", function (e) {
-      packingFormState.hargaBeli = Number(e.target.value) || 0;
+      var digitsOnly = e.target.value.replace(/[^0-9]/g, "");
+      var numVal = Number(digitsOnly) || 0;
+      packingFormState.hargaBeli = numVal;
+      e.target.value = numVal > 0 ? numVal.toLocaleString("id-ID") : "";
       renderPackingFormPreview();
     });
     document.getElementById("packingIsiKemasan").addEventListener("input", function (e) {
