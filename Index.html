@@ -3122,7 +3122,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             "<button class=\"icon-btn\" type=\"button\" aria-label=\"Hapus\" data-action=\"delete\">&#10005;</button>" +
           "</div>" +
         "</div>" +
-        "<div class=\"meta-row\"><span class=\"meta-label\">Harga per tabung</span><span class=\"meta-val\">" + formatRupiah(record.hargaPerTabung) + "</span></div>" +
+        "<div class=\"meta-row\"><span class=\"meta-label\">Harga per tabung</span><span class=\"meta-val\">" + money0(record.hargaPerTabung) + "</span></div>" +
         "<div class=\"meta-row\"><span class=\"meta-label\">Estimasi pemakaian</span><span class=\"meta-val\">" + formatNum(record.estimasiPemakaianJam) + " jam</span></div>" +
         "<div class=\"meta-row\"><span class=\"meta-label\">Acuan dryer</span><span class=\"meta-val\">" + escapeHtml(summary.dryerRefNama) + "</span></div>" +
         "<div class=\"gas-card-result\">" +
@@ -3131,11 +3131,11 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             "<div class=\"gas-result-cell\"><div class=\"label\">Estimasi load</div><div class=\"val\">" + formatNum(summary.estimasiLoadPemakaian) + "<span class=\"unit\">load</span></div></div>" +
           "</div>" +
           "<div class=\"gas-result-grid\">" +
-            "<div class=\"gas-result-cell\"><div class=\"label\">Biaya / jam</div><div class=\"val\">" + formatRupiah(summary.biayaPerJam) + "</div></div>" +
+            "<div class=\"gas-result-cell\"><div class=\"label\">Biaya / jam</div><div class=\"val\">" + money0(summary.biayaPerJam) + "</div></div>" +
             "<div class=\"gas-result-cell\"><div class=\"label\">Biaya / menit</div><div class=\"val\">" + formatRupiah(summary.biayaPerMenit) + "</div></div>" +
           "</div>" +
           "<div class=\"gas-result-grid\" style=\"grid-template-columns:1fr;\">" +
-            "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / load (sesuai profil operasional)</div><div class=\"val\">" + formatRupiah(summary.biayaPerLoad) + "</div></div>" +
+            "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / load (sesuai profil operasional)</div><div class=\"val\">" + money0(summary.biayaPerLoad) + "</div></div>" +
           "</div>" +
           warningHtml +
         "</div>";
