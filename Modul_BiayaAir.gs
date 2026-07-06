@@ -65,6 +65,7 @@ function defaultBiayaAir_() {
     hargaPerTangki: 0,   // untuk Tangki
     kapasitasTangkiLiter: 0, // untuk Tangki
     kebutuhanAirPerLoad: 0,  // umum untuk PDAM & Tangki
+    kebutuhanAirSetrikaUapPerJam: 0, // liter/jam, hanya relevan untuk PDAM + ada setrika uap
     createdAt: null,
     updatedAt: null,
   };
@@ -105,9 +106,9 @@ function getBiayaAir(cabangId) {
     return {
       ok: true,
       data: {
-        cabang: { id: cabang.id, namaLaundry: cabang.profil.namaLaundry },
+        cabang: { id: cabang.id, namaLaundry: cabang.profil.namaLaundry, mesinSetrika: cabang.mesinSetrika },
         record: record,
-        summary: computeBiayaAirSummary_(record),
+        summary: computeBiayaAirSummary_(record, cabang),
       },
     };
   } catch (err) {
@@ -152,7 +153,7 @@ function saveBiayaAir(cabangId, payload) {
 
     writeKey_(sheet, "biayaAir_" + cabangId, JSON.stringify(clean));
 
-    return { ok: true, data: { record: clean, summary: computeBiayaAirSummary_(clean) } };
+    return { ok: true, data: { record: clean, summary: computeBiayaAirSummary_(clean, cabang) } };
   } catch (err) {
     return errorResponse_(err, "saveBiayaAir");
   }
@@ -184,6 +185,7 @@ function sanitizeBiayaAir_(input) {
   out.hargaPerTangki = clamp_(toNumber_(input && input.hargaPerTangki, 0), 0, 100000000);
   out.kapasitasTangkiLiter = clamp_(toNumber_(input && input.kapasitasTangkiLiter, 0), 0, 1000000);
   out.kebutuhanAirPerLoad = clamp_(toNumber_(input && input.kebutuhanAirPerLoad, 0), 0, 100000);
+  out.kebutuhanAirSetrikaUapPerJam = clamp_(toNumber_(input && input.kebutuhanAirSetrikaUapPerJam, 0), 0, 100000);
 
   out.createdAt = (input && input.createdAt) || null;
   out.updatedAt = (input && input.updatedAt) || null;
@@ -231,10 +233,13 @@ function validateBiayaAir_(data) {
 // biaya air. Frontend punya salinan identik untuk pratinjau real-time
 // (lihat Index.html), tapi modul lain WAJIB panggil ini, jangan duplikasi rumus.
 //
-function computeBiayaAirSummary_(record) {
+function computeBiayaAirSummary_(record, cabang) {
   const sumberAir = toSafeString_(record.sumberAir, "pdam", 20);
   let biayaPerLoad = 0;
   let infoText = "";
+  let konversiPerLiter = 0;
+  let adaSetrikaUap = false;
+  let biayaAirSetrikaUapPerJam = 0;
 
   if (sumberAir === "pdam") {
     // PDAM: hargaPerM3 × (kebutuhanAirPerLoad / 1000)
@@ -242,6 +247,14 @@ function computeBiayaAirSummary_(record) {
     const kebutuhanLiter = toNumber_(record.kebutuhanAirPerLoad, 0);
     const m3PerLoad = kebutuhanLiter / 1000;
     biayaPerLoad = round2_(hargaPerM3 * m3PerLoad);
+    konversiPerLiter = round2_(hargaPerM3 / 1000);
+
+    const mesinSetrika = (cabang && cabang.mesinSetrika) || [];
+    adaSetrikaUap = mesinSetrika.some(function (m) { return m.jenis === "uap"; });
+    if (adaSetrikaUap) {
+      const literPerJam = toNumber_(record.kebutuhanAirSetrikaUapPerJam, 0);
+      biayaAirSetrikaUapPerJam = round2_(konversiPerLiter * literPerJam);
+    }
   } else if (sumberAir === "tangki") {
     // Tangki: (hargaPerTangki / kapasitasLiter) × kebutuhanAirPerLoad
     const hargaPerTangki = toNumber_(record.hargaPerTangki, 0);
@@ -260,5 +273,8 @@ function computeBiayaAirSummary_(record) {
     biayaPerLoad: Math.max(0, biayaPerLoad), // jangan biarkan negative
     infoText: infoText,
     statusValid: biayaPerLoad >= 0,
+    konversiPerLiter: konversiPerLiter,
+    adaSetrikaUap: adaSetrikaUap,
+    biayaAirSetrikaUapPerJam: biayaAirSetrikaUapPerJam,
   };
 }
