@@ -4507,11 +4507,11 @@ function selectGasCustom() {
         "</div>" +
         "<div class=\"field\">" +
           "<label for=\"notaBiayaPerTransaksi\">Biaya per transaksi (Rp)</label>" +
-          "<input type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"0.01\" id=\"notaBiayaPerTransaksi\" placeholder=\"Contoh: 155\">" +
+          "<input type=\"text\" inputmode=\"numeric\" pattern=\"[0-9]*\" id=\"notaBiayaPerTransaksi\" placeholder=\"Contoh: 155\">" +
         "</div>" +
         "<div class=\"field\">" +
           "<label for=\"notaBiayaBulananAplikasi\">Biaya bulanan aplikasi (Rp)</label>" +
-          "<input type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"0.01\" id=\"notaBiayaBulananAplikasi\" placeholder=\"Contoh: 0\">" +
+          "<input type=\"text\" inputmode=\"numeric\" pattern=\"[0-9]*\" id=\"notaBiayaBulananAplikasi\" placeholder=\"Contoh: 0\">" +
         "</div>" +
         "<div class=\"field\">" +
           "<label for=\"notaEstimasiTransaksiPerBulan\">Estimasi transaksi per bulan</label>" +
@@ -4520,7 +4520,7 @@ function selectGasCustom() {
         "<div class=\"group-divider\">Nota thermal</div>" +
         "<div class=\"field\">" +
           "<label for=\"notaHargaPerRoll\">Harga per roll (Rp)</label>" +
-          "<input type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"0.01\" id=\"notaHargaPerRoll\" placeholder=\"Contoh: 1500\">" +
+          "<input type=\"text\" inputmode=\"numeric\" pattern=\"[0-9]*\" id=\"notaHargaPerRoll\" placeholder=\"Contoh: 1500\">" +
         "</div>" +
         "<div class=\"field\">" +
           "<label for=\"notaTransaksiPerRoll\">Transaksi per roll</label>" +
@@ -4530,7 +4530,7 @@ function selectGasCustom() {
       body.innerHTML = "<div class=\"group-divider\">Nota manual NCR</div>" +
         "<div class=\"field\">" +
           "<label for=\"notaHargaSatuanAwalNota\">Harga satuan awal nota (Rp)</label>" +
-          "<input type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"0.01\" id=\"notaHargaSatuanAwalNota\" placeholder=\"Contoh: 30000\">" +
+          "<input type=\"text\" inputmode=\"numeric\" pattern=\"[0-9]*\" id=\"notaHargaSatuanAwalNota\" placeholder=\"Contoh: 30000\">" +
         "</div>" +
         "<div class=\"field\">" +
           "<label for=\"notaJumlahLembarNota\">Jumlah lembar nota</label>" +
@@ -4546,18 +4546,24 @@ function selectGasCustom() {
 
     var biayaPerTransaksiInput = document.getElementById("notaBiayaPerTransaksi");
     if (biayaPerTransaksiInput) {
-      biayaPerTransaksiInput.value = notaKasirFormState.biayaPerTransaksi || "";
+      biayaPerTransaksiInput.value = notaKasirFormState.biayaPerTransaksi ? Number(notaKasirFormState.biayaPerTransaksi).toLocaleString("id-ID") : "";
       biayaPerTransaksiInput.addEventListener("input", function (e) {
-        notaKasirFormState.biayaPerTransaksi = Number(e.target.value) || 0;
+        var digitsOnly = e.target.value.replace(/[^0-9]/g, "");
+        var numVal = Number(digitsOnly) || 0;
+        notaKasirFormState.biayaPerTransaksi = numVal;
+        e.target.value = numVal > 0 ? numVal.toLocaleString("id-ID") : "";
         renderNotaKasirPreview();
       });
     }
 
     var biayaBulananInput = document.getElementById("notaBiayaBulananAplikasi");
     if (biayaBulananInput) {
-      biayaBulananInput.value = notaKasirFormState.biayaBulananAplikasi || "";
+      biayaBulananInput.value = notaKasirFormState.biayaBulananAplikasi ? Number(notaKasirFormState.biayaBulananAplikasi).toLocaleString("id-ID") : "";
       biayaBulananInput.addEventListener("input", function (e) {
-        notaKasirFormState.biayaBulananAplikasi = Number(e.target.value) || 0;
+        var digitsOnly = e.target.value.replace(/[^0-9]/g, "");
+        var numVal = Number(digitsOnly) || 0;
+        notaKasirFormState.biayaBulananAplikasi = numVal;
+        e.target.value = numVal > 0 ? numVal.toLocaleString("id-ID") : "";
         renderNotaKasirPreview();
       });
     }
@@ -4573,9 +4579,12 @@ function selectGasCustom() {
 
     var hargaPerRollInput = document.getElementById("notaHargaPerRoll");
     if (hargaPerRollInput) {
-      hargaPerRollInput.value = notaKasirFormState.hargaPerRoll || "";
+      hargaPerRollInput.value = notaKasirFormState.hargaPerRoll ? Number(notaKasirFormState.hargaPerRoll).toLocaleString("id-ID") : "";
       hargaPerRollInput.addEventListener("input", function (e) {
-        notaKasirFormState.hargaPerRoll = Number(e.target.value) || 0;
+        var digitsOnly = e.target.value.replace(/[^0-9]/g, "");
+        var numVal = Number(digitsOnly) || 0;
+        notaKasirFormState.hargaPerRoll = numVal;
+        e.target.value = numVal > 0 ? numVal.toLocaleString("id-ID") : "";
         renderNotaKasirPreview();
       });
     }
@@ -4591,9 +4600,12 @@ function selectGasCustom() {
 
     var hargaSatuanAwalNotaInput = document.getElementById("notaHargaSatuanAwalNota");
     if (hargaSatuanAwalNotaInput) {
-      hargaSatuanAwalNotaInput.value = notaKasirFormState.hargaSatuanAwalNota || "";
+      hargaSatuanAwalNotaInput.value = notaKasirFormState.hargaSatuanAwalNota ? Number(notaKasirFormState.hargaSatuanAwalNota).toLocaleString("id-ID") : "";
       hargaSatuanAwalNotaInput.addEventListener("input", function (e) {
-        notaKasirFormState.hargaSatuanAwalNota = Number(e.target.value) || 0;
+        var digitsOnly = e.target.value.replace(/[^0-9]/g, "");
+        var numVal = Number(digitsOnly) || 0;
+        notaKasirFormState.hargaSatuanAwalNota = numVal;
+        e.target.value = numVal > 0 ? numVal.toLocaleString("id-ID") : "";
         renderNotaKasirPreview();
       });
     }
@@ -4622,9 +4634,9 @@ function selectGasCustom() {
   function renderNotaKasirPreview() {
     if (!notaKasirFormState) return;
     var summary = computeNotaKasirPreview(notaKasirFormState);
-    document.getElementById("notaAplikasiPerTransaksi").textContent = formatRupiah(summary.biayaAplikasiPerLoad);
-    document.getElementById("notaBiayaPerLoad").textContent = formatRupiah(summary.biayaNotaPerLoad);
-    document.getElementById("notaTotalPerLoad").textContent = formatRupiah(summary.totalBiayaNotaKasirPerLoad);
+    document.getElementById("notaAplikasiPerTransaksi").textContent = money0(summary.biayaAplikasiPerLoad);
+    document.getElementById("notaBiayaPerLoad").textContent = money0(summary.biayaNotaPerLoad);
+    document.getElementById("notaTotalPerLoad").textContent = money0(summary.totalBiayaNotaKasirPerLoad);
     var warningEl = document.getElementById("notaKasirWarning");
     if (summary.warning) {
       warningEl.textContent = summary.warning;
