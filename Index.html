@@ -3545,6 +3545,75 @@ function selectGasCustom() {
   }
   window.openChemicalList = openChemicalList;
 
+  /**
+   * CHEMICAL_FIXED_NAMA: 4 item yang paling umum dipakai laundry, selalu
+   * ditampilkan sebagai card duluan (kosong kalau belum diisi). Ini HANYA
+   * urutan tampilan di frontend ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â data tetap tersimpan sebagai record
+   * chemical biasa (field "nama" bebas teks, tanpa kategori/jenis di
+   * backend), supaya tetap fleksibel untuk item tambahan apa pun (anti
+   * noda, pemutih, dll) dan untuk integrasi lain ke depan.
+   */
+  var CHEMICAL_FIXED_NAMA = ["Deterjen", "Softener", "Parfum", "Pelicin"];
+
+  function findChemicalEntryByNama(nama) {
+    return chemicalItemsCache.find(function (entry) {
+      return entry.record && entry.record.nama &&
+        entry.record.nama.trim().toLowerCase() === nama.toLowerCase();
+    }) || null;
+  }
+
+  function buildChemicalCard(displayNama, entry) {
+    var card = document.createElement("div");
+    card.className = "gas-card";
+
+    if (!entry) {
+      card.innerHTML =
+        "<div class=\"gas-card-top\">" +
+          "<div class=\"title-group\">" +
+            "<span class=\"flame-dot\"></span>" +
+            "<h3>" + escapeHtml(displayNama) + "</h3>" +
+          "</div>" +
+        "</div>" +
+        "<div class=\"field-hint\">Belum ada data. Isi harga beli & takaran untuk mulai menghitung.</div>" +
+        "<button class=\"add-cabang-btn flame\" type=\"button\" data-action=\"fill\" style=\"margin-top:10px;\">+ Isi data " + escapeHtml(displayNama) + "</button>";
+
+      card.querySelector("[data-action='fill']").addEventListener("click", function () { window.openChemicalFormNew(displayNama); });
+      return card;
+    }
+
+    var record = entry.record;
+    var summary = entry.summary;
+
+    var warningHtml = summary.statusValid ? "" :
+      "<div class=\"gas-warning\">Isi kemasan atau takaran belum lengkap, biaya belum bisa dihitung.</div>";
+
+    card.innerHTML =
+      "<div class=\"gas-card-top\">" +
+        "<div class=\"title-group\">" +
+          "<span class=\"flame-dot\"></span>" +
+          "<h3>" + escapeHtml(displayNama) + "</h3>" +
+        "</div>" +
+        "<div class=\"actions\">" +
+          "<button class=\"icon-btn\" type=\"button\" aria-label=\"Edit\" data-action=\"edit\">&#9998;</button>" +
+          "<button class=\"icon-btn\" type=\"button\" aria-label=\"Hapus\" data-action=\"delete\">&#10005;</button>" +
+        "</div>" +
+      "</div>" +
+      "<div class=\"meta-row\"><span class=\"meta-label\">Harga beli</span><span class=\"meta-val\">" + money0(record.hargaBeli) + " / " + formatNum(record.isiKemasan) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
+      "<div class=\"meta-row\"><span class=\"meta-label\">Takaran per Kg</span><span class=\"meta-val\">" + formatNum(record.takaranPerKg) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
+      "<div class=\"gas-card-result\">" +
+        "<div class=\"gas-result-grid\">" +
+          "<div class=\"gas-result-cell\"><div class=\"label\">Harga / satuan</div><div class=\"val\">" + money0(summary.hargaPerUnit) + "</div></div>" +
+          "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / Kg</div><div class=\"val\">" + money0(summary.biayaPerKg) + "</div></div>" +
+        "</div>" +
+        warningHtml +
+      "</div>";
+
+    card.querySelector("[data-action='edit']").addEventListener("click", function () { openChemicalFormEdit(record.id); });
+    card.querySelector("[data-action='delete']").addEventListener("click", function () { openConfirmDeleteChemical(record); });
+
+    return card;
+  }
+
   function renderChemicalList() {
     var listEl = document.getElementById("chemicalList");
     var emptyEl = document.getElementById("chemicalListEmpty");
@@ -3554,48 +3623,19 @@ function selectGasCustom() {
     countEl.textContent = chemicalItemsCache.length + " data";
     totalEl.textContent = money0(chemicalTotalCache || 0);
     listEl.innerHTML = "";
-
-    if (chemicalItemsCache.length === 0) {
-      emptyEl.style.display = "block";
-      return;
-    }
     emptyEl.style.display = "none";
 
+    var usedIds = {};
+
+    CHEMICAL_FIXED_NAMA.forEach(function (fixedNama) {
+      var entry = findChemicalEntryByNama(fixedNama);
+      if (entry) usedIds[entry.record.id] = true;
+      listEl.appendChild(buildChemicalCard(fixedNama, entry));
+    });
+
     chemicalItemsCache.forEach(function (entry) {
-      var record = entry.record;
-      var summary = entry.summary;
-
-      var card = document.createElement("div");
-      card.className = "gas-card";
-
-      var warningHtml = summary.statusValid ? "" :
-        "<div class=\"gas-warning\">Isi kemasan atau takaran belum lengkap, biaya belum bisa dihitung.</div>";
-
-      card.innerHTML =
-        "<div class=\"gas-card-top\">" +
-          "<div class=\"title-group\">" +
-            "<span class=\"flame-dot\"></span>" +
-            "<h3>" + escapeHtml(record.nama || "(Tanpa nama)") + "</h3>" +
-          "</div>" +
-          "<div class=\"actions\">" +
-            "<button class=\"icon-btn\" type=\"button\" aria-label=\"Edit\" data-action=\"edit\">&#9998;</button>" +
-            "<button class=\"icon-btn\" type=\"button\" aria-label=\"Hapus\" data-action=\"delete\">&#10005;</button>" +
-          "</div>" +
-        "</div>" +
-        "<div class=\"meta-row\"><span class=\"meta-label\">Harga beli</span><span class=\"meta-val\">" + money0(record.hargaBeli) + " / " + formatNum(record.isiKemasan) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
-        "<div class=\"meta-row\"><span class=\"meta-label\">Takaran per Kg</span><span class=\"meta-val\">" + formatNum(record.takaranPerKg) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
-        "<div class=\"gas-card-result\">" +
-          "<div class=\"gas-result-grid\">" +
-            "<div class=\"gas-result-cell\"><div class=\"label\">Harga / satuan</div><div class=\"val\">" + money0(summary.hargaPerUnit) + "</div></div>" +
-            "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / Kg</div><div class=\"val\">" + money0(summary.biayaPerKg) + "</div></div>" +
-          "</div>" +
-          warningHtml +
-        "</div>";
-
-      card.querySelector("[data-action='edit']").addEventListener("click", function () { openChemicalFormEdit(record.id); });
-      card.querySelector("[data-action='delete']").addEventListener("click", function () { openConfirmDeleteChemical(record); });
-
-      listEl.appendChild(card);
+      if (usedIds[entry.record.id]) return;
+      listEl.appendChild(buildChemicalCard(entry.record.nama || "(Tanpa nama)", entry));
     });
   }
 
@@ -3645,11 +3685,12 @@ function selectGasCustom() {
     };
   }
 
-  window.openChemicalFormNew = function () {
+  window.openChemicalFormNew = function (presetNama) {
     if (!chemicalCabangCache) { showToast("Pilih cabang terlebih dahulu.", "err"); return; }
     view.chemicalIsNew = true;
     view.chemicalEditingId = null;
     chemicalFormState = defaultChemicalRecord(view.chemicalCabangId);
+    if (presetNama) chemicalFormState.nama = presetNama;
     showScreen("chemicalForm");
     document.getElementById("chemicalFormTitle").textContent = "Tambah Item Chemical";
     renderChemicalForm();
