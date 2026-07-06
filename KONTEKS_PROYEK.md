@@ -252,16 +252,30 @@ Struktur biaya per layanan:
 pilih outlet (tersimpan di localStorage), teks "1 outlet aktif" kecil di bawah pill
 
 **Card Profil Outlet:** Badge kategori + jam operasional (format leading-zero
-`07.00 – 21.00`). 2 KPI besar `Kap. Cuci / bulan` (sage) & `Kap. Kering / bulan`
-(brass), rata kiri semua. Tiap KPI ada baris "Okupansi N% [?]" — tombol `?` tap
-untuk buka tooltip penjelasan singkat (hover otomatis di desktop lewat
-`@media (hover:hover)`). Mini-card Washer/Dryer `flex:1` (sejajar penuh, bukan
-rata kiri), tampilkan durasi mesin kalau ada data (`"home · 30 menit"`).
-JS: `window.toggleOkupansiTooltip`.
-*Bug yang diperbaiki:* `listCabang()` ternyata TIDAK menyertakan array
-`mesinCuci`/`mesinPengering` (cuma summary ringkas) → `getDashboardCabangSummary`
-sekarang ambil detail lengkap lewat `getCabang(id)` untuk `jenisCuci`,
-`jenisKering`, `durasiCuci`, `durasiKering`, `okupansiCuci`, `okupansiKering`.
+`07.00 – 21.00`), 1 tombol `?` tunggal di baris jam (bukan 3 tombol per-KPI lagi)
+untuk tooltip penjelasan okupansi. KPI Cuci/Kering **center-align**, sejajar 1
+baris. Untuk kategori **Drop Off/Kiloan & Hybrid** yang punya mesin setrika,
+otomatis jadi **3 KPI sejajar** (Cuci/Kering/Setrika, font dikecilkan biar
+tetap muat 1 baris di HP kecil, kelas `.kpi-3col`). Mini-card Washer/Dryer/Setrika
+`flex:1`, tampil **2 baris** (jenis mesin di atas, durasi/kapasitas di bawah,
+class `.profil-mesin-durasi`) — bukan digabung 1 baris lagi. Dryer jenis
+"konversi" tampil apa adanya (dulu salah di-map jadi "home"). Setrika tampilkan
+label "Setrika Listrik"/"Setrika Uap"/"Belum dipilih". JS: `window.toggleOkupansiTooltip`.
+*Bug yang diperbaiki (riwayat):*
+1. `listCabang()` awalnya tidak menyertakan `mesinCuci`/`mesinPengering` →
+   sudah diperbaiki lewat `getCabang(id)` (fix lama).
+2. `listCabang()` juga sempat lupa menyertakan `mesinSetrika` (baru ketahuan
+   pas fitur Setrika ditambah) → info "listrik/uap" selalu kosong sampai
+   field ini ditambahkan di `Modul_Cabang.gs:listCabang()`.
+3. **Ganti outlet di dashboard dulu TIDAK memicu refresh sama sekali** (cuma
+   ganti teks pill) → ditambahkan `refreshDashboardFast()`: render instan
+   card Profil Outlet dari `cabangListCache` (tanpa nunggu server), lalu
+   `refreshDashboard()` tetap jalan di belakang layar untuk semua card.
+4. **Race condition**: kalau ganti outlet 2x cepat berturut-turut, jawaban
+   server yang telat (punya seq lama) bisa menimpa tampilan sesaat (blip).
+   Fix: `dashboardRequestSeq` — tiap `refreshDashboard()` dapat nomor urut,
+   jawaban yang bukan dari request TERBARU otomatis dibuang (lihat
+   `Index.html` fungsi `refreshDashboard`).
 
 **Card Master Biaya Produksi:** Pill "Lengkap"/"N/4 komponen" **dihapus total**.
 Bar chart diperbesar (`height:6px`, `border-radius:3px` persegi, bukan pill
@@ -303,6 +317,48 @@ pakai skala arbitrer (`bepLoadPerBulan × 1.8`), BUKAN target omset maksimum
 riil bisnis. User minta diganti dengan kapasitas maksimum sungguhan, tapi ini
 butuh fitur baru "Kontribusi Omset" dulu (lihat detail di Prioritas #1).
 
+**Form Profil Outlet (screenForm) - reorganisasi:** Urutan panel sekarang:
+01 Profil & jam operasional -> 02 Kategori layanan (card sendiri, dipisah dari
+Okupansi) -> 03 Mesin cuci (+ slider okupansi cuci NEMPEL di bawah card ini,
+bukan di panel terpisah) -> 04 Mesin pengering (+ slider okupansi kering) ->
+05 Mesin setrika (kondisional, tampil HANYA utk kategori Drop Off/Kiloan &
+Hybrid; tiap baris ada pilihan Setrika Listrik/Uap, kapasitas kg/jam, TANPA
+field durasi menit karena basisnya per jam bukan per load). Fix desktop: dulu
+layout 2-kolom (form+preview) aktif dari lebar 760px yang bikin kolom form
+kepotong/berdesakan (`.wrap` global dibatasi 480px, jadi 2-kolom sebenarnya
+selalu sempit) -> sekarang `.wrap` dilebarkan khusus utk screenForm pakai
+`body:has(#screenForm.active) .wrap`, dan breakpoint 2-kolom dinaikkan ke
+1100px. Select jam buka/tutup juga sempat kepotong (flex-shrink) -> dikunci
+`width:64px` tetap.
+
+**Card Setrika Listrik di Analisa Biaya Listrik:** Card ke-4 (setelah
+Cuci/Kering/Pompa), muncul HANYA jika kategori outlet Drop Off/Kiloan atau
+Hybrid DAN ada mesin setrika berjenis "listrik" di Profil Outlet. Rumus beda
+dari washer/dryer: `Rp/jam = (watt / 1000) x TDL` (murni per jam, TIDAK
+dibagi durasi/load). Baris "Setrika Uap" tidak dihitung sama sekali (tidak
+ada biaya listrik). Field baru `wattSetrikaListrik` di `Modul_BiayaListrik.gs`.
+
+**Card Kap. Setrika di dashboard (Prioritas #2 lama - SUDAH SELESAI):**
+`getDashboardCabangSummary` sekarang kirim `totalUnitSetrika`,
+`kapasitasSetrikaKgPerJam`, `jenisSetrika`, `okupansiSetrika`. Dashboard
+adaptif: Self Service tetap 2 KPI, Drop Off/Kiloan & Hybrid jadi 3 KPI
+sejajar (lihat detail render di atas, bagian Card Profil Outlet).
+
+**Fitur Chemical & Packing di Master Biaya (Prioritas #4 lama - SUDAH SELESAI):**
+2 modul baru `Modul_BiayaChemical.gs` & `Modul_BiayaPacking.gs`, POLA SAMA
+seperti `Modul_BiayaGas.gs` (multi-record per cabang) tapi TANPA acuan mesin
+(`dryerRefId`) - basis hitungan murni per Kg, bukan per load. Skema per item:
+`nama` (bebas: Deterjen/Softener/Parfum/Pelicin/dll), `hargaBeli` (per
+kemasan), `isiKemasan` + `satuanKemasan` (bebas: gram/ml/pcs), `takaranPerKg`.
+Rumus: `hargaPerUnit = hargaBeli / isiKemasan`, `biayaPerKg = hargaPerUnit x
+takaranPerKg`. Total per cabang = jumlah semua item. Pill "Deterjen" (dulu
+disabled) di-rename jadi "Chemical" krn isinya bukan cuma deterjen. Layar:
+`screenChemicalList/Form` & `screenPackingList/Form` (reuse CSS `.gas-card`
+apa adanya, tidak bikin style baru). Cascade delete sudah ditambahkan di
+`Modul_Cabang.gs:deleteCabang()`. **BELUM terhubung ke Struktur Biaya HPP**
+- itu langkah lanjutan, lihat Prioritas #3 di bawah (jangan dikira sudah
+otomatis masuk hitungan HPP hanya karena datanya sudah bisa diisi).
+
 ---
 
 ### PRIORITAS BERIKUTNYA
@@ -338,21 +394,46 @@ butuh fitur baru "Kontribusi Omset" dulu (lihat detail di Prioritas #1).
      "Kontribusi Omset" sesungguhnya jadi task terpisah nanti.
    - **User belum memilih salah satu opsi ini — tanyakan dulu di awal sesi
      berikutnya sebelum lanjut.**
-2. **Card "Kap. Setrika" untuk kategori Drop Off/Kiloan & Hybrid** (belum dikerjakan):
-   - Satuan per jam (beda dari Cuci/Kering yang per bulan)
-   - Form input data setrika di menu Profil Outlet belum aktif — harus dibuat dulu sebelum card dashboard bisa jalan
-   - Gaya visual: statis, elegan, premium — konsisten dengan card Cuci/Kering yang sudah ada
-   - Dashboard harus adaptif per kategori outlet: Self Service tetap 2 KPI (Cuci/Kering), Drop Off/Kiloan & Hybrid jadi 3 KPI (+ Setrika)
+2. **[SELESAI]** ~~Card "Kap. Setrika" untuk kategori Drop Off/Kiloan & Hybrid~~
+   — lihat bagian "Card Kap. Setrika di dashboard" di atas.
 3. **Backend HPP untuk Drop Off/Kiloan & Hybrid belum ada sama sekali** —
    `Modul_StrukturBiayaHPP.gs` cuma punya `buildSelfServiceHPPStructure_`
    (nama fungsinya eksplisit "SelfService"). Untuk kategori lain perlu fungsi
    BARU untuk layanan: Cuci Saja, Cuci Kering Lipat, Cuci Kering Setrika,
    Setrika Saja, Bed Cover (mungkin bertambah lagi). Jangan bikin "tampilan
    fleksibel" dulu sebelum logika backend ini ada — berisiko UI kosong/menyesatkan.
-4. **2 card tambahan untuk Drop Off/Kiloan & Hybrid:** Packing dan Deterjen
-   (komponen biaya ke-5 dan ke-6, disebutkan user tapi belum dirinci detailnya)
+   Info tambahan dari user (2026-07-05):
+   - Hitungan HPP tetap PER LOAD dulu (pakai mesin sama seperti Self Service),
+     BUKAN dihitung ulang per kg dari nol — baru di STRUKTUR BIAYA HPP hasil
+     per-load itu dibagi kapasitas kg mesin utk dapat "per kg" (utk owner
+     nentuin harga minimum order).
+   - Tidak ada "Kering Saja" di kategori ini (cuma 5 layanan di atas).
+   - Setrika ada 2 jenis: uap (skip biaya listrik) / listrik (pakai
+     `Modul_BiayaListrik.gs` card Setrika Listrik yang sudah ada, per jam,
+     dibagi kapasitas kg/jam).
+   - Bed Cover: per load, TIDAK pakai setrika, komponennya = Nota + HPP Cuci +
+     HPP Kering + Deterjen + Softener + Parfum + Packing (pakai data Chemical
+     & Packing yang sudah ada modulnya).
+   - Cuci Saja utk kategori ini beda dari Self Service: ada tambahan Deterjen +
+     Softener + Plastik HD/Packing yang sifatnya EDITABLE/optional (toggle
+     on-off, krn ada laundry yang tidak pakai softener).
+   - **User belum kasih tabel lengkap komponen per 5 layanan** (masih ada
+     beberapa `?` yang belum terisi di sesi 2026-07-05) — audit dulu/tanyakan
+     detail sebelum mulai kode, jangan asumsi.
+4. **[SELESAI]** ~~2 card tambahan Packing dan Chemical~~ — lihat bagian
+   "Fitur Chemical & Packing" di atas. **Belum terhubung ke HPP** (poin #3).
 5. **Perbaikan tampilan layar detail** (Gas, Listrik, Air, Nota) — belum disentuh
-6. **Keputusan desain yang SUDAH FINAL (jangan diusulkan ulang):**
+6. **[PENDING KEPUTUSAN USER] UX form Profil Outlet - validasi & feedback
+   pengisian data.** User usul (2026-07-05): semua card collapsed dulu saat
+   cabang baru, ada step-by-step tooltip, field kosong ditandai merah + card
+   bergetar saat coba Simpan kalau ada yang belum lengkap. Rekomendasi Claude
+   (BELUM disetujui user): jangan full wizard (risiko rebuild besar, owner
+   sering perlu bolak-balik antar section) — versi ringan saja: (a) semua
+   panel collapsed default utk cabang baru, (b) border merah + teks error di
+   field yang wajib tapi kosong saat klik Simpan, (c) panel yang error
+   auto-expand + scroll + shake singkat. **Tanyakan dulu di awal sesi
+   berikutnya, jangan langsung kerjakan salah satu opsi.**
+7. **Keputusan desain yang SUDAH FINAL (jangan diusulkan ulang):**
    - Tidak perlu warna berbeda per layanan HPP (sage/brass/volt) — user bilang
      "nanti kesan norak" kalau kategori lain (Drop Off/Kiloan) yang punya
      5-6 layanan ikut diwarnai semua. Total HPP tetap netral/hitam.
@@ -431,10 +512,22 @@ oleh angka "Kapasitas maksimal/hari" di layar detail Profil Outlet).
 2. Tulis: **"Lanjutkan Kalkulator Laundry, lanjut dari yang kemarin."**
 3. Claude langsung paham tanpa penjelasan ulang — rule proyek dan rule desain sudah menyatu di file ini.
 
-### Titik berhenti sesi terakhir (2026-07-04):
-Sedang membahas **Prioritas Berikutnya #1** — fitur "Kontribusi Omset" untuk
-grafik BEP. User belum memilih antara "bangun penuh sekarang" vs "pendekatan
-sementara dulu". **Tanyakan dulu itu di awal sesi**, jangan langsung mengerjakan
-salah satu opsi. Semua konteks teknisnya (rumus bottleneck, field yang perlu
-ditambah, data kapasitas yang sudah tersedia) ada di bagian Prioritas
-Berikutnya #1 di atas.
+### Titik berhenti sesi terakhir (2026-07-05):
+Ada **2 keputusan pending** yang harus ditanyakan dulu di awal sesi berikutnya
+sebelum lanjut kerja, jangan langsung pilih salah satu:
+1. **Prioritas #1** — fitur "Kontribusi Omset" untuk grafik BEP (pending dari
+   sesi 2026-07-04, belum berubah, lihat detail lengkap di Prioritas #1 atas).
+2. **Prioritas #6 (baru)** — UX validasi form Profil Outlet (collapsed
+   default + validasi merah + shake, vs full wizard step-by-step). Claude
+   sudah kasih rekomendasi (versi ringan) tapi user belum setuju/pilih.
+
+Progress besar sesi 2026-07-05 (semua sudah live-tested via preview browser
+sebelum diserahkan, lihat detail lengkap di STATUS FITUR DASHBOARD atas):
+fix bug BEP card navigasi, reorganisasi form Profil Outlet (kategori jadi
+card sendiri + fix layout desktop), card Setrika di Profil Outlet & Analisa
+Biaya Listrik, Card Kap. Setrika dashboard (Prioritas #2 lama - selesai),
+fix bug mesinSetrika hilang di listCabang, instant-render + anti-race-condition
+saat ganti outlet dashboard, fitur Chemical & Packing (Prioritas #4 lama -
+selesai, dgn beberapa detail teknis awal dari user utk Prioritas #3 backend
+HPP kategori kiloan - masih perlu tabel lengkap komponen per layanan sebelum
+mulai kode).

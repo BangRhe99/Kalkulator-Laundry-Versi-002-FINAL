@@ -490,7 +490,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
 
           <div class="field">
             <label for="gasHarga">Harga per tabung (Rp)</label>
-            <input type="number" inputmode="decimal" min="0" step="0.01" id="gasHarga" placeholder="Contoh: 21000.50">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="gasHarga" placeholder="Contoh: 21000">
           </div>
 
           <div class="field">
@@ -3397,9 +3397,9 @@ function selectGasCustom() {
 
     document.getElementById("gfKonversiMenit").innerHTML = formatNum(summary.konversiMenit) + "<span class=\"unit\">menit</span>";
     document.getElementById("gfEstimasiLoad").innerHTML = formatNum(summary.estimasiLoadPemakaian) + "<span class=\"unit\">load</span>";
-    document.getElementById("gfBiayaJam").textContent = formatRupiah(summary.biayaPerJam);
+    document.getElementById("gfBiayaJam").textContent = money0(summary.biayaPerJam);
     document.getElementById("gfBiayaMenit").textContent = formatRupiah(summary.biayaPerMenit);
-    document.getElementById("gfBiayaLoad").textContent = formatRupiah(summary.biayaPerLoad);
+    document.getElementById("gfBiayaLoad").textContent = money0(summary.biayaPerLoad);
 
     var warnEl = document.getElementById("gfWarning");
     if (!dryer) {
@@ -3421,7 +3421,9 @@ function selectGasCustom() {
     });
 
     document.getElementById("gasHarga").addEventListener("input", function (e) {
-      gasFormState.hargaPerTabung = Number(e.target.value) || 0;
+      var digitsOnly = e.target.value.replace(/[^0-9]/g, "");
+      if (digitsOnly !== e.target.value) e.target.value = digitsOnly;
+      gasFormState.hargaPerTabung = Number(digitsOnly) || 0;
       renderGasFormPreview();
     });
 
