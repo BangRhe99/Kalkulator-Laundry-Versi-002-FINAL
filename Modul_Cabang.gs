@@ -276,7 +276,7 @@ function sanitizeCabang_(input) {
   out.mesinPengering = toMachineArray_(input && input.mesinPengering);
   out.mesinSetrika = toSetrikaArray_(input && input.mesinSetrika);
 
-  const allowedKategori = ["self_service", "drop_off", "hybrid"];
+  const allowedKategori = ["self_service", "jasa_setrika", "drop_off", "hybrid"];
   out.kategoriLayanan = allowedKategori.indexOf(input && input.kategoriLayanan) >= 0
     ? input.kategoriLayanan
     : base.kategoriLayanan;

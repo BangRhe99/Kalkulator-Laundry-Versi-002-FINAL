@@ -183,7 +183,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
       </div>
 
       <div class="ringkasan-grid">
-        <div>
+        <div id="rCuciWrap">
           <div class="summary-panel">
             <div class="summary-section-label">Mesin cuci</div>
             <div class="stat-grid">
@@ -206,7 +206,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           </div>
         </div>
 
-        <div>
+        <div id="rKeringWrap">
           <div class="summary-panel">
             <div class="summary-section-label">Mesin pengering</div>
             <div class="stat-grid">
@@ -300,13 +300,14 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             <div class="panel-body">
               <div class="pill-group" id="kategoriPills">
                 <div class="pill active" data-val="self_service">Self Service</div>
+                <div class="pill" data-val="jasa_setrika">Jasa Setrika</div>
                 <div class="pill" data-val="drop_off">Drop off / kiloan</div>
                 <div class="pill" data-val="hybrid">Hybrid</div>
               </div>
             </div>
           </section>
 
-          <section class="panel" data-panel="cuci">
+          <section class="panel" data-panel="cuci" id="panelCuci">
             <div class="panel-head" onclick="togglePanel(this)">
               <span class="idx">03</span>
               <h2>Mesin cuci</h2>
@@ -326,7 +327,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             </div>
           </section>
 
-          <section class="panel" data-panel="kering">
+          <section class="panel" data-panel="kering" id="panelKering">
             <div class="panel-head" onclick="togglePanel(this)">
               <span class="idx">04</span>
               <h2>Mesin pengering</h2>
@@ -369,7 +370,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
         </div>
 
         <div class="col-output">
-          <section class="summary-panel">
+          <section class="summary-panel" id="outCuciPanel">
             <div class="summary-section-label">Pratinjau kapasitas cuci</div>
             <div class="stat-grid">
               <div class="stat-card">
@@ -388,7 +389,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             </div>
           </section>
 
-          <section class="summary-panel">
+          <section class="summary-panel" id="outKeringPanel">
             <div class="summary-section-label">Pratinjau kapasitas pengering</div>
             <div class="stat-grid">
               <div class="stat-card">
@@ -1474,7 +1475,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     return pad2(h) + "." + pad2(m);
   }
 
-  var KATEGORI_LABEL = { self_service: "Self Service", drop_off: "Drop off / kiloan", hybrid: "Hybrid" };
+  var KATEGORI_LABEL = { self_service: "Self Service", jasa_setrika: "Jasa Setrika", drop_off: "Drop off / kiloan", hybrid: "Hybrid" };
   var JENIS_MESIN_LABEL = { rumah_tangga: "Rumah tangga", konversi: "Konversi", komersial: "Komersial" };
 
   function machineDisplayName(m) {
@@ -1932,11 +1933,13 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           var jamTutupH = Math.floor(jamTutup/60); var jamTutupM = jamTutup%60;
           var jamBukaStr = (jamBukaH < 10 ? '0' : '') + jamBukaH + '.' + (jamBukaM < 10 ? '0' : '') + jamBukaM;
           var jamTutupStr = (jamTutupH < 10 ? '0' : '') + jamTutupH + '.' + (jamTutupM < 10 ? '0' : '') + jamTutupM;
-          var kategoriLabel = row.kategoriLayanan === 'self_service' ? 'Self Service' : (row.kategoriLayanan === 'drop_off' ? 'Drop Off' : (row.kategoriLayanan === 'hybrid' ? 'Hybrid' : (row.kategoriLayanan || '-')));
+          var kategoriLabel = row.kategoriLayanan === 'self_service' ? 'Self Service' : (row.kategoriLayanan === 'jasa_setrika' ? 'Jasa Setrika' : (row.kategoriLayanan === 'drop_off' ? 'Drop Off' : (row.kategoriLayanan === 'hybrid' ? 'Hybrid' : (row.kategoriLayanan || '-'))));
+          var isSetrikaOnlyKategori = row.kategoriLayanan === 'jasa_setrika';
           var isKiloanKategori = row.kategoriLayanan === 'drop_off' || row.kategoriLayanan === 'hybrid';
-          var hasSetrika = isKiloanKategori && Number(row.totalUnitSetrika || 0) > 0;
-          var setrikaKpiHtml = !hasSetrika ? '' : (
-                '<div class="profil-kpi-divider"></div>' +
+          var hasSetrika = (isKiloanKategori || isSetrikaOnlyKategori) && Number(row.totalUnitSetrika || 0) > 0;
+          var jenisSetrikaLabel = row.jenisSetrika === 'listrik' ? 'Setrika Listrik' : (row.jenisSetrika === 'uap' ? 'Setrika Uap' : 'Belum dipilih');
+
+          var setrikaKpiItemHtml =
                 '<div class="profil-kpi-item setrika">' +
                   '<span class="profil-kpi-label">Kap. Setrika</span>' +
                   '<div class="profil-kpi-value-row">' +
@@ -1944,29 +1947,21 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                     '<span class="profil-kpi-unit">kg/jam</span>' +
                   '</div>' +
                   '<div class="profil-kpi-okupansi">Okupansi ' + escapeHtml(String(row.okupansiSetrika || 0)) + '%</div>' +
-                '</div>'
-          );
-          var jenisSetrikaLabel = row.jenisSetrika === 'listrik' ? 'Setrika Listrik' : (row.jenisSetrika === 'uap' ? 'Setrika Uap' : 'Belum dipilih');
-          var setrikaMesinHtml = !hasSetrika ? '' : (
+                '</div>';
+          var setrikaKpiHtml = !hasSetrika ? '' : ('<div class="profil-kpi-divider"></div>' + setrikaKpiItemHtml);
+
+          var setrikaMesinItemHtml =
                 '<div class="profil-mesin-item volt">' +
                   '<span class="profil-mesin-count">' + escapeHtml(String(row.totalUnitSetrika || 0)) + '</span>' +
                   '<span class="profil-mesin-type">setrika</span>' +
                   '<span class="profil-mesin-kategori">' + escapeHtml(jenisSetrikaLabel) + '</span>' +
                   (row.kapasitasSetrikaKgPerJam > 0 ? '<span class="profil-mesin-durasi">' + formatNum(row.kapasitasSetrikaKgPerJam) + ' kg/jam</span>' : '') +
-                '</div>'
-          );
-          return (
-            '<div class="profil-outlet-card">' +
-              '<div class="profil-outlet-meta">' +
-                '<span class="profil-outlet-kategori">' + escapeHtml(kategoriLabel) + '</span>' +
-                '<span class="profil-outlet-jam">' +
-                  jamBukaStr + ' \u2013 ' + jamTutupStr + ' \u00B7 ' + jamOps + ' jam' +
-                  '<span class="profil-kpi-okupansi profil-outlet-okupansi-info">' +
-                    '<button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this, event)" aria-label="Apa itu okupansi?">?</button>' +
-                    '<div class="okupansi-tooltip">Okupansi adalah perkiraan seberapa sering mesin dipakai. Okupansi 50% artinya mesin diperkirakan cuma terisi separuh waktu yang tersedia, bukan penuh terus-menerus.</div>' +
-                  '</span>' +
-                '</span>' +
-              '</div>' +
+                '</div>';
+          var setrikaMesinHtml = !hasSetrika ? '' : setrikaMesinItemHtml;
+
+          var kpiBlockHtml = isSetrikaOnlyKategori
+            ? ('<div class="profil-outlet-kpi profil-outlet-kpi-solo">' + setrikaKpiItemHtml + '</div>')
+            : (
               '<div class="profil-outlet-kpi' + (hasSetrika ? ' kpi-3col' : '') + '">' +
                 '<div class="profil-kpi-item cuci">' +
                   '<span class="profil-kpi-label">Kap. Cuci</span>' +
@@ -1986,7 +1981,12 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                   '<div class="profil-kpi-okupansi">Okupansi ' + escapeHtml(String(row.okupansiKering || 0)) + '%</div>' +
                 '</div>' +
                 setrikaKpiHtml +
-              '</div>' +
+              '</div>'
+            );
+
+          var mesinBlockHtml = isSetrikaOnlyKategori
+            ? ('<div class="profil-outlet-mesin profil-outlet-mesin-solo">' + setrikaMesinItemHtml + '</div>')
+            : (
               '<div class="profil-outlet-mesin">' +
                 '<div class="profil-mesin-item sage">' +
                   '<span class="profil-mesin-count">' + escapeHtml(String(row.totalUnitCuci || 0)) + '</span>' +
@@ -2001,7 +2001,23 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                   (row.durasiKering > 0 ? '<span class="profil-mesin-durasi">' + row.durasiKering + ' menit</span>' : '') +
                 '</div>' +
                 setrikaMesinHtml +
+              '</div>'
+            );
+
+          return (
+            '<div class="profil-outlet-card">' +
+              '<div class="profil-outlet-meta">' +
+                '<span class="profil-outlet-kategori">' + escapeHtml(kategoriLabel) + '</span>' +
+                '<span class="profil-outlet-jam">' +
+                  jamBukaStr + ' \u2013 ' + jamTutupStr + ' \u00B7 ' + jamOps + ' jam' +
+                  '<span class="profil-kpi-okupansi profil-outlet-okupansi-info">' +
+                    '<button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this, event)" aria-label="Apa itu okupansi?">?</button>' +
+                    '<div class="okupansi-tooltip">Okupansi adalah perkiraan seberapa sering mesin dipakai. Okupansi 50% artinya mesin diperkirakan cuma terisi separuh waktu yang tersedia, bukan penuh terus-menerus.</div>' +
+                  '</span>' +
+                '</span>' +
               '</div>' +
+              kpiBlockHtml +
+              mesinBlockHtml +
             '</div>'
           );
         }).join('');
@@ -2578,24 +2594,33 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
       " (" + formatNum(summary.totalJamPerHari) + " jam)";
     document.getElementById("rKategoriLayanan").textContent = KATEGORI_LABEL[cabang.kategoriLayanan] || "-";
 
-    document.getElementById("rCuciUnit").textContent = summary.cuci.totalUnit;
-    document.getElementById("rCuciMax").innerHTML = formatNum(summary.cuci.loadMaksimalPerHari) + "<span class=\"unit\">load</span>";
-    document.getElementById("rCuciHari").textContent = formatNum(summary.cuci.loadPerHari) + " load";
-    document.getElementById("rCuciMinggu").textContent = formatNum(summary.cuci.loadPerMinggu) + " load";
-    document.getElementById("rCuciBulan").textContent = formatNum(summary.cuci.loadPerBulan) + " load";
-    renderMachineSummaryDetail("rCuciDetail", cabang.mesinCuci, "rumah_tangga", "Rumah tangga", "komersial", "Komersial");
+    var setrikaOnly = isSetrikaOnlyKategori(cabang.kategoriLayanan);
+    var rCuciWrap = document.getElementById("rCuciWrap");
+    var rKeringWrap = document.getElementById("rKeringWrap");
+    if (rCuciWrap) rCuciWrap.style.display = setrikaOnly ? "none" : "";
+    if (rKeringWrap) rKeringWrap.style.display = setrikaOnly ? "none" : "";
 
-    document.getElementById("rKeringUnit").textContent = summary.kering.totalUnit;
-    document.getElementById("rKeringMax").innerHTML = formatNum(summary.kering.loadMaksimalPerHari) + "<span class=\"unit\">load</span>";
-    document.getElementById("rKeringHari").textContent = formatNum(summary.kering.loadPerHari) + " load";
-    document.getElementById("rKeringMinggu").textContent = formatNum(summary.kering.loadPerMinggu) + " load";
-    document.getElementById("rKeringBulan").textContent = formatNum(summary.kering.loadPerBulan) + " load";
-    renderMachineSummaryDetail("rKeringDetail", cabang.mesinPengering, "konversi", "Konversi", "komersial", "Komersial");
+    if (!setrikaOnly) {
+      document.getElementById("rCuciUnit").textContent = summary.cuci.totalUnit;
+      document.getElementById("rCuciMax").innerHTML = formatNum(summary.cuci.loadMaksimalPerHari) + "<span class=\"unit\">load</span>";
+      document.getElementById("rCuciHari").textContent = formatNum(summary.cuci.loadPerHari) + " load";
+      document.getElementById("rCuciMinggu").textContent = formatNum(summary.cuci.loadPerMinggu) + " load";
+      document.getElementById("rCuciBulan").textContent = formatNum(summary.cuci.loadPerBulan) + " load";
+      renderMachineSummaryDetail("rCuciDetail", cabang.mesinCuci, "rumah_tangga", "Rumah tangga", "komersial", "Komersial");
+
+      document.getElementById("rKeringUnit").textContent = summary.kering.totalUnit;
+      document.getElementById("rKeringMax").innerHTML = formatNum(summary.kering.loadMaksimalPerHari) + "<span class=\"unit\">load</span>";
+      document.getElementById("rKeringHari").textContent = formatNum(summary.kering.loadPerHari) + " load";
+      document.getElementById("rKeringMinggu").textContent = formatNum(summary.kering.loadPerMinggu) + " load";
+      document.getElementById("rKeringBulan").textContent = formatNum(summary.kering.loadPerBulan) + " load";
+      renderMachineSummaryDetail("rKeringDetail", cabang.mesinPengering, "konversi", "Konversi", "komersial", "Komersial");
+    }
 
     var rSetrikaWrap = document.getElementById("rSetrikaWrap");
     if (rSetrikaWrap) {
-      var showSetrika = isKiloanKategori(cabang.kategoriLayanan);
+      var showSetrika = isKiloanKategori(cabang.kategoriLayanan) || setrikaOnly;
       rSetrikaWrap.style.display = showSetrika ? "" : "none";
+      rSetrikaWrap.classList.toggle("ringkasan-solo", setrikaOnly);
       if (showSetrika) {
         document.getElementById("rSetrikaUnit").textContent = summary.setrika.totalUnit;
         document.getElementById("rSetrikaMax").innerHTML = formatNum(summary.setrika.kapasitasMaksimalKgPerJam) + "<span class=\"unit\">kg</span>";
@@ -2826,6 +2851,10 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     return kategori === "drop_off" || kategori === "hybrid";
   }
 
+  function isSetrikaOnlyKategori(kategori) {
+    return kategori === "jasa_setrika";
+  }
+
   function renderFormOutputs() {
     var summary = computeSummary(formState);
 
@@ -2861,11 +2890,21 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     document.querySelectorAll("#kategoriPills .pill").forEach(function (p) {
       p.classList.toggle("active", p.getAttribute("data-val") === formState.kategoriLayanan);
     });
-    var show = isKiloanKategori(formState.kategoriLayanan);
+    var setrikaOnly = isSetrikaOnlyKategori(formState.kategoriLayanan);
+    var showSetrika = isKiloanKategori(formState.kategoriLayanan) || setrikaOnly;
     var panelSetrika = document.getElementById("panelSetrika");
     var outSetrikaPanel = document.getElementById("outSetrikaPanel");
-    if (panelSetrika) panelSetrika.style.display = show ? "" : "none";
-    if (outSetrikaPanel) outSetrikaPanel.style.display = show ? "" : "none";
+    if (panelSetrika) panelSetrika.style.display = showSetrika ? "" : "none";
+    if (outSetrikaPanel) outSetrikaPanel.style.display = showSetrika ? "" : "none";
+
+    var panelCuci = document.getElementById("panelCuci");
+    var panelKering = document.getElementById("panelKering");
+    var outCuciPanel = document.getElementById("outCuciPanel");
+    var outKeringPanel = document.getElementById("outKeringPanel");
+    if (panelCuci) panelCuci.style.display = setrikaOnly ? "none" : "";
+    if (panelKering) panelKering.style.display = setrikaOnly ? "none" : "";
+    if (outCuciPanel) outCuciPanel.style.display = setrikaOnly ? "none" : "";
+    if (outKeringPanel) outKeringPanel.style.display = setrikaOnly ? "none" : "";
   }
 
   function renderForm() {
