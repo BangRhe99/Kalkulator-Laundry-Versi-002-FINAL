@@ -438,8 +438,18 @@ otomatis masuk hitungan HPP hanya karena datanya sudah bisa diisi).
    - Chevron `.hpp-mini-arrow` diperbesar jadi tombol bulat 26x26px (dulu
      cuma teks kecil font-size 10px, nyaris tak terlihat sebagai tombol).
 4. **[SELESAI]** ~~2 card tambahan Packing dan Chemical~~ — lihat bagian
-   "Fitur Chemical & Packing" di atas. **Belum terhubung ke HPP** (poin #3).
-5. **Perbaikan tampilan layar detail** (Gas, Listrik, Air, Nota) — belum disentuh
+   "Fitur Chemical & Packing" di atas. Sudah terhubung ke HPP (lihat poin #3
+   di atas, sesi 2026-07-07).
+5. **[SELESAI - dicek 2026-07-07, TIDAK PERLU KODE]** ~~Perbaikan tampilan
+   layar detail (Gas, Listrik, Air, Nota)~~ — catatan ini sudah usang. Audit
+   ulang membuktikan format Rp (titik ribuan di input, tanpa desimal di
+   ringkasan `money0()`) sudah konsisten rapi di SEMUA 4 layar tersebut, sama
+   seperti Chemical/Packing. Gaya card Listrik (`.listrik-kategori-card`) &
+   Air (`.air-result-panel`) memang beda dari Gas/Chemical/Packing
+   (`.gas-card`), tapi itu wajar karena struktur datanya beda (Listrik/Air =
+   satu konfigurasi per outlet, bukan daftar multi-item) — BUKAN cacat,
+   sengaja tidak diseragamkan paksa. Jangan diusulkan ulang kecuali user
+   nunjukkan masalah visual konkret (screenshot).
 6. **[PENDING KEPUTUSAN USER] UX form Profil Outlet - validasi & feedback
    pengisian data.** User usul (2026-07-05): semua card collapsed dulu saat
    cabang baru, ada step-by-step tooltip, field kosong ditandai merah + card
