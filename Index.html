@@ -1860,12 +1860,19 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
         if (res && res.ok) {
           cabangListCache = res.data || [];
           ensureDashboardOutletSelection_();
+        } else {
+          cabangListCache = [];
         }
+        fetchDashboardFullSummary_(mySeq);
       })
-      .withFailureHandler(function () {})
+      .withFailureHandler(function () {
+        if (mySeq !== dashboardRequestSeq) return;
+        fetchDashboardFullSummary_(mySeq);
+      })
       .listCabang();
+  }
 
-
+  function fetchDashboardFullSummary_(mySeq) {
     var cId = dashboardSelectedOutletId || null;
     google.script.run
       .withSuccessHandler(function (full) {
