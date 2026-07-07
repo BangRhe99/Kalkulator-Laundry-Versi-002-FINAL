@@ -2010,23 +2010,30 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           var setrikaMesinHtml = !hasSetrika ? '' : setrikaMesinItemHtml;
 
           var setrikaFlatRowHtml =
-                '<div class="profil-outlet-setrika-flat">' +
-                  '<div class="setrika-flat-item">' +
-                    '<span class="setrika-flat-value">' + escapeHtml(String(row.totalUnitSetrika || 0)) + '</span>' +
-                    '<span class="setrika-flat-label">unit</span>' +
+                '<div class="profil-outlet-kpi kpi-3col">' +
+                  '<div class="profil-kpi-item setrika">' +
+                    '<span class="profil-kpi-label">Unit Setrika</span>' +
+                    '<div class="profil-kpi-value-row">' +
+                      '<span class="profil-kpi-value">' + escapeHtml(String(row.totalUnitSetrika || 0)) + '</span>' +
+                      '<span class="profil-kpi-unit">unit</span>' +
+                    '</div>' +
+                    '<div class="profil-kpi-okupansi">' + escapeHtml(jenisSetrikaLabel) + '</div>' +
                   '</div>' +
                   '<div class="profil-kpi-divider"></div>' +
-                  '<div class="setrika-flat-item">' +
-                    '<span class="setrika-flat-value">' + escapeHtml(formatNum(row.kapasitasSetrikaKgPerJam || 0)) + '</span>' +
-                    '<span class="setrika-flat-label">kg/jam</span>' +
+                  '<div class="profil-kpi-item setrika">' +
+                    '<span class="profil-kpi-label">Kapasitas</span>' +
+                    '<div class="profil-kpi-value-row">' +
+                      '<span class="profil-kpi-value">' + escapeHtml(formatNum(row.kapasitasSetrikaKgPerJam || 0)) + '</span>' +
+                      '<span class="profil-kpi-unit">kg/jam</span>' +
+                    '</div>' +
                   '</div>' +
                   '<div class="profil-kpi-divider"></div>' +
-                  '<div class="setrika-flat-item">' +
-                    '<span class="setrika-flat-label">' + escapeHtml(jenisSetrikaLabel) + '</span>' +
-                  '</div>' +
-                  '<div class="profil-kpi-divider"></div>' +
-                  '<div class="setrika-flat-item">' +
-                    '<span class="setrika-flat-label">Okupansi ' + escapeHtml(String(row.okupansiSetrika || 0)) + '%</span>' +
+                  '<div class="profil-kpi-item setrika">' +
+                    '<span class="profil-kpi-label">Okupansi</span>' +
+                    '<div class="profil-kpi-value-row">' +
+                      '<span class="profil-kpi-value">' + escapeHtml(String(row.okupansiSetrika || 0)) + '</span>' +
+                      '<span class="profil-kpi-unit">%</span>' +
+                    '</div>' +
                   '</div>' +
                 '</div>';
 
