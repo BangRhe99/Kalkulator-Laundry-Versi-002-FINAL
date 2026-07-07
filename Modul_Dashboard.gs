@@ -202,13 +202,29 @@ function getDashboardMasterBiayaSummary(cabangId) {
         if (typeof listBiayaGas === "function") {
           const gasRes = listBiayaGas(cabangId);
           if (gasRes && gasRes.ok && gasRes.data && gasRes.data.items) {
+            // Kategori Jasa Setrika: gas dipakai untuk memanaskan setrika uap,
+            // dihitung PER JAM (record.refType === "setrika"), bukan per load
+            // seperti kategori lain yang merujuk mesin pengering. Baca field
+            // yang sesuai per item supaya nilainya tidak selalu Rp0.
+            const isJasaSetrika = String(item.kategoriLayanan || "") === "jasa_setrika";
             let gasTotalPerLoad = 0;
+            let gasTotalPerJam = 0;
             dashboardArray_(gasRes.data.items).forEach(function(g) {
-              gasTotalPerLoad += dashboardNumber_((g.summary || {}).biayaPerLoad, 0);
+              const s = g.summary || {};
+              if (s.refType === "setrika") {
+                gasTotalPerJam += dashboardNumber_(s.biayaPerJam, 0);
+              } else {
+                gasTotalPerLoad += dashboardNumber_(s.biayaPerLoad, 0);
+              }
             });
             if (gasComplete) {
-              komponenBiaya.push({ key: "gas", label: "Gas LPG", biayaPerLoad: dashboardRound2_(gasTotalPerLoad) });
-              totalBiayaPerLoad += gasTotalPerLoad;
+              if (isJasaSetrika) {
+                komponenBiaya.push({ key: "gas", label: "Gas LPG", biayaPerLoad: dashboardRound2_(gasTotalPerJam), unitSuffix: "/jam" });
+                totalBiayaPerLoad += gasTotalPerJam;
+              } else {
+                komponenBiaya.push({ key: "gas", label: "Gas LPG", biayaPerLoad: dashboardRound2_(gasTotalPerLoad) });
+                totalBiayaPerLoad += gasTotalPerLoad;
+              }
             }
           }
         }

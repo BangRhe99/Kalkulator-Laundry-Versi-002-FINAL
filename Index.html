@@ -2131,7 +2131,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                   '</div>' +
                   '<span class="mb-komponen-persen">' + String(k.persen||0) + '%</span>' +
                 '</div>' +
-                '<span class="mb-komponen-value">' + (isZero ? '<span class="mb-zero-label">Rp 0 (tanpa biaya)</span>' : money0(k.biayaPerLoad)) + '</span>' +
+                '<span class="mb-komponen-value">' + (isZero ? '<span class="mb-zero-label">Rp 0 (tanpa biaya)</span>' : (money0(k.biayaPerLoad) + (k.unitSuffix ? ' <span class="mb-komponen-unit">' + escapeHtml(k.unitSuffix) + '</span>' : ''))) + '</span>' +
               '</div>' +
             '</div>';
           }).join('');
