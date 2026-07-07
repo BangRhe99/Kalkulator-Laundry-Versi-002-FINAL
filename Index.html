@@ -650,9 +650,15 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
         </div>
         <div class="panel-body">
 
-          <div class="field">
+          <div class="field" id="packingNamaFixedWrap" style="display:none;">
+            <label>Nama item</label>
+            <div class="chemical-nama-fixed" id="packingNamaFixedLabel">-</div>
+          </div>
+
+          <div class="field" id="packingNamaField">
             <label for="packingNama">Nama item</label>
-            <input type="text" id="packingNama" placeholder="Contoh: Plastik HD, Label, Dus, Isolasi">
+            <input type="text" id="packingNama" placeholder="Contoh: Plastik satuan, Label, Dus">
+            <div class="field-hint">Untuk item tambahan di luar 4 packing utama. Isi sesuai nama packing yang dipakai, misalnya Plastik satuan atau Label.</div>
           </div>
 
           <div class="field">
@@ -3944,6 +3950,75 @@ function selectGasCustom() {
   }
   window.openPackingList = openPackingList;
 
+  /**
+   * PACKING_FIXED_NAMA: 4 item yang paling umum dipakai laundry, selalu
+   * ditampilkan sebagai card duluan (kosong kalau belum diisi). Sama seperti
+   * CHEMICAL_FIXED_NAMA - hanya urutan tampilan di frontend, data tetap
+   * tersimpan sebagai record packing biasa (field "nama" bebas teks),
+   * supaya tetap fleksibel untuk item tambahan apa pun (plastik satuan,
+   * label, dus, dll).
+   */
+  var PACKING_FIXED_NAMA = ["Plastik HD", "Plastik PP", "Plastik Jinjing", "Isolasi"];
+
+  function findPackingEntryByNama(nama) {
+    return packingItemsCache.find(function (entry) {
+      return entry.record && entry.record.nama &&
+        entry.record.nama.trim().toLowerCase() === nama.toLowerCase();
+    }) || null;
+  }
+
+  function buildPackingCard(displayNama, entry) {
+    var card = document.createElement("div");
+    card.className = "gas-card";
+
+    if (!entry) {
+      card.innerHTML =
+        "<div class=\"gas-card-top\">" +
+          "<div class=\"title-group\">" +
+            "<span class=\"flame-dot\"></span>" +
+            "<h3>" + escapeHtml(displayNama) + "</h3>" +
+          "</div>" +
+        "</div>" +
+        "<div class=\"field-hint\">Belum ada data. Isi harga beli & takaran untuk mulai menghitung.</div>" +
+        "<button class=\"add-cabang-btn flame\" type=\"button\" data-action=\"fill\" style=\"margin-top:10px;\">+ Isi data " + escapeHtml(displayNama) + "</button>";
+
+      card.querySelector("[data-action='fill']").addEventListener("click", function () { window.openPackingFormNew(displayNama); });
+      return card;
+    }
+
+    var record = entry.record;
+    var summary = entry.summary;
+
+    var warningHtml = summary.statusValid ? "" :
+      "<div class=\"gas-warning\">Isi kemasan atau takaran belum lengkap, biaya belum bisa dihitung.</div>";
+
+    card.innerHTML =
+      "<div class=\"gas-card-top\">" +
+        "<div class=\"title-group\">" +
+          "<span class=\"flame-dot\"></span>" +
+          "<h3>" + escapeHtml(displayNama) + "</h3>" +
+        "</div>" +
+        "<div class=\"actions\">" +
+          "<button class=\"icon-btn\" type=\"button\" aria-label=\"Edit\" data-action=\"edit\">&#9998;</button>" +
+          "<button class=\"icon-btn\" type=\"button\" aria-label=\"Hapus\" data-action=\"delete\">&#10005;</button>" +
+        "</div>" +
+      "</div>" +
+      "<div class=\"meta-row\"><span class=\"meta-label\">Harga beli</span><span class=\"meta-val\">" + money0(record.hargaBeli) + " / " + formatNum(record.isiKemasan) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
+      "<div class=\"meta-row\"><span class=\"meta-label\">Takaran per Kg</span><span class=\"meta-val\">" + formatNum(record.takaranPerKg) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
+      "<div class=\"gas-card-result\">" +
+        "<div class=\"gas-result-grid\">" +
+          "<div class=\"gas-result-cell\"><div class=\"label\">Harga / satuan</div><div class=\"val\">" + money0(summary.hargaPerUnit) + "</div></div>" +
+          "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / Kg</div><div class=\"val\">" + money0(summary.biayaPerKg) + "</div></div>" +
+        "</div>" +
+        warningHtml +
+      "</div>";
+
+    card.querySelector("[data-action='edit']").addEventListener("click", function () { openPackingFormEdit(record.id); });
+    card.querySelector("[data-action='delete']").addEventListener("click", function () { openConfirmDeletePacking(record); });
+
+    return card;
+  }
+
   function renderPackingList() {
     var listEl = document.getElementById("packingList");
     var emptyEl = document.getElementById("packingListEmpty");
@@ -3953,48 +4028,19 @@ function selectGasCustom() {
     countEl.textContent = packingItemsCache.length + " data";
     totalEl.textContent = money0(packingTotalCache || 0);
     listEl.innerHTML = "";
-
-    if (packingItemsCache.length === 0) {
-      emptyEl.style.display = "block";
-      return;
-    }
     emptyEl.style.display = "none";
 
+    var usedIds = {};
+
+    PACKING_FIXED_NAMA.forEach(function (fixedNama) {
+      var entry = findPackingEntryByNama(fixedNama);
+      if (entry) usedIds[entry.record.id] = true;
+      listEl.appendChild(buildPackingCard(fixedNama, entry));
+    });
+
     packingItemsCache.forEach(function (entry) {
-      var record = entry.record;
-      var summary = entry.summary;
-
-      var card = document.createElement("div");
-      card.className = "gas-card";
-
-      var warningHtml = summary.statusValid ? "" :
-        "<div class=\"gas-warning\">Isi kemasan atau takaran belum lengkap, biaya belum bisa dihitung.</div>";
-
-      card.innerHTML =
-        "<div class=\"gas-card-top\">" +
-          "<div class=\"title-group\">" +
-            "<span class=\"flame-dot\"></span>" +
-            "<h3>" + escapeHtml(record.nama || "(Tanpa nama)") + "</h3>" +
-          "</div>" +
-          "<div class=\"actions\">" +
-            "<button class=\"icon-btn\" type=\"button\" aria-label=\"Edit\" data-action=\"edit\">&#9998;</button>" +
-            "<button class=\"icon-btn\" type=\"button\" aria-label=\"Hapus\" data-action=\"delete\">&#10005;</button>" +
-          "</div>" +
-        "</div>" +
-        "<div class=\"meta-row\"><span class=\"meta-label\">Harga beli</span><span class=\"meta-val\">" + money0(record.hargaBeli) + " / " + formatNum(record.isiKemasan) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
-        "<div class=\"meta-row\"><span class=\"meta-label\">Takaran per Kg</span><span class=\"meta-val\">" + formatNum(record.takaranPerKg) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
-        "<div class=\"gas-card-result\">" +
-          "<div class=\"gas-result-grid\">" +
-            "<div class=\"gas-result-cell\"><div class=\"label\">Harga / satuan</div><div class=\"val\">" + money0(summary.hargaPerUnit) + "</div></div>" +
-            "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / Kg</div><div class=\"val\">" + money0(summary.biayaPerKg) + "</div></div>" +
-          "</div>" +
-          warningHtml +
-        "</div>";
-
-      card.querySelector("[data-action='edit']").addEventListener("click", function () { openPackingFormEdit(record.id); });
-      card.querySelector("[data-action='delete']").addEventListener("click", function () { openConfirmDeletePacking(record); });
-
-      listEl.appendChild(card);
+      if (usedIds[entry.record.id]) return;
+      listEl.appendChild(buildPackingCard(entry.record.nama || "(Tanpa nama)", entry));
     });
   }
 
@@ -4044,13 +4090,22 @@ function selectGasCustom() {
     };
   }
 
-  window.openPackingFormNew = function () {
+  function isPackingFixedNama(nama) {
+    var v = (nama || "").trim().toLowerCase();
+    return PACKING_FIXED_NAMA.some(function (n) { return n.toLowerCase() === v; });
+  }
+
+  window.openPackingFormNew = function (presetNama) {
     if (!packingCabangCache) { showToast("Pilih cabang terlebih dahulu.", "err"); return; }
     view.packingIsNew = true;
     view.packingEditingId = null;
     packingFormState = defaultPackingRecord(view.packingCabangId);
+    if (presetNama) packingFormState.nama = presetNama;
+    view.packingIsFixedNama = isPackingFixedNama(presetNama);
     showScreen("packingForm");
-    document.getElementById("packingFormTitle").textContent = "Tambah Item Packing";
+    document.getElementById("packingFormTitle").textContent = view.packingIsFixedNama
+      ? "Isi Data " + presetNama
+      : "Tambah Item Packing";
     renderPackingForm();
     setSaveStatus("", "");
   };
@@ -4070,6 +4125,10 @@ function selectGasCustom() {
           return;
         }
         packingFormState = res.data.record;
+        view.packingIsFixedNama = isPackingFixedNama(packingFormState.nama);
+        if (view.packingIsFixedNama) {
+          document.getElementById("packingFormTitle").textContent = "Edit Data " + packingFormState.nama;
+        }
         renderPackingForm();
         setSaveStatus("", "");
       })
@@ -4090,7 +4149,18 @@ function selectGasCustom() {
 
   function renderPackingForm() {
     syncPackingFormFieldsFromState();
+    renderPackingFormNamaMode();
     renderPackingFormPreview();
+  }
+
+  function renderPackingFormNamaMode() {
+    var isFixed = !!view.packingIsFixedNama;
+    var fixedWrap = document.getElementById("packingNamaFixedWrap");
+    var fixedLabel = document.getElementById("packingNamaFixedLabel");
+    var namaField = document.getElementById("packingNamaField");
+    if (fixedWrap) fixedWrap.style.display = isFixed ? "" : "none";
+    if (fixedLabel) fixedLabel.textContent = packingFormState.nama || "";
+    if (namaField) namaField.style.display = isFixed ? "none" : "";
   }
 
   function computeBiayaPackingSummaryClient(record) {
