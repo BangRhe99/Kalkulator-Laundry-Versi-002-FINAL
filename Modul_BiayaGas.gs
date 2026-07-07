@@ -83,7 +83,9 @@ function defaultBiayaGas_() {
   return {
     id: "",
     cabangId: "",
+    refType: "dryer",
     dryerRefId: "",
+    setrikaRefId: "",
     kapasitasLabel: "",
     kapasitasKg: 0,
     hargaPerTabung: 0,
@@ -144,7 +146,13 @@ function listBiayaGas(cabangId) {
     return {
       ok: true,
       data: {
-        cabang: { id: cabang.id, namaLaundry: cabang.profil.namaLaundry, mesinPengering: cabang.mesinPengering },
+        cabang: {
+          id: cabang.id,
+          namaLaundry: cabang.profil.namaLaundry,
+          mesinPengering: cabang.mesinPengering,
+          mesinSetrika: cabang.mesinSetrika,
+          kategoriLayanan: cabang.kategoriLayanan,
+        },
         items: items,
       },
     };
@@ -323,7 +331,9 @@ function sanitizeBiayaGas_(input) {
 
   out.id = toSafeString_(input && input.id, "", 60);
   out.cabangId = toSafeString_(input && input.cabangId, "", 60);
+  out.refType = (input && input.refType === "setrika") ? "setrika" : "dryer";
   out.dryerRefId = toSafeString_(input && input.dryerRefId, "", 60);
+  out.setrikaRefId = toSafeString_(input && input.setrikaRefId, "", 60);
   out.kapasitasLabel = toSafeString_(input && input.kapasitasLabel, base.kapasitasLabel, 40);
   out.kapasitasKg = clamp_(toNumber_(input && input.kapasitasKg, 0), 0, 1000);
   out.hargaPerTabung = clamp_(toNumber_(input && input.hargaPerTabung, 0), 0, 100000000);
@@ -351,6 +361,18 @@ function validateBiayaGas_(data, cabang) {
   if (data.estimasiPemakaianJam <= 0) {
     return { valid: false, message: "Estimasi pemakaian (jam) harus lebih dari 0." };
   }
+
+  if (data.refType === "setrika") {
+    if (!data.setrikaRefId) {
+      return { valid: false, message: "Pilih mesin setrika (uap) acuan untuk hitungan per jam." };
+    }
+    const setrikaExists = (cabang.mesinSetrika || []).some(function (m) { return m.id === data.setrikaRefId && m.jenis === "uap"; });
+    if (!setrikaExists) {
+      return { valid: false, message: "Mesin setrika uap acuan tidak ditemukan di profil cabang ini. Mungkin baris mesin itu sudah dihapus atau bukan jenis uap — pilih ulang acuannya." };
+    }
+    return { valid: true, message: "" };
+  }
+
   if (!data.dryerRefId) {
     return { valid: false, message: "Pilih mesin pengering acuan untuk konversi load." };
   }
@@ -380,26 +402,48 @@ function validateBiayaGas_(data, cabang) {
 //   unit dryer") — itu di luar lingkup kartu ini, jadi belum dihitung di sini.
 //
 function computeBiayaGasSummary_(record, cabang) {
+  const konversiMenit = round2_(record.estimasiPemakaianJam * 60);
+  const biayaPerJam = (record.estimasiPemakaianJam > 0)
+    ? round2_(record.hargaPerTabung / record.estimasiPemakaianJam)
+    : 0;
+  const biayaPerMenit = round2_(biayaPerJam / 60);
+
+  // Mode "setrika": gas dipakai untuk memanaskan setrika uap. Basisnya murni
+  // PER JAM (sama seperti listrik setrika di Modul_BiayaListrik.gs), BUKAN
+  // per load, karena setrika uap tidak punya siklus/durasi load seperti dryer.
+  if (record.refType === "setrika") {
+    const setrika = findMachineById_(cabang.mesinSetrika, record.setrikaRefId);
+
+    return {
+      refType: "setrika",
+      dryerRefNama: "",
+      dryerRefDurasiMenit: 0,
+      setrikaRefNama: setrika ? setrikaDisplayName_(setrika) : "(mesin tidak ditemukan)",
+      konversiMenit: konversiMenit,
+      estimasiLoadPemakaian: 0,
+      biayaPerJam: biayaPerJam,
+      biayaPerMenit: biayaPerMenit,
+      biayaPerLoad: 0,
+      statusValid: !!setrika && biayaPerJam > 0,
+    };
+  }
+
   const dryer = findMachineById_(cabang.mesinPengering, record.dryerRefId);
   const durasiLoadMenit = dryer ? toNumber_(dryer.durasiMenit, 0) : 0;
-
-  const konversiMenit = round2_(record.estimasiPemakaianJam * 60);
 
   const estimasiLoadPemakaian = (durasiLoadMenit > 0)
     ? round2_(konversiMenit / durasiLoadMenit)
     : 0;
 
-  const biayaPerJam = (record.estimasiPemakaianJam > 0)
-    ? round2_(record.hargaPerTabung / record.estimasiPemakaianJam)
-    : 0;
-  const biayaPerMenit = round2_(biayaPerJam / 60);
   const biayaPerLoad = (estimasiLoadPemakaian > 0)
     ? round2_(record.hargaPerTabung / estimasiLoadPemakaian)
     : 0;
 
   return {
+    refType: "dryer",
     dryerRefNama: dryer ? machineDisplayName_(dryer) : "(mesin tidak ditemukan)",
     dryerRefDurasiMenit: durasiLoadMenit,
+    setrikaRefNama: "",
     konversiMenit: konversiMenit,
     estimasiLoadPemakaian: estimasiLoadPemakaian,
     biayaPerJam: biayaPerJam,
@@ -426,4 +470,14 @@ const JENIS_MESIN_LABEL_ = {
 function machineDisplayName_(m) {
   const jenis = JENIS_MESIN_LABEL_[m.jenis] || "Mesin";
   return jenis + " · " + (m.durasiMenit || 0) + " mnt";
+}
+
+const JENIS_SETRIKA_LABEL_ = {
+  listrik: "Setrika Listrik",
+  uap: "Setrika Uap",
+};
+
+function setrikaDisplayName_(m) {
+  const jenis = JENIS_SETRIKA_LABEL_[m.jenis] || "Setrika";
+  return jenis + " · " + (m.kapasitasKgPerJam || 0) + " kg/jam";
 }
