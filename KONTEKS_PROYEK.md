@@ -396,30 +396,47 @@ otomatis masuk hitungan HPP hanya karena datanya sudah bisa diisi).
      berikutnya sebelum lanjut.**
 2. **[SELESAI]** ~~Card "Kap. Setrika" untuk kategori Drop Off/Kiloan & Hybrid~~
    — lihat bagian "Card Kap. Setrika di dashboard" di atas.
-3. **Backend HPP untuk Drop Off/Kiloan & Hybrid belum ada sama sekali** —
-   `Modul_StrukturBiayaHPP.gs` cuma punya `buildSelfServiceHPPStructure_`
-   (nama fungsinya eksplisit "SelfService"). Untuk kategori lain perlu fungsi
-   BARU untuk layanan: Cuci Saja, Cuci Kering Lipat, Cuci Kering Setrika,
-   Setrika Saja, Bed Cover (mungkin bertambah lagi). Jangan bikin "tampilan
-   fleksibel" dulu sebelum logika backend ini ada — berisiko UI kosong/menyesatkan.
-   Info tambahan dari user (2026-07-05):
-   - Hitungan HPP tetap PER LOAD dulu (pakai mesin sama seperti Self Service),
-     BUKAN dihitung ulang per kg dari nol — baru di STRUKTUR BIAYA HPP hasil
-     per-load itu dibagi kapasitas kg mesin utk dapat "per kg" (utk owner
-     nentuin harga minimum order).
-   - Tidak ada "Kering Saja" di kategori ini (cuma 5 layanan di atas).
-   - Setrika ada 2 jenis: uap (skip biaya listrik) / listrik (pakai
-     `Modul_BiayaListrik.gs` card Setrika Listrik yang sudah ada, per jam,
-     dibagi kapasitas kg/jam).
-   - Bed Cover: per load, TIDAK pakai setrika, komponennya = Nota + HPP Cuci +
-     HPP Kering + Deterjen + Softener + Parfum + Packing (pakai data Chemical
-     & Packing yang sudah ada modulnya).
-   - Cuci Saja utk kategori ini beda dari Self Service: ada tambahan Deterjen +
-     Softener + Plastik HD/Packing yang sifatnya EDITABLE/optional (toggle
-     on-off, krn ada laundry yang tidak pakai softener).
-   - **User belum kasih tabel lengkap komponen per 5 layanan** (masih ada
-     beberapa `?` yang belum terisi di sesi 2026-07-05) — audit dulu/tanyakan
-     detail sebelum mulai kode, jangan asumsi.
+3. **[SELESAI - 2026-07-07]** ~~Backend HPP untuk Drop Off/Kiloan & Hybrid~~ —
+   `Modul_StrukturBiayaHPP.gs` sekarang punya `buildKiloanHPPStructure_`
+   (5 layanan: Cuci Saja, Cuci Kering Lipat, Cuci Kering Setrika, Setrika Saja,
+   Bed Cover) dan `buildJasaSetrikaHPPStructure_` (1 layanan: Setrika Saja),
+   dipilih otomatis di `getStrukturBiayaHPP` berdasarkan `kategoriLayanan`
+   cabang. Self Service TIDAK diubah (`buildSelfServiceHPPStructure_` tetap).
+   Rumus final (dikonfirmasi user 2026-07-07):
+   - Basis mesin (air/listrik washer&pompa/dryer/gas/nota) dihitung PER LOAD
+     dulu (persis Self Service), lalu dibagi `kapasitasKgPerLoad` (rata-rata
+     tertimbang `kapasitasKg` mesin cuci) untuk dapat angka per Kg.
+   - Cuci Saja (kiloan) = Air+Washer+Pompa+Nota (per Kg) + Deterjen + Softener
+     + Packing (langsung, karena chemical/packing sumbernya sudah per Kg).
+   - Cuci Kering Lipat = semua komponen Cuci+Kering (per Kg) + Deterjen +
+     Softener + Packing.
+   - Cuci Kering Setrika = Cuci Kering Lipat + Setrika per Kg.
+   - Setrika per Kg = (Rp/jam mesin setrika listrik, uap=Rp0) ÷ kapasitas
+     kg/jam mesin setrika (weighted average, dari `Modul_BiayaListrik.gs`
+     `summary.setrika[]`).
+   - Setrika Saja = Setrika per Kg + Nota per Kg (Nota historisnya per load,
+     dikonversi pakai `kapasitasKgPerLoad` yang sama — kalau outlet Jasa
+     Setrika tidak punya mesin cuci sama sekali, komponen Nota ini jadi Rp0
+     dengan warning, bukan salah hitung diam-diam).
+   - Bed Cover = per ITEM, bukan per Kg (1 Bed Cover dianggap = 1 load penuh).
+     Komponennya: Nota + HPP Cuci (Air+Washer+Pompa, tanpa nota) + HPP Kering
+     (Dryer+Gas, tanpa nota) + Deterjen + Softener + Parfum + Packing (4
+     terakhir dikonversi dari per-Kg ke per-load dengan dikali
+     `kapasitasKgPerLoad`).
+   - Bed Cover punya TOGGLE aktif/nonaktif per cabang (`setBedCoverAktif`,
+     default AKTIF), disimpan di key `bedCoverAktif_<cabangId>`. Kalau
+     nonaktif, layanan Bed Cover hilang dari HPP DAN Harga Layanan sekaligus
+     (`Modul_HargaLayanan.gs` baca status yang sama). Toggle UI ada di dalam
+     card HPP dashboard (`.hpp-bedcover-toggle-row` / `.hpp-bedcover-off-row`).
+   - `Modul_HargaLayanan.gs`: kategori `jasa_setrika` sekarang dikenali
+     terpisah (dulu jatuh ke default "drop_off" 5 layanan, salah - sekarang
+     cuma 1 layanan Setrika Saja, sama seperti HPP). `hppSourceKey` untuk
+     Cuci Kering Lipat/Setrika diubah dari sama-sama `"cuci_kering"` jadi
+     key sendiri-sendiri (`cuci_kering_lipat`/`cuci_kering_setrika`) supaya
+     match dengan HPP kiloan yang sekarang komponennya beda (Setrika nambah
+     di versi Setrika).
+   - Chevron `.hpp-mini-arrow` diperbesar jadi tombol bulat 26x26px (dulu
+     cuma teks kecil font-size 10px, nyaris tak terlihat sebagai tombol).
 4. **[SELESAI]** ~~2 card tambahan Packing dan Chemical~~ — lihat bagian
    "Fitur Chemical & Packing" di atas. **Belum terhubung ke HPP** (poin #3).
 5. **Perbaikan tampilan layar detail** (Gas, Listrik, Air, Nota) — belum disentuh
@@ -461,11 +478,14 @@ Komponen sekarang di-push berdasarkan flag "form pernah diisi"
 tampil, bukan hilang dari daftar.
 
 ### `getDashboardHPPSummary(cabangId)`:
-`cabangId`, `namaLaundry`, `isReady`, `hppMin`, `hppMax`, `hppCuciKering`,
-`warningsCount`, `errorText`, `layananList[]{key, title, total,
-components[]{key, label, amount, percent}}` — SELALU 3 item (Cuci Saja/Kering
-Saja/Cuci Kering), TIDAK LAGI di-sort atau difilter berdasarkan nilai (urutan
-tetap natural dari backend `buildSelfServiceHPPStructure_`).
+`cabangId`, `namaLaundry`, `kategoriLayanan`, `isReady`, `hppMin`, `hppMax`,
+`hppCuciKering`, `bedCoverAktif`, `warningsCount`, `errorText`,
+`layananList[]{key, title, total, components[]{key, label, amount, percent}}`
+— jumlah item TIDAK LAGI selalu 3, sekarang tergantung `kategoriLayanan`:
+Self Service = 3 (Cuci Saja/Kering Saja/Cuci Kering), Drop Off/Hybrid = 4-5
+(Cuci Saja, Cuci Kering Lipat, Cuci Kering Setrika, Setrika Saja, + Bed Cover
+kalau `bedCoverAktif`), Jasa Setrika = 1 (Setrika Saja). TIDAK di-sort/filter
+berdasarkan nilai, urutan natural dari backend builder masing-masing kategori.
 
 ### `getDashboardHargaLayananSummary(cabangId)`:
 `cabangId`, `namaLaundry`, `totalLayanan`, `hargaTerisiCount`, `rugiCount`,

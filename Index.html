@@ -1176,6 +1176,18 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     card.classList.toggle("is-open");
   }
 
+  window.toggleBedCoverAktif = function (cabangId, nextAktif, evt) {
+    if (evt) evt.stopPropagation();
+    if (!cabangId) return;
+
+    google.script.run
+      .withSuccessHandler(function () { refreshDashboardFast(); })
+      .withFailureHandler(function (err) {
+        showToast(err && err.message ? err.message : "Gagal mengubah status Bed Cover.", "err");
+      })
+      .setBedCoverAktif(cabangId, nextAktif);
+  };
+
   window.toggleHlDetail = function (row, evt) {
     if (evt) evt.stopPropagation();
     var item = row.closest(".hl-item");
@@ -2094,12 +2106,23 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           listrik_pompa: 'Pompa',
           app_nota: 'Nota',
           listrik_dryer: 'Dryer',
-          gas_lpg: 'Gas'
+          gas_lpg: 'Gas',
+          deterjen: 'Deterjen',
+          softener: 'Softener',
+          parfum: 'Parfum',
+          packing: 'Packing',
+          setrika: 'Setrika',
+          hpp_cuci: 'HPP Cuci',
+          hpp_kering: 'HPP Kering'
+        };
+        var isKiloanKategoriRow = function (kategori) {
+          return kategori === 'drop_off' || kategori === 'hybrid';
         };
         var html = shown.map(function (row) {
           var layananList = Array.isArray(row.layananList) ? row.layananList : [];
           var miniHtml = layananList.map(function (svc) {
             var components = Array.isArray(svc.components) ? svc.components : [];
+            var isBedCover = svc.key === 'bed_cover';
             var rowsHtml = components.map(function (c) {
               var lbl = hppShortLabel[c.key] || c.label || '';
               return '<div class="hpp-mini-row">' +
@@ -2108,17 +2131,27 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                 '<span class="hpp-mini-row-amount">' + money0(c.amount) + '</span>' +
               '</div>';
             }).join('');
+            var bedCoverToggleHtml = !isBedCover ? '' :
+              '<div class="hpp-bedcover-toggle-row">' +
+                '<span>Layanan Bed Cover aktif</span>' +
+                '<button type="button" class="hpp-bedcover-toggle-btn" onclick="toggleBedCoverAktif(\'' + escapeJsAttr(row.cabangId) + '\', false, event)">Matikan</button>' +
+              '</div>';
             return '<div class="hpp-mini-card">' +
               '<div class="hpp-mini-head" onclick="toggleHppDetail(this, event)">' +
                 '<span class="hpp-mini-title">' + escapeHtml(svc.title || '') + '</span>' +
                 '<span class="hpp-mini-total">' + money0(svc.total) + '</span>' +
                 '<span class="hpp-mini-arrow">&#9662;</span>' +
               '</div>' +
-              (rowsHtml ? '<div class="hpp-mini-detail">' + rowsHtml + '</div>' : '') +
+              (rowsHtml || bedCoverToggleHtml ? '<div class="hpp-mini-detail">' + rowsHtml + bedCoverToggleHtml + '</div>' : '') +
             '</div>';
           }).join('');
+          var bedCoverOffHtml = (isKiloanKategoriRow(row.kategoriLayanan) && row.bedCoverAktif === false) ?
+            '<div class="hpp-bedcover-off-row">' +
+              '<span>Layanan Bed Cover nonaktif</span>' +
+              '<button type="button" class="hpp-bedcover-toggle-btn" onclick="toggleBedCoverAktif(\'' + escapeJsAttr(row.cabangId) + '\', true, event)">Aktifkan</button>' +
+            '</div>' : '';
           var emptyHtml = !layananList.length ? '<div class="dashboard-empty">HPP belum siap dihitung.</div>' : '';
-          return layananList.length > 0 ? '<div class="hpp-mini-list">' + miniHtml + '</div>' : emptyHtml;
+          return (layananList.length > 0 ? '<div class="hpp-mini-list">' + miniHtml + '</div>' : emptyHtml) + bedCoverOffHtml;
         }).join('');
         setDashboardCardHtml('dashboardHppSummary', html);
   }

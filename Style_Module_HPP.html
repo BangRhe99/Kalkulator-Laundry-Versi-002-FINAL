@@ -228,8 +228,17 @@ Jika tampilan rincian HPP, persen komponen, atau total HPP bermasalah, cek file 
   letter-spacing: -0.01em;
 }
 .hpp-mini-arrow {
-  font-size: 10px;
-  color: var(--text-faint);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-dim);
   transition: transform 0.2s ease;
   flex-shrink: 0;
 }
@@ -245,6 +254,43 @@ Jika tampilan rincian HPP, persen komponen, atau total HPP bermasalah, cek file 
 }
 .hpp-mini-card.is-open .hpp-mini-detail {
   display: flex;
+}
+.hpp-bedcover-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+.hpp-bedcover-toggle-btn {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.hpp-bedcover-toggle-btn:hover {
+  border-color: var(--sage-dim);
+}
+.hpp-bedcover-off-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 8px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  font-size: 11px;
+  color: var(--text-faint);
 }
 .hpp-mini-row {
   display: flex;

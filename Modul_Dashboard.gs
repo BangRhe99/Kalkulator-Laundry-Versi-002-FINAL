@@ -303,6 +303,7 @@ function getDashboardHPPSummary(cabangId) {
       let warnings = [];
       let hppCuciKering = 0;
       let errorText = "";
+      let bedCoverAktif = true;
 
       try {
         if (typeof getStrukturBiayaHPP === "function") {
@@ -310,6 +311,7 @@ function getDashboardHPPSummary(cabangId) {
           if (hppRes && hppRes.ok && hppRes.data) {
             layanan = dashboardArray_(hppRes.data.layanan);
             warnings = dashboardArray_(hppRes.data.warnings);
+            bedCoverAktif = hppRes.data.bedCoverAktif !== false;
           } else {
             errorText = hppRes && hppRes.error ? hppRes.error : "HPP belum bisa dibaca.";
           }
@@ -341,11 +343,13 @@ function getDashboardHPPSummary(cabangId) {
       return {
         cabangId: cabangId,
         namaLaundry: dashboardOutletName_(item),
+        kategoriLayanan: String(item.kategoriLayanan || ""),
         isReady: isReady,
         hppMin: isReady ? dashboardRound2_(Math.min.apply(null, totals)) : 0,
         hppMax: isReady ? dashboardRound2_(Math.max.apply(null, totals)) : 0,
         hppCuciKering: hppCuciKering,
         layananList: layananList,
+        bedCoverAktif: bedCoverAktif,
         warningsCount: warnings.length + (errorText ? 1 : 0),
         errorText: errorText
       };
@@ -517,7 +521,7 @@ function getDashboardFixedCostSummary(cabangId) {
       data: {
         totalOutlet: rows.length,
         totalFixedCostPerBulan: totalFixedCostPerBulan,
-        rows: rows
+        rows: filteredRows
       }
     };
   } catch (err) {

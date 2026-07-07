@@ -48,7 +48,8 @@ function getHargaLayanan(cabangId) {
     ).toLowerCase();
 
     const kategoriFinal = normalizeHargaLayananKategori_(kategoriLayanan);
-    const layanan = buildHargaLayananItems_(kategoriFinal, hppMap, stored.hargaJual || {});
+    const bedCoverAktif = typeof isBedCoverAktif_ === "function" ? isBedCoverAktif_(cleanCabangId) : true;
+    const layanan = buildHargaLayananItems_(kategoriFinal, hppMap, stored.hargaJual || {}, bedCoverAktif);
 
     return {
       ok: true,
@@ -201,6 +202,10 @@ function normalizeHargaLayananKategori_(kategori) {
     return "hybrid";
   }
 
+  if (k === "jasa_setrika" || k === "jasa setrika") {
+    return "jasa_setrika";
+  }
+
   if (
     k === "drop_off" ||
     k === "drop off" ||
@@ -218,6 +223,7 @@ function normalizeHargaLayananKategori_(kategori) {
 function getHargaLayananKategoriLabel_(kategori) {
   if (kategori === "self_service") return "Self Service";
   if (kategori === "hybrid") return "Hybrid";
+  if (kategori === "jasa_setrika") return "Jasa Setrika";
   return "Drop Off / Kiloan";
 }
 
@@ -245,7 +251,7 @@ function buildHargaLayananHPPMap_(hppResult) {
   return map;
 }
 
-function getHargaLayananDefinitions_(kategori) {
+function getHargaLayananDefinitions_(kategori, bedCoverAktif) {
   if (kategori === "self_service") {
     return [
       {
@@ -269,7 +275,18 @@ function getHargaLayananDefinitions_(kategori) {
     ];
   }
 
-  return [
+  if (kategori === "jasa_setrika") {
+    return [
+      {
+        key: "setrika_saja",
+        title: "Setrika Saja",
+        hppSourceKey: "setrika_saja",
+        unitLabel: "per kg",
+      },
+    ];
+  }
+
+  const defs = [
     {
       key: "cuci_saja",
       title: "Cuci Saja",
@@ -279,13 +296,13 @@ function getHargaLayananDefinitions_(kategori) {
     {
       key: "cuci_kering_lipat",
       title: "Cuci Kering Lipat",
-      hppSourceKey: "cuci_kering",
+      hppSourceKey: "cuci_kering_lipat",
       unitLabel: "per kg",
     },
     {
       key: "cuci_kering_setrika",
       title: "Cuci Kering Setrika",
-      hppSourceKey: "cuci_kering",
+      hppSourceKey: "cuci_kering_setrika",
       unitLabel: "per kg",
     },
     {
@@ -294,17 +311,22 @@ function getHargaLayananDefinitions_(kategori) {
       hppSourceKey: "setrika_saja",
       unitLabel: "per kg",
     },
-    {
+  ];
+
+  if (bedCoverAktif !== false) {
+    defs.push({
       key: "bed_cover",
       title: "Bed Cover",
       hppSourceKey: "bed_cover",
       unitLabel: "per item",
-    },
-  ];
+    });
+  }
+
+  return defs;
 }
 
-function buildHargaLayananItems_(kategori, hppMap, storedHargaJual) {
-  const defs = getHargaLayananDefinitions_(kategori);
+function buildHargaLayananItems_(kategori, hppMap, storedHargaJual, bedCoverAktif) {
+  const defs = getHargaLayananDefinitions_(kategori, bedCoverAktif);
   const items = [];
 
   defs.forEach(function (def) {
