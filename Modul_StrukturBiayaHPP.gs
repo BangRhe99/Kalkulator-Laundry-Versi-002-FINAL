@@ -411,6 +411,7 @@ function normalizeStrukturHPPInput_(sources) {
       softenerPerKg: strukturHPPRound2_(findStrukturHPPChemicalBiayaPerKg_(chemicalItems, "Softener")),
       parfumPerKg: strukturHPPRound2_(findStrukturHPPChemicalBiayaPerKg_(chemicalItems, "Parfum")),
       packingPerKgKiloan: strukturHPPRound2_(packingPerKgKiloan),
+      packingItemsKiloan: listStrukturHPPPackingItemsPerKg_(packingItems, "kiloan"),
       packingPerKgBedCoverConverted: strukturHPPRound2_(packingBedCoverSums.perKgConverted),
       packingPerLoadBedCoverDirect: strukturHPPRound2_(packingBedCoverSums.perLoadDirect),
       setrikaRpPerJam: strukturHPPRound2_(setrikaRpPerJam),
@@ -443,6 +444,37 @@ function sumStrukturHPPPackingBiayaPerKg_(items, layananKey) {
     if (included) total += strukturHPPNumber_(summary.biayaPerKg, 0);
   }
   return total;
+}
+
+/**
+ * listStrukturHPPPackingItemsPerKg_: sama seperti sumStrukturHPPPackingBiayaPerKg_
+ * tapi mengembalikan daftar per item (nama + biayaPerKg), dipakai untuk
+ * menampilkan rincian Packing satu per satu (mis. Plastik PP, Plastik HD,
+ * Isolasi) di HPP Cuci Saja alih-alih satu baris "Packing" gabungan.
+ */
+function listStrukturHPPPackingItemsPerKg_(items, layananKey) {
+  if (!Array.isArray(items)) return [];
+  const list = [];
+  for (let i = 0; i < items.length; i++) {
+    const entry = items[i] || {};
+    const record = entry.record || {};
+    const summary = entry.summary || {};
+    const isPlastik = typeof isPackingPlastikNama_ === "function"
+      ? isPackingPlastikNama_(record.nama)
+      : false;
+    const layananArr = Array.isArray(record.layananPacking) ? record.layananPacking : ["kiloan", "bed_cover"];
+    const included = !isPlastik || layananArr.indexOf(layananKey) >= 0;
+    if (!included) continue;
+    list.push({
+      nama: record.nama || "Packing",
+      biayaPerKg: strukturHPPRound2_(strukturHPPNumber_(summary.biayaPerKg, 0)),
+    });
+  }
+  return list;
+}
+
+function strukturHPPSlug_(text) {
+  return String(text || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "item";
 }
 
 /**
@@ -704,6 +736,21 @@ function buildKiloanHPPStructure_(normalized, serviceAktifMap) {
   const setrikaPerLoad = toPerLoad(getStrukturHPPSetrikaPerKg_(normalized));
   const setrikaNote = normalized.kiloan.adaMesinSetrika ? "" : "Belum ada mesin setrika di Profil Outlet.";
 
+  // Khusus HPP Cuci Saja: Packing ditampilkan per item (mis. Plastik PP,
+  // Plastik HD, Isolasi), bukan satu baris gabungan, supaya kelihatan rincian
+  // per jenis packing yang dipakai.
+  const packingItemsKiloan = Array.isArray(normalized.kiloan.packingItemsKiloan) ? normalized.kiloan.packingItemsKiloan : [];
+  const packingComponentsCuciSaja = packingItemsKiloan.length
+    ? packingItemsKiloan.map(function (item, idx) {
+        return {
+          key: "packing_" + strukturHPPSlug_(item.nama) + "_" + idx,
+          label: item.nama,
+          amount: toPerLoad(item.biayaPerKg),
+          note: "",
+        };
+      })
+    : [{ key: "packing", label: "Packing per Load", amount: packingPerLoad, note: "" }];
+
   const cuciSaja = calculateHPPService_(
     STRUKTUR_HPP_SERVICE_KEYS_.CUCI_SAJA,
     "HPP Cuci Saja",
@@ -714,8 +761,7 @@ function buildKiloanHPPStructure_(normalized, serviceAktifMap) {
       { key: "app_nota", label: "Biaya App Kasir & Nota per Load", amount: appNotaPerLoad, note: "" },
       { key: "deterjen", label: "Deterjen per Load", amount: deterjenPerLoad, note: kgNote },
       { key: "softener", label: "Softener per Load", amount: softenerPerLoad, note: "" },
-      { key: "packing", label: "Packing per Load", amount: packingPerLoad, note: "" },
-    ],
+    ].concat(packingComponentsCuciSaja),
     STRUKTUR_HPP_UNIT_LABEL_
   );
 
