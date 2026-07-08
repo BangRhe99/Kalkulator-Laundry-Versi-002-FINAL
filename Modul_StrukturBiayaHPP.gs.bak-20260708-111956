@@ -346,7 +346,7 @@ function normalizeStrukturHPPInput_(sources) {
   const chemicalItems = sources.chemical && Array.isArray(sources.chemical.items) ? sources.chemical.items : [];
   const packingItems = sources.packing && Array.isArray(sources.packing.items) ? sources.packing.items : [];
   const packingPerKgKiloan = sumStrukturHPPPackingBiayaPerKg_(packingItems, "kiloan");
-  const packingBedCoverSums = sumStrukturHPPPackingForBedCover_(packingItems);
+  const packingPerKgBedCover = sumStrukturHPPPackingBiayaPerKg_(packingItems, "bed_cover");
 
   const listrikSetrikaRows = Array.isArray(listrikSummary.setrika) ? listrikSummary.setrika : [];
   const setrikaRpPerJam = getWeightedMachineCost_(listrikSetrikaRows, "rpListrikPerJam");
@@ -383,8 +383,7 @@ function normalizeStrukturHPPInput_(sources) {
       softenerPerKg: strukturHPPRound2_(findStrukturHPPChemicalBiayaPerKg_(chemicalItems, "Softener")),
       parfumPerKg: strukturHPPRound2_(findStrukturHPPChemicalBiayaPerKg_(chemicalItems, "Parfum")),
       packingPerKgKiloan: strukturHPPRound2_(packingPerKgKiloan),
-      packingPerKgBedCoverConverted: strukturHPPRound2_(packingBedCoverSums.perKgConverted),
-      packingPerLoadBedCoverDirect: strukturHPPRound2_(packingBedCoverSums.perLoadDirect),
+      packingPerKgBedCover: strukturHPPRound2_(packingPerKgBedCover),
       setrikaRpPerJam: strukturHPPRound2_(setrikaRpPerJam),
       setrikaKapasitasKgPerJam: strukturHPPRound2_(setrikaKapasitasKgPerJam),
       adaMesinSetrika: adaMesinSetrika,
@@ -415,44 +414,6 @@ function sumStrukturHPPPackingBiayaPerKg_(items, layananKey) {
     if (included) total += strukturHPPNumber_(summary.biayaPerKg, 0);
   }
   return total;
-}
-
-/**
- * sumStrukturHPPPackingForBedCover_: khusus utk layanan Bed Cover, item
- * plastik yang DIKUNCI (isPackingJinjingBedCoverLocked_ true — nama persis
- * "Plastik Jinjing" + dicentang Bed Cover) TIDAK dikonversi lewat Kap Kg Per
- * Lembar, karena asumsinya 1 lembar = 1 Bed Cover (bukan takaran per Kg
- * cucian). Biayanya diambil langsung dari biayaPerLoad (harga per lembar),
- * dijumlah terpisah (perLoadDirect) dari item bed-cover lain yang masih pakai
- * basis per-Kg biasa (perKgConverted, nanti dikonversi ke per-load di
- * buildBedCoverHPPService_ pakai kapasitasKgPerLoad seperti sebelumnya).
- */
-function sumStrukturHPPPackingForBedCover_(items) {
-  let perKgConverted = 0;
-  let perLoadDirect = 0;
-  if (!Array.isArray(items)) return { perKgConverted: perKgConverted, perLoadDirect: perLoadDirect };
-
-  for (let i = 0; i < items.length; i++) {
-    const entry = items[i] || {};
-    const record = entry.record || {};
-    const summary = entry.summary || {};
-    const isPlastik = typeof isPackingPlastikNama_ === "function"
-      ? isPackingPlastikNama_(record.nama)
-      : false;
-    const layananArr = Array.isArray(record.layananPacking) ? record.layananPacking : ["kiloan", "bed_cover"];
-    const included = !isPlastik || layananArr.indexOf("bed_cover") >= 0;
-    if (!included) continue;
-
-    const isLocked = typeof isPackingJinjingBedCoverLocked_ === "function"
-      ? isPackingJinjingBedCoverLocked_(record)
-      : false;
-    if (isLocked) {
-      perLoadDirect += strukturHPPNumber_(summary.biayaPerLoad, 0);
-    } else {
-      perKgConverted += strukturHPPNumber_(summary.biayaPerKg, 0);
-    }
-  }
-  return { perKgConverted: perKgConverted, perLoadDirect: perLoadDirect };
 }
 
 function findStrukturHPPChemicalBiayaPerKg_(items, nama) {
@@ -788,7 +749,7 @@ function buildBedCoverHPPService_(normalized) {
       { key: "deterjen", label: "Deterjen", amount: toPerLoad(normalized.kiloan.deterjenPerKg), note: kg <= 0 ? "Kapasitas kg mesin cuci belum diisi." : "" },
       { key: "softener", label: "Softener", amount: toPerLoad(normalized.kiloan.softenerPerKg), note: "" },
       { key: "parfum", label: "Parfum", amount: toPerLoad(normalized.kiloan.parfumPerKg), note: "" },
-      { key: "packing", label: "Packing", amount: strukturHPPRound2_(toPerLoad(normalized.kiloan.packingPerKgBedCoverConverted) + normalized.kiloan.packingPerLoadBedCoverDirect), note: "" },
+      { key: "packing", label: "Packing", amount: toPerLoad(normalized.kiloan.packingPerKgBedCover), note: "" },
     ],
     STRUKTUR_HPP_UNIT_LABEL_ITEM_
   );

@@ -96,20 +96,6 @@ function isPackingPlastikNama_(nama) {
   return String(nama || "").trim().toLowerCase().indexOf("plastik") >= 0;
 }
 
-/**
- * isPackingJinjingBedCoverLocked_: true kalau item ini namanya PERSIS
- * "Plastik Jinjing" (bukan sekadar mengandung kata plastik) DAN dicentang
- * untuk layanan Bed Cover. Dalam kondisi ini, Kap Kg Per Lembar TIDAK dipakai
- * sebagai basis hitung — asumsinya 1 lembar Jinjing = 1 Bed Cover (pcs),
- * bukan takaran per Kg cucian seperti Plastik HD/PP biasa. Biaya per Kg jadi
- * tidak relevan; yang dipakai cukup Biaya Packing Per Load (harga per lembar).
- */
-function isPackingJinjingBedCoverLocked_(record) {
-  const nama = String(record && record.nama || "").trim().toLowerCase();
-  const layanan = Array.isArray(record && record.layananPacking) ? record.layananPacking : [];
-  return nama === "plastik jinjing" && layanan.indexOf("bed_cover") >= 0;
-}
-
 // ============================================================================
 // SECTION: FUNGSI PUBLIK — CRUD MASTER BIAYA PACKING
 // ============================================================================
@@ -357,7 +343,7 @@ function validateBiayaPacking_(data) {
   if (data.satuanKemasan.length === 0) {
     return { valid: false, message: "Satuan kemasan belum dipilih (Pack atau Kg)." };
   }
-  if (!isPackingJinjingBedCoverLocked_(data) && data.kapKgPerLembar <= 0) {
+  if (data.kapKgPerLembar <= 0) {
     return { valid: false, message: "Kap Kg Per Lembar harus lebih dari 0." };
   }
   return { valid: true, message: "" };
@@ -379,8 +365,7 @@ function computeBiayaPackingSummary_(record) {
     ? round2_(record.hargaBeli / record.isiKemasan)
     : 0;
   const biayaPerLoad = hargaPerLembar;
-  const kapKgLocked = isPackingJinjingBedCoverLocked_(record);
-  const biayaPerKg = (!kapKgLocked && record.kapKgPerLembar > 0)
+  const biayaPerKg = record.kapKgPerLembar > 0
     ? round2_(biayaPerLoad / record.kapKgPerLembar)
     : 0;
 
@@ -388,7 +373,6 @@ function computeBiayaPackingSummary_(record) {
     hargaPerUnit: hargaPerLembar,
     biayaPerLoad: biayaPerLoad,
     biayaPerKg: biayaPerKg,
-    kapKgLocked: kapKgLocked,
-    statusValid: record.isiKemasan > 0 && (kapKgLocked || record.kapKgPerLembar > 0),
+    statusValid: record.isiKemasan > 0 && record.kapKgPerLembar > 0,
   };
 }

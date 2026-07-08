@@ -768,10 +768,9 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
           <div class="gas-card-result" style="border-top:none; padding-top:0; margin-top:0;">
             <div class="gas-result-grid" style="grid-template-columns: 1fr 1fr;">
               <div class="gas-result-cell"><div class="label">Biaya Packing Per Load</div><div class="val" id="pfBiayaPerLoad">Rp 0</div></div>
-              <div class="gas-result-cell highlight" id="pfBiayaPerKgCell"><div class="label">Biaya per Kg</div><div class="val" id="pfBiayaPerKg">Rp 0</div></div>
+              <div class="gas-result-cell highlight"><div class="label">Biaya per Kg</div><div class="val" id="pfBiayaPerKg">Rp 0</div></div>
             </div>
             <div class="gas-warning" id="pfWarning" style="display:none;"></div>
-            <div class="field-hint" id="pfKapKgLockNote" style="display:none;">Plastik Jinjing untuk Bed Cover dihitung per lembar (1 lembar = 1 Bed Cover) — Kap Kg Per Lembar & Biaya per Kg tidak dipakai.</div>
           </div>
 
         </div>
@@ -4465,12 +4464,6 @@ function selectGasCustom() {
     return (nama || "").trim().toLowerCase().indexOf("plastik") >= 0;
   }
 
-  function isPackingJinjingBedCoverLocked(record) {
-    var nama = ((record && record.nama) || "").trim().toLowerCase();
-    var layanan = Array.isArray(record && record.layananPacking) ? record.layananPacking : [];
-    return nama === "plastik jinjing" && layanan.indexOf("bed_cover") >= 0;
-  }
-
   function isPackingFixedNama(nama) {
     var v = (nama || "").trim().toLowerCase();
     return PACKING_FIXED_NAMA.some(function (n) { return n.toLowerCase() === v; });
@@ -4556,14 +4549,12 @@ function selectGasCustom() {
 
   function computeBiayaPackingSummaryClient(record) {
     var hargaPerLembar = record.isiKemasan > 0 ? round2(record.hargaBeli / record.isiKemasan) : 0;
-    var kapKgLocked = isPackingJinjingBedCoverLocked(record);
-    var biayaPerKg = (!kapKgLocked && record.kapKgPerLembar > 0) ? round2(hargaPerLembar / record.kapKgPerLembar) : 0;
+    var biayaPerKg = record.kapKgPerLembar > 0 ? round2(hargaPerLembar / record.kapKgPerLembar) : 0;
     return {
       hargaPerUnit: hargaPerLembar,
       biayaPerLoad: hargaPerLembar,
       biayaPerKg: biayaPerKg,
-      kapKgLocked: kapKgLocked,
-      statusValid: record.isiKemasan > 0 && (kapKgLocked || record.kapKgPerLembar > 0)
+      statusValid: record.isiKemasan > 0 && record.kapKgPerLembar > 0
     };
   }
 
@@ -4572,16 +4563,7 @@ function selectGasCustom() {
     var hargaLembarEl = document.getElementById("packingHargaPerLembar");
     if (hargaLembarEl) hargaLembarEl.textContent = money0(summary.hargaPerUnit);
     document.getElementById("pfBiayaPerLoad").textContent = money0(summary.biayaPerLoad);
-    document.getElementById("pfBiayaPerKg").textContent = summary.kapKgLocked ? "-" : money0(summary.biayaPerKg);
-
-    var kapKgInput = document.getElementById("packingKapKgPerLembar");
-    if (kapKgInput) kapKgInput.disabled = summary.kapKgLocked;
-
-    var kapKgCell = document.getElementById("pfBiayaPerKgCell");
-    if (kapKgCell) kapKgCell.classList.toggle("dimmed", summary.kapKgLocked);
-
-    var lockNote = document.getElementById("pfKapKgLockNote");
-    if (lockNote) lockNote.style.display = summary.kapKgLocked ? "block" : "none";
+    document.getElementById("pfBiayaPerKg").textContent = money0(summary.biayaPerKg);
 
     var warnEl = document.getElementById("pfWarning");
     if (!summary.statusValid) {
@@ -4597,7 +4579,6 @@ function selectGasCustom() {
     if (document.getElementById("packingLayananKiloan").checked) layanan.push("kiloan");
     if (document.getElementById("packingLayananBedCover").checked) layanan.push("bed_cover");
     packingFormState.layananPacking = layanan;
-    renderPackingFormPreview();
   }
 
   function bindPackingFormInputs() {
