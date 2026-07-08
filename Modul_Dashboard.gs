@@ -506,7 +506,7 @@ function getDashboardHargaLayananSummary(cabangId) {
       const layananList = layanan
         .filter(function(svc) { return svc && dashboardNumber_(svc.hargaJual, 0) > 0; })
         .map(function(svc) {
-          return {
+          const row = {
             key: String(svc.key || ""),
             title: String(svc.title || ""),
             marginPercent: dashboardRound2_(dashboardNumber_(svc.marginPercent, 0)),
@@ -515,6 +515,21 @@ function getDashboardHargaLayananSummary(cabangId) {
             hargaJual: dashboardRound2_(dashboardNumber_(svc.hargaJual, 0)),
             margin: dashboardRound2_(dashboardNumber_(svc.margin, 0))
           };
+          // Rincian Per Load/Per Jam & Per Kg (drop_off/hybrid & jasa_setrika)
+          // - lihat buildHargaLayananItems_ di Modul_HargaLayanan.gs. Hanya
+          // diteruskan kalau field-nya memang ada di svc, supaya baris
+          // self_service/Bed Cover (yang tidak punya rincian ini) tetap bersih.
+          if (svc.hargaJualPerKg !== undefined) row.hargaJualPerKg = dashboardRound2_(dashboardNumber_(svc.hargaJualPerKg, 0));
+          if (svc.hppPerLoad !== undefined) row.hppPerLoad = dashboardRound2_(dashboardNumber_(svc.hppPerLoad, 0));
+          if (svc.marginPerLoad !== undefined) row.marginPerLoad = dashboardRound2_(dashboardNumber_(svc.marginPerLoad, 0));
+          if (svc.marginPercentPerLoad !== undefined) row.marginPercentPerLoad = dashboardRound2_(dashboardNumber_(svc.marginPercentPerLoad, 0));
+          if (svc.hppPerKg !== undefined) row.hppPerKg = dashboardRound2_(dashboardNumber_(svc.hppPerKg, 0));
+          if (svc.marginPerKg !== undefined) row.marginPerKg = dashboardRound2_(dashboardNumber_(svc.marginPerKg, 0));
+          if (svc.marginPercentPerKg !== undefined) row.marginPercentPerKg = dashboardRound2_(dashboardNumber_(svc.marginPercentPerKg, 0));
+          if (svc.hppPerJam !== undefined) row.hppPerJam = dashboardRound2_(dashboardNumber_(svc.hppPerJam, 0));
+          if (svc.marginPerJam !== undefined) row.marginPerJam = dashboardRound2_(dashboardNumber_(svc.marginPerJam, 0));
+          if (svc.marginPercentPerJam !== undefined) row.marginPercentPerJam = dashboardRound2_(dashboardNumber_(svc.marginPercentPerJam, 0));
+          return row;
         });
       const totalLayanan = layanan.length;
       let status = "ok";
@@ -527,6 +542,7 @@ function getDashboardHargaLayananSummary(cabangId) {
       return {
         cabangId: cabangId,
         namaLaundry: dashboardOutletName_(item),
+        kategoriLayanan: String(item.kategoriLayanan || ""),
         totalLayanan: totalLayanan,
         hargaTerisiCount: hargaTerisiCount,
         rugiCount: rugiCount,

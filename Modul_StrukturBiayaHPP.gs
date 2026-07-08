@@ -121,6 +121,13 @@ function getStrukturBiayaHPP(cabangId) {
         layanan: layanan,
         bedCoverAktif: bedCoverAktif,
         serviceToggles: serviceToggles,
+        // Faktor konversi (kapasitas kg per load mesin cuci, kapasitas kg per
+        // jam mesin setrika) - dipakai Modul_HargaLayanan.gs supaya bisa
+        // konversi HPP per Load/Jam <-> per Kg tanpa duplikasi rumus.
+        konversi: {
+          kapasitasKgPerLoad: normalized.kiloan.kapasitasKgPerLoad,
+          setrikaKapasitasKgPerJam: normalized.kiloan.setrikaKapasitasKgPerJam,
+        },
         warnings: validation.warnings,
         meta: {
           generatedAt: new Date().toISOString(),

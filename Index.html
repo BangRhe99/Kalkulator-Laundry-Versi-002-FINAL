@@ -2314,6 +2314,40 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             var barW = Math.min(100, Math.max(0, pct));
             var cls = item.status === 'rugi' ? 'rugi' : (item.status === 'tipis' || item.status === 'impas' ? 'tipis' : 'aman');
             var pctTxt = typeof item.marginPercent === 'number' ? (Math.round(item.marginPercent * 10) / 10) + '%' : '-';
+
+            var detailRow = function (label, value) {
+              return '<div class="hl-detail-row"><span class="hl-detail-label">' + escapeHtml(label) + '</span><span class="hl-detail-value">' + value + '</span></div>';
+            };
+            var detailHtml;
+            if (item.hppPerLoad !== undefined) {
+              // Kategori Drop Off/Kiloan & Hybrid: HPP sumbernya per load,
+              // Harga Jual per Kg - tampilkan dua basis sekaligus.
+              detailHtml =
+                detailRow('Harga Jual Per Kg', money0(item.hargaJualPerKg)) +
+                detailRow('HPP Per Load', money0(item.hppPerLoad)) +
+                detailRow('Margin Per Load', money0(item.marginPerLoad)) +
+                detailRow('% Margin Per Load', formatPercent(item.marginPercentPerLoad, 1)) +
+                detailRow('HPP Per Kg', money0(item.hppPerKg)) +
+                detailRow('Margin Per Kg', money0(item.marginPerKg)) +
+                detailRow('% Margin Per Kg', formatPercent(item.marginPercentPerKg, 1));
+            } else if (item.hppPerJam !== undefined) {
+              // Kategori Jasa Setrika: HPP sumbernya per Kg, "per Jam"
+              // dikonversi lewat kapasitas kg/jam mesin setrika.
+              detailHtml =
+                detailRow('Harga Jual Per Kg', money0(item.hargaJualPerKg)) +
+                detailRow('HPP Per Jam', money0(item.hppPerJam)) +
+                detailRow('Margin Per Jam', money0(item.marginPerJam)) +
+                detailRow('% Margin Per Jam', formatPercent(item.marginPercentPerJam, 1)) +
+                detailRow('HPP Per Kg', money0(item.hppPerKg)) +
+                detailRow('Margin Per Kg', money0(item.marginPerKg)) +
+                detailRow('% Margin Per Kg', formatPercent(item.marginPercentPerKg, 1));
+            } else {
+              detailHtml =
+                detailRow('HPP', money0(item.hpp)) +
+                detailRow('Harga Jual', money0(item.hargaJual)) +
+                detailRow('Margin', money0(item.margin));
+            }
+
             html += '<div class="hl-item">' +
               '<div class="hl-row" onclick="toggleHlDetail(this, event)">' +
                 '<span class="hl-name">' + escapeHtml(item.title || '') + '</span>' +
@@ -2321,11 +2355,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
                 '<span class="hl-pct hl-pct-' + cls + '">' + escapeHtml(pctTxt) + '</span>' +
                 '<span class="hl-arrow">&#9662;</span>' +
               '</div>' +
-              '<div class="hl-detail">' +
-                '<div class="hl-detail-row"><span class="hl-detail-label">HPP</span><span class="hl-detail-value">' + money0(item.hpp) + '</span></div>' +
-                '<div class="hl-detail-row"><span class="hl-detail-label">Harga Jual</span><span class="hl-detail-value">' + money0(item.hargaJual) + '</span></div>' +
-                '<div class="hl-detail-row"><span class="hl-detail-label">Margin</span><span class="hl-detail-value">' + money0(item.margin) + '</span></div>' +
-              '</div>' +
+              '<div class="hl-detail">' + detailHtml + '</div>' +
             '</div>';
           });
           if ((d.hargaTerisiCount || 0) < (d.totalLayanan || 0)) {

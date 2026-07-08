@@ -48,8 +48,21 @@ function getHargaLayanan(cabangId) {
     ).toLowerCase();
 
     const kategoriFinal = normalizeHargaLayananKategori_(kategoriLayanan);
-    const bedCoverAktif = typeof isBedCoverAktif_ === "function" ? isBedCoverAktif_(cleanCabangId) : true;
-    const layanan = buildHargaLayananItems_(kategoriFinal, hppMap, stored.hargaJual || {}, bedCoverAktif);
+
+    // Layanan mana yang aktif/nonaktif mengikuti toggle di kartu Struktur
+    // Biaya HPP (Modul_StrukturBiayaHPP.gs) - hanya relevan utk kategori
+    // drop_off/hybrid, kategori lain tidak punya toggle sama sekali.
+    const aktifMap = {};
+    if (kategoriFinal === "drop_off" || kategoriFinal === "hybrid") {
+      STRUKTUR_HPP_TOGGLABLE_KEYS_.forEach(function (key) {
+        aktifMap[key] = typeof isHPPLayananAktif_ === "function" ? isHPPLayananAktif_(cleanCabangId, key) : true;
+      });
+    }
+
+    const konversi = hppResult && hppResult.ok && hppResult.data && hppResult.data.konversi
+      ? hppResult.data.konversi
+      : null;
+    const layanan = buildHargaLayananItems_(kategoriFinal, hppMap, stored.hargaJual || {}, aktifMap, konversi);
 
     return {
       ok: true,
@@ -251,7 +264,7 @@ function buildHargaLayananHPPMap_(hppResult) {
   return map;
 }
 
-function getHargaLayananDefinitions_(kategori, bedCoverAktif) {
+function getHargaLayananDefinitions_(kategori, aktifMap) {
   if (kategori === "self_service") {
     return [
       {
@@ -286,48 +299,37 @@ function getHargaLayananDefinitions_(kategori, bedCoverAktif) {
     ];
   }
 
-  const defs = [
-    {
-      key: "cuci_saja",
-      title: "Cuci Saja",
-      hppSourceKey: "cuci_saja",
-      unitLabel: "per kg",
-    },
-    {
-      key: "cuci_kering_lipat",
-      title: "Cuci Kering Lipat",
-      hppSourceKey: "cuci_kering_lipat",
-      unitLabel: "per kg",
-    },
-    {
-      key: "cuci_kering_setrika",
-      title: "Cuci Kering Setrika",
-      hppSourceKey: "cuci_kering_setrika",
-      unitLabel: "per kg",
-    },
-    {
-      key: "setrika_saja",
-      title: "Setrika Saja",
-      hppSourceKey: "setrika_saja",
-      unitLabel: "per kg",
-    },
-  ];
+  // drop_off/hybrid: layanan mana yang tampil mengikuti toggle aktif di
+  // kartu Struktur Biaya HPP (aktifMap), bukan lagi daftar tetap - laundry
+  // yang mematikan mis. "Cuci Saja" di sana otomatis tidak lagi punya baris
+  // harga di Harga Layanan.
+  const aktif = aktifMap || {};
+  const defs = [];
 
-  if (bedCoverAktif !== false) {
-    defs.push({
-      key: "bed_cover",
-      title: "Bed Cover",
-      hppSourceKey: "bed_cover",
-      unitLabel: "per item",
-    });
+  if (aktif.cuci_saja !== false) {
+    defs.push({ key: "cuci_saja", title: "Cuci Saja", hppSourceKey: "cuci_saja", unitLabel: "per kg" });
+  }
+  if (aktif.cuci_kering_lipat !== false) {
+    defs.push({ key: "cuci_kering_lipat", title: "Cuci Kering Lipat", hppSourceKey: "cuci_kering_lipat", unitLabel: "per kg" });
+  }
+  if (aktif.cuci_kering_setrika !== false) {
+    defs.push({ key: "cuci_kering_setrika", title: "Cuci Kering Setrika", hppSourceKey: "cuci_kering_setrika", unitLabel: "per kg" });
+  }
+  if (aktif.setrika_saja !== false) {
+    defs.push({ key: "setrika_saja", title: "Setrika Saja", hppSourceKey: "setrika_saja", unitLabel: "per kg" });
+  }
+  if (aktif.bed_cover !== false) {
+    defs.push({ key: "bed_cover", title: "Bed Cover", hppSourceKey: "bed_cover", unitLabel: "per item" });
   }
 
   return defs;
 }
 
-function buildHargaLayananItems_(kategori, hppMap, storedHargaJual, bedCoverAktif) {
-  const defs = getHargaLayananDefinitions_(kategori, bedCoverAktif);
+function buildHargaLayananItems_(kategori, hppMap, storedHargaJual, aktifMap, konversi) {
+  const defs = getHargaLayananDefinitions_(kategori, aktifMap);
   const items = [];
+  const kapasitasKgPerLoad = toNumber_(konversi && konversi.kapasitasKgPerLoad, 0);
+  const setrikaKapasitasKgPerJam = toNumber_(konversi && konversi.setrikaKapasitasKgPerJam, 0);
 
   defs.forEach(function (def) {
     const hppItem = hppMap[def.hppSourceKey] || null;
@@ -336,7 +338,7 @@ function buildHargaLayananItems_(kategori, hppMap, storedHargaJual, bedCoverAkti
     const margin = round2_(hargaJual - hpp);
     const marginPercent = hargaJual > 0 ? round2_((margin / hargaJual) * 100) : 0;
 
-    items.push({
+    const item = {
       key: def.key,
       title: def.title,
       unitLabel: def.unitLabel,
@@ -348,7 +350,65 @@ function buildHargaLayananItems_(kategori, hppMap, storedHargaJual, bedCoverAkti
       statusLabel: getHargaLayananMarginStatusLabel_(margin, marginPercent),
       note: "Margin bukan laba bersih",
       hppReady: !!hppItem && hpp > 0,
-    });
+    };
+
+    // Kiloan (drop_off/hybrid, KECUALI Bed Cover yang basisnya per item):
+    // HPP sumbernya sudah PER LOAD (lihat buildKiloanHPPStructure_ di
+    // Modul_StrukturBiayaHPP.gs), sedang Harga Jual disimpan PER KG - jadi
+    // dirincikan dua basis sekaligus (Per Load & Per Kg) supaya jelas apple-
+    // to-apple, dikonversi lewat kapasitasKgPerLoad mesin cuci.
+    if ((kategori === "drop_off" || kategori === "hybrid") && def.key !== "bed_cover") {
+      const hppPerLoad = hpp;
+      const hargaJualPerKg = hargaJual;
+      const hargaJualPerLoad = round2_(hargaJualPerKg * kapasitasKgPerLoad);
+      const hppPerKg = kapasitasKgPerLoad > 0 ? round2_(hppPerLoad / kapasitasKgPerLoad) : 0;
+      const marginPerLoad = round2_(hargaJualPerLoad - hppPerLoad);
+      const marginPercentPerLoad = hargaJualPerLoad > 0 ? round2_((marginPerLoad / hargaJualPerLoad) * 100) : 0;
+      const marginPerKg = round2_(hargaJualPerKg - hppPerKg);
+      const marginPercentPerKg = hargaJualPerKg > 0 ? round2_((marginPerKg / hargaJualPerKg) * 100) : 0;
+
+      item.hargaJualPerKg = round2_(hargaJualPerKg);
+      item.hppPerLoad = round2_(hppPerLoad);
+      item.marginPerLoad = marginPerLoad;
+      item.marginPercentPerLoad = marginPercentPerLoad;
+      item.hppPerKg = round2_(hppPerKg);
+      item.marginPerKg = marginPerKg;
+      item.marginPercentPerKg = marginPercentPerKg;
+
+      // Field utama (hpp/margin/marginPercent/status) dipakai jadi badge &
+      // progress bar ringkasan (sebelum di-klik buka detail) - HARUS basis
+      // per Kg (apple-to-apple dgn Harga Jual yg juga per Kg), bukan per
+      // Load, supaya tidak menyesatkan. hpp/margin/marginPercent asli (per
+      // Load vs per Kg tercampur) sengaja ditimpa di sini.
+      item.hpp = round2_(hppPerKg);
+      item.margin = marginPerKg;
+      item.marginPercent = marginPercentPerKg;
+      item.status = getHargaLayananMarginStatus_(marginPerKg, marginPercentPerKg);
+      item.statusLabel = getHargaLayananMarginStatusLabel_(marginPerKg, marginPercentPerKg);
+    }
+
+    // Jasa Setrika: HPP sumbernya sudah PER KG, "per Jam" dikonversi lewat
+    // kapasitas kg/jam mesin setrika (berapa Kg diproses tiap 1 jam).
+    if (kategori === "jasa_setrika") {
+      const hppPerKg = hpp;
+      const hargaJualPerKg = hargaJual;
+      const hppPerJam = round2_(hppPerKg * setrikaKapasitasKgPerJam);
+      const hargaJualPerJam = round2_(hargaJualPerKg * setrikaKapasitasKgPerJam);
+      const marginPerJam = round2_(hargaJualPerJam - hppPerJam);
+      const marginPercentPerJam = hargaJualPerJam > 0 ? round2_((marginPerJam / hargaJualPerJam) * 100) : 0;
+      const marginPerKg = round2_(hargaJualPerKg - hppPerKg);
+      const marginPercentPerKg = hargaJualPerKg > 0 ? round2_((marginPerKg / hargaJualPerKg) * 100) : 0;
+
+      item.hargaJualPerKg = round2_(hargaJualPerKg);
+      item.hppPerJam = hppPerJam;
+      item.marginPerJam = marginPerJam;
+      item.marginPercentPerJam = marginPercentPerJam;
+      item.hppPerKg = round2_(hppPerKg);
+      item.marginPerKg = marginPerKg;
+      item.marginPercentPerKg = marginPercentPerKg;
+    }
+
+    items.push(item);
   });
 
   return items;
