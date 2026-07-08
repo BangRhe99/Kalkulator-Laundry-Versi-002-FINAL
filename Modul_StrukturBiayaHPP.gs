@@ -1162,9 +1162,10 @@ function getWeightedGasCost_(items, mesinPengering) {
 
 /**
  * getWeightedGasSetrikaCost_: rata-rata tertimbang biaya gas PER JAM khusus
- * baris gas yang refType-nya "setrika" (gas dipakai memanaskan setrika uap -
- * lihat computeBiayaGasSummary_ di Modul_BiayaGas.gs, basisnya per jam bukan
- * per load). Ditimbang dengan jumlahUnit mesin setrika acuannya.
+ * baris gas yang punya acuan mesin setrika (uap) terisi - satu tabung gas
+ * bisa dipakai bareng untuk Dryer & Setrika Uap sekaligus (bukan pilihan
+ * eksklusif), lihat computeBiayaGasSummary_ di Modul_BiayaGas.gs. Ditimbang
+ * dengan jumlahUnit mesin setrika acuannya.
  */
 function getWeightedGasSetrikaCost_(items, mesinSetrika) {
   if (!Array.isArray(items) || items.length === 0) return 0;
@@ -1177,9 +1178,7 @@ function getWeightedGasSetrikaCost_(items, mesinSetrika) {
     const record = item.record || {};
     const summary = item.summary || {};
 
-    if (record.refType !== "setrika") continue;
-
-    const amount = strukturHPPNumber_(summary.biayaPerJam, 0);
+    const amount = strukturHPPNumber_(summary.biayaGasSetrikaPerJam, 0);
     if (amount <= 0) continue;
 
     const setrika = findStrukturHPPMachineById_(mesinSetrika, record.setrikaRefId);

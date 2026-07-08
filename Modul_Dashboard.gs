@@ -221,19 +221,18 @@ function getDashboardMasterBiayaSummary(cabangId) {
           const gasRes = listBiayaGas(cabangId);
           if (gasRes && gasRes.ok && gasRes.data && gasRes.data.items) {
             // Kategori Jasa Setrika: gas dipakai untuk memanaskan setrika uap,
-            // dihitung PER JAM (record.refType === "setrika"), bukan per load
-            // seperti kategori lain yang merujuk mesin pengering. Baca field
-            // yang sesuai per item supaya nilainya tidak selalu Rp0.
+            // dihitung PER JAM (s.biayaGasSetrikaPerJam, diisi kalau record
+            // punya acuan mesin setrika), bukan per load seperti kategori lain
+            // yang merujuk mesin pengering (s.biayaPerLoad). Satu tabung gas
+            // bisa punya kedua acuan sekaligus - baca field yang sesuai per
+            // item supaya nilainya tidak selalu Rp0.
             const isJasaSetrika = String(item.kategoriLayanan || "") === "jasa_setrika";
             let gasTotalPerLoad = 0;
             let gasTotalPerJam = 0;
             dashboardArray_(gasRes.data.items).forEach(function(g) {
               const s = g.summary || {};
-              if (s.refType === "setrika") {
-                gasTotalPerJam += dashboardNumber_(s.biayaPerJam, 0);
-              } else {
-                gasTotalPerLoad += dashboardNumber_(s.biayaPerLoad, 0);
-              }
+              gasTotalPerJam += dashboardNumber_(s.biayaGasSetrikaPerJam, 0);
+              gasTotalPerLoad += dashboardNumber_(s.biayaPerLoad, 0);
             });
             if (gasComplete) {
               if (isJasaSetrika) {

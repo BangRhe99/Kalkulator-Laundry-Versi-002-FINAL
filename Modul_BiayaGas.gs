@@ -83,7 +83,6 @@ function defaultBiayaGas_() {
   return {
     id: "",
     cabangId: "",
-    refType: "dryer",
     dryerRefId: "",
     setrikaRefId: "",
     kapasitasLabel: "",
@@ -331,7 +330,6 @@ function sanitizeBiayaGas_(input) {
 
   out.id = toSafeString_(input && input.id, "", 60);
   out.cabangId = toSafeString_(input && input.cabangId, "", 60);
-  out.refType = (input && input.refType === "setrika") ? "setrika" : "dryer";
   out.dryerRefId = toSafeString_(input && input.dryerRefId, "", 60);
   out.setrikaRefId = toSafeString_(input && input.setrikaRefId, "", 60);
   out.kapasitasLabel = toSafeString_(input && input.kapasitasLabel, base.kapasitasLabel, 40);
@@ -362,24 +360,37 @@ function validateBiayaGas_(data, cabang) {
     return { valid: false, message: "Estimasi pemakaian (jam) harus lebih dari 0." };
   }
 
-  if (data.refType === "setrika") {
+  // Satu tabung gas bisa dipakai bareng untuk Dryer DAN Setrika Uap sekaligus
+  // (bukan pilihan eksklusif) - acuan mana yang WAJIB diisi mengikuti mesin
+  // apa saja yang ada di Profil Outlet cabang ini.
+  const hasDryer = (cabang.mesinPengering || []).length > 0;
+  const setrikaUapList = (cabang.mesinSetrika || []).filter(function (m) { return m.jenis === "uap"; });
+  const hasSetrikaUap = setrikaUapList.length > 0;
+
+  if (hasDryer) {
+    if (!data.dryerRefId) {
+      return { valid: false, message: "Pilih mesin pengering acuan untuk konversi load." };
+    }
+    const dryerExists = (cabang.mesinPengering || []).some(function (m) { return m.id === data.dryerRefId; });
+    if (!dryerExists) {
+      return { valid: false, message: "Mesin pengering acuan tidak ditemukan di profil cabang ini. Mungkin baris mesin itu sudah dihapus — pilih ulang acuannya." };
+    }
+  }
+
+  if (hasSetrikaUap) {
     if (!data.setrikaRefId) {
       return { valid: false, message: "Pilih mesin setrika (uap) acuan untuk hitungan per jam." };
     }
-    const setrikaExists = (cabang.mesinSetrika || []).some(function (m) { return m.id === data.setrikaRefId && m.jenis === "uap"; });
+    const setrikaExists = setrikaUapList.some(function (m) { return m.id === data.setrikaRefId; });
     if (!setrikaExists) {
       return { valid: false, message: "Mesin setrika uap acuan tidak ditemukan di profil cabang ini. Mungkin baris mesin itu sudah dihapus atau bukan jenis uap — pilih ulang acuannya." };
     }
-    return { valid: true, message: "" };
   }
 
-  if (!data.dryerRefId) {
-    return { valid: false, message: "Pilih mesin pengering acuan untuk konversi load." };
+  if (!hasDryer && !hasSetrikaUap) {
+    return { valid: false, message: "Profil cabang belum punya mesin pengering maupun mesin setrika uap. Lengkapi Profil Outlet dulu sebelum menambah data gas." };
   }
-  const dryerExists = (cabang.mesinPengering || []).some(function (m) { return m.id === data.dryerRefId; });
-  if (!dryerExists) {
-    return { valid: false, message: "Mesin pengering acuan tidak ditemukan di profil cabang ini. Mungkin baris mesin itu sudah dihapus — pilih ulang acuannya." };
-  }
+
   return { valid: true, message: "" };
 }
 
@@ -408,26 +419,11 @@ function computeBiayaGasSummary_(record, cabang) {
     : 0;
   const biayaPerMenit = round2_(biayaPerJam / 60);
 
-  // Mode "setrika": gas dipakai untuk memanaskan setrika uap. Basisnya murni
-  // PER JAM (sama seperti listrik setrika di Modul_BiayaListrik.gs), BUKAN
-  // per load, karena setrika uap tidak punya siklus/durasi load seperti dryer.
-  if (record.refType === "setrika") {
-    const setrika = findMachineById_(cabang.mesinSetrika, record.setrikaRefId);
-
-    return {
-      refType: "setrika",
-      dryerRefNama: "",
-      dryerRefDurasiMenit: 0,
-      setrikaRefNama: setrika ? setrikaDisplayName_(setrika) : "(mesin tidak ditemukan)",
-      konversiMenit: konversiMenit,
-      estimasiLoadPemakaian: 0,
-      biayaPerJam: biayaPerJam,
-      biayaPerMenit: biayaPerMenit,
-      biayaPerLoad: 0,
-      statusValid: !!setrika && biayaPerJam > 0,
-    };
-  }
-
+  // Satu tabung gas yang sama dipakai bareng untuk Dryer DAN Setrika Uap -
+  // bukan pilihan eksklusif. Dryer dikonversi ke PER LOAD (pakai durasi 1
+  // siklus dryer acuan), Setrika Uap basisnya murni PER JAM (sama seperti
+  // listrik setrika di Modul_BiayaListrik.gs, tidak punya siklus/durasi load
+  // seperti dryer) - nilainya sama dengan biayaPerJam di atas.
   const dryer = findMachineById_(cabang.mesinPengering, record.dryerRefId);
   const durasiLoadMenit = dryer ? toNumber_(dryer.durasiMenit, 0) : 0;
 
@@ -439,17 +435,21 @@ function computeBiayaGasSummary_(record, cabang) {
     ? round2_(record.hargaPerTabung / estimasiLoadPemakaian)
     : 0;
 
+  const setrika = findMachineById_(cabang.mesinSetrika, record.setrikaRefId);
+  const biayaGasSetrikaPerJam = setrika ? biayaPerJam : 0;
+
   return {
-    refType: "dryer",
-    dryerRefNama: dryer ? machineDisplayName_(dryer) : "(mesin tidak ditemukan)",
+    dryerRefNama: dryer ? machineDisplayName_(dryer) : (record.dryerRefId ? "(mesin tidak ditemukan)" : ""),
     dryerRefDurasiMenit: durasiLoadMenit,
-    setrikaRefNama: "",
+    setrikaRefNama: setrika ? setrikaDisplayName_(setrika) : (record.setrikaRefId ? "(mesin tidak ditemukan)" : ""),
     konversiMenit: konversiMenit,
     estimasiLoadPemakaian: estimasiLoadPemakaian,
     biayaPerJam: biayaPerJam,
     biayaPerMenit: biayaPerMenit,
     biayaPerLoad: biayaPerLoad,
-    statusValid: durasiLoadMenit > 0,
+    biayaGasSetrikaPerJam: biayaGasSetrikaPerJam,
+    statusValidDryer: !!dryer && biayaPerLoad > 0,
+    statusValidSetrika: !!setrika && biayaGasSetrikaPerJam > 0,
   };
 }
 

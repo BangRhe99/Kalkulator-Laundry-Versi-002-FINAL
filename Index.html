@@ -501,14 +501,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             <div class="field-hint">Boleh diubah sesuai pengalaman pemakaian outlet ini. Nilai di atas hanya saran awal per kapasitas.</div>
           </div>
 
-          <div class="field" id="gasRefTypeToggleWrap" style="display:none;">
-            <label>Acuan konversi</label>
-            <div class="pill-group" id="gasRefTypePills">
-              <div class="pill flame" data-val="dryer">Mesin Pengering</div>
-              <div class="pill flame" data-val="setrika">Mesin Setrika (Uap)</div>
-            </div>
-          </div>
-
           <div class="field" id="gasDryerRefWrap">
             <label for="gasDryerRef">Acuan mesin pengering (untuk konversi load)</label>
             <select id="gasDryerRef"></select>
@@ -534,7 +526,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
               </div>
             </div>
             <div class="gas-result-grid">
-              <div class="gas-result-cell" id="gfBiayaJamCell">
+              <div class="gas-result-cell">
                 <div class="label">Biaya per jam</div>
                 <div class="val" id="gfBiayaJam">Rp 0</div>
               </div>
@@ -545,8 +537,14 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             </div>
             <div class="gas-result-grid" style="grid-template-columns: 1fr;" id="gfBiayaLoadRow">
               <div class="gas-result-cell highlight">
-                <div class="label">Biaya per load (sesuai profil operasional)</div>
+                <div class="label">Biaya Gas Dryer Per Load</div>
                 <div class="val" id="gfBiayaLoad">Rp 0</div>
+              </div>
+            </div>
+            <div class="gas-result-grid" style="grid-template-columns: 1fr;" id="gfBiayaSetrikaRow">
+              <div class="gas-result-cell highlight">
+                <div class="label">Biaya Gas Setrika Per Jam</div>
+                <div class="val" id="gfBiayaSetrikaPerJam">Rp 0</div>
               </div>
             </div>
             <div class="gas-warning" id="gfWarning" style="display:none;"></div>
@@ -1578,20 +1576,13 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     var biayaPerJam = (estimasiJam > 0) ? round2(harga / estimasiJam) : 0;
     var biayaPerMenit = round2(biayaPerJam / 60);
 
-    if (record.refType === "setrika") {
-      return {
-        konversiMenit: konversiMenit,
-        estimasiLoadPemakaian: 0,
-        biayaPerJam: biayaPerJam,
-        biayaPerMenit: biayaPerMenit,
-        biayaPerLoad: 0,
-        statusValid: !!setrika && biayaPerJam > 0
-      };
-    }
-
+    // Satu tabung gas yang sama dipakai bareng untuk Dryer DAN Setrika Uap -
+    // bukan pilihan eksklusif, keduanya dihitung sekaligus.
     var durasiLoadMenit = dryer ? (Number(dryer.durasiMenit) || 0) : 0;
     var estimasiLoadPemakaian = (durasiLoadMenit > 0) ? round2(konversiMenit / durasiLoadMenit) : 0;
     var biayaPerLoad = (estimasiLoadPemakaian > 0) ? round2(harga / estimasiLoadPemakaian) : 0;
+
+    var biayaGasSetrikaPerJam = setrika ? biayaPerJam : 0;
 
     return {
       konversiMenit: konversiMenit,
@@ -1599,7 +1590,9 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
       biayaPerJam: biayaPerJam,
       biayaPerMenit: biayaPerMenit,
       biayaPerLoad: biayaPerLoad,
-      statusValid: durasiLoadMenit > 0
+      biayaGasSetrikaPerJam: biayaGasSetrikaPerJam,
+      statusValidDryer: !!dryer && biayaPerLoad > 0,
+      statusValidSetrika: !!setrika && biayaGasSetrikaPerJam > 0
     };
   }
 
@@ -3373,40 +3366,41 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
       var card = document.createElement("div");
       card.className = "gas-card";
 
-      var isSetrikaMode = summary.refType === "setrika";
+      var hasDryerRef = !!record.dryerRefId;
+      var hasSetrikaRef = !!record.setrikaRefId;
 
-      var warningHtml = summary.statusValid ? "" :
-        (isSetrikaMode
-          ? "<div class=\"gas-warning\">Mesin setrika uap acuan untuk data ini sudah tidak ada di profil cabang. Edit data ini dan pilih ulang acuannya.</div>"
-          : "<div class=\"gas-warning\">Mesin pengering acuan untuk data ini sudah tidak ada di profil cabang. Edit data ini dan pilih ulang acuannya.</div>");
+      var warningParts = [];
+      if (hasDryerRef && !summary.statusValidDryer) {
+        warningParts.push("Mesin pengering acuan untuk data ini sudah tidak ada di profil cabang.");
+      }
+      if (hasSetrikaRef && !summary.statusValidSetrika) {
+        warningParts.push("Mesin setrika uap acuan untuk data ini sudah tidak ada di profil cabang.");
+      }
+      var warningHtml = warningParts.length
+        ? "<div class=\"gas-warning\">" + escapeHtml(warningParts.join(" ")) + " Edit data ini dan pilih ulang acuannya.</div>"
+        : "";
 
-      var acuanRowHtml = isSetrikaMode
-        ? "<div class=\"meta-row\"><span class=\"meta-label\">Acuan setrika</span><span class=\"meta-val\">" + escapeHtml(summary.setrikaRefNama) + "</span></div>"
-        : "<div class=\"meta-row\"><span class=\"meta-label\">Acuan dryer</span><span class=\"meta-val\">" + escapeHtml(summary.dryerRefNama) + "</span></div>";
+      var acuanRowHtml =
+        (hasDryerRef ? "<div class=\"meta-row\"><span class=\"meta-label\">Acuan dryer</span><span class=\"meta-val\">" + escapeHtml(summary.dryerRefNama) + "</span></div>" : "") +
+        (hasSetrikaRef ? "<div class=\"meta-row\"><span class=\"meta-label\">Acuan setrika</span><span class=\"meta-val\">" + escapeHtml(summary.setrikaRefNama) + "</span></div>" : "");
 
-      var resultGridHtml = isSetrikaMode
-        ? (
+      var resultGridHtml =
+        "<div class=\"gas-result-grid\">" +
+          "<div class=\"gas-result-cell\"><div class=\"label\">Konversi waktu</div><div class=\"val\">" + formatNum(summary.konversiMenit) + "<span class=\"unit\">menit</span></div></div>" +
+          (hasDryerRef ? "<div class=\"gas-result-cell\"><div class=\"label\">Estimasi load</div><div class=\"val\">" + formatNum(summary.estimasiLoadPemakaian) + "<span class=\"unit\">load</span></div></div>" : "") +
+        "</div>" +
+        "<div class=\"gas-result-grid\">" +
+          "<div class=\"gas-result-cell\"><div class=\"label\">Biaya / jam</div><div class=\"val\">" + money0(summary.biayaPerJam) + "</div></div>" +
+          "<div class=\"gas-result-cell\"><div class=\"label\">Biaya / menit</div><div class=\"val\">" + formatRupiah(summary.biayaPerMenit) + "</div></div>" +
+        "</div>" +
+        (hasDryerRef ?
           "<div class=\"gas-result-grid\" style=\"grid-template-columns:1fr;\">" +
-            "<div class=\"gas-result-cell\"><div class=\"label\">Konversi waktu</div><div class=\"val\">" + formatNum(summary.konversiMenit) + "<span class=\"unit\">menit</span></div></div>" +
-          "</div>" +
-          "<div class=\"gas-result-grid\">" +
-            "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / jam</div><div class=\"val\">" + money0(summary.biayaPerJam) + "</div></div>" +
-            "<div class=\"gas-result-cell\"><div class=\"label\">Biaya / menit</div><div class=\"val\">" + formatRupiah(summary.biayaPerMenit) + "</div></div>" +
-          "</div>"
-        )
-        : (
-          "<div class=\"gas-result-grid\">" +
-            "<div class=\"gas-result-cell\"><div class=\"label\">Konversi waktu</div><div class=\"val\">" + formatNum(summary.konversiMenit) + "<span class=\"unit\">menit</span></div></div>" +
-            "<div class=\"gas-result-cell\"><div class=\"label\">Estimasi load</div><div class=\"val\">" + formatNum(summary.estimasiLoadPemakaian) + "<span class=\"unit\">load</span></div></div>" +
-          "</div>" +
-          "<div class=\"gas-result-grid\">" +
-            "<div class=\"gas-result-cell\"><div class=\"label\">Biaya / jam</div><div class=\"val\">" + money0(summary.biayaPerJam) + "</div></div>" +
-            "<div class=\"gas-result-cell\"><div class=\"label\">Biaya / menit</div><div class=\"val\">" + formatRupiah(summary.biayaPerMenit) + "</div></div>" +
-          "</div>" +
+            "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya Gas Dryer Per Load</div><div class=\"val\">" + money0(summary.biayaPerLoad) + "</div></div>" +
+          "</div>" : "") +
+        (hasSetrikaRef ?
           "<div class=\"gas-result-grid\" style=\"grid-template-columns:1fr;\">" +
-            "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / load (sesuai profil operasional)</div><div class=\"val\">" + money0(summary.biayaPerLoad) + "</div></div>" +
-          "</div>"
-        );
+            "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya Gas Setrika Per Jam</div><div class=\"val\">" + money0(summary.biayaGasSetrikaPerJam) + "</div></div>" +
+          "</div>" : "");
 
       card.innerHTML =
         "<div class=\"gas-card-top\">" +
@@ -3470,7 +3464,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     return {
       id: null,
       cabangId: cabangId,
-      refType: "dryer",
       dryerRefId: "",
       setrikaRefId: "",
       kapasitasLabel: "",
@@ -3697,36 +3690,22 @@ function selectGasCustom() {
   }
 
   /**
-   * renderGasRefTypeUI: pilih mode acuan konversi (mesin pengering vs mesin
-   * setrika uap). Kalau outlet cuma punya salah satu (mis. Jasa Setrika yang
-   * tidak punya mesin pengering sama sekali), mode dikunci otomatis dan
-   * toggle pill disembunyikan supaya tidak membingungkan.
+   * renderGasAcuanUI: satu tabung gas bisa dipakai bareng untuk Dryer DAN
+   * Setrika Uap sekaligus (bukan pilihan eksklusif) - field acuan mesin
+   * pengering & acuan mesin setrika uap ditampilkan berbarengan, mengikuti
+   * mesin apa saja yang ada di Profil Outlet cabang ini. Kalau outlet tidak
+   * punya mesin setrika uap, field & hasil "Gas Setrika" disembunyikan total.
    */
-  function renderGasRefTypeUI() {
+  function renderGasAcuanUI() {
     var dryers = (gasCabangCache && gasCabangCache.mesinPengering) || [];
     var setrikaUap = gasSetrikaUapList();
     var hasDryer = dryers.length > 0;
     var hasSetrikaUap = setrikaUap.length > 0;
 
-    if (!hasDryer && hasSetrikaUap) {
-      gasFormState.refType = "setrika";
-    } else if (hasDryer && !hasSetrikaUap) {
-      gasFormState.refType = "dryer";
-    }
-
-    var showToggle = hasDryer && hasSetrikaUap;
-    var toggleWrap = document.getElementById("gasRefTypeToggleWrap");
-    if (toggleWrap) toggleWrap.style.display = showToggle ? "" : "none";
-
-    document.querySelectorAll("#gasRefTypePills .pill").forEach(function (p) {
-      p.classList.toggle("active", p.getAttribute("data-val") === gasFormState.refType);
-    });
-
-    var isSetrikaMode = gasFormState.refType === "setrika";
     var dryerWrap = document.getElementById("gasDryerRefWrap");
     var setrikaWrap = document.getElementById("gasSetrikaRefWrap");
-    if (dryerWrap) dryerWrap.style.display = isSetrikaMode ? "none" : "";
-    if (setrikaWrap) setrikaWrap.style.display = isSetrikaMode ? "" : "none";
+    if (dryerWrap) dryerWrap.style.display = hasDryer ? "" : "none";
+    if (setrikaWrap) setrikaWrap.style.display = hasSetrikaUap ? "" : "none";
 
     renderGasDryerOptions();
     renderGasSetrikaOptions();
@@ -3740,7 +3719,7 @@ function selectGasCustom() {
   function renderGasForm() {
     renderGasKapasitasPills();
     syncGasFormFieldsFromState();
-    renderGasRefTypeUI();
+    renderGasAcuanUI();
     renderGasFormPreview();
   }
 
@@ -3748,10 +3727,13 @@ function selectGasCustom() {
    * renderGasFormPreview: pratinjau real-time menggunakan dryer/setrika yang
    * SEDANG dipilih di dropdown (mengikuti formState saat ini, bukan hasil
    * tersimpan sebelumnya), supaya saat user ganti-ganti acuan, angka di bawah
-   * langsung berubah tanpa perlu klik Simpan dulu.
+   * langsung berubah tanpa perlu klik Simpan dulu. Dryer & Setrika Uap
+   * dihitung DAN ditampilkan berbarengan (bukan pilihan eksklusif), masing-
+   * masing disembunyikan kalau outlet tidak punya mesin jenis itu.
    */
   function renderGasFormPreview() {
-    var isSetrikaMode = gasFormState.refType === "setrika";
+    var hasDryer = ((gasCabangCache && gasCabangCache.mesinPengering) || []).length > 0;
+    var hasSetrikaUap = gasSetrikaUapList().length > 0;
     var dryers = (gasCabangCache && gasCabangCache.mesinPengering) || [];
     var dryer = dryers.find(function (m) { return m.id === gasFormState.dryerRefId; }) || null;
     var setrika = gasSetrikaUapList().find(function (m) { return m.id === gasFormState.setrikaRefId; }) || null;
@@ -3763,20 +3745,26 @@ function selectGasCustom() {
     document.getElementById("gfBiayaJam").textContent = money0(summary.biayaPerJam);
     document.getElementById("gfBiayaMenit").textContent = formatRupiah(summary.biayaPerMenit);
     document.getElementById("gfBiayaLoad").textContent = money0(summary.biayaPerLoad);
+    document.getElementById("gfBiayaSetrikaPerJam").textContent = money0(summary.biayaGasSetrikaPerJam);
 
     var estimasiLoadCell = document.getElementById("gfEstimasiLoadCell");
     var biayaLoadRow = document.getElementById("gfBiayaLoadRow");
-    var biayaJamCell = document.getElementById("gfBiayaJamCell");
-    if (estimasiLoadCell) estimasiLoadCell.style.display = isSetrikaMode ? "none" : "";
-    if (biayaLoadRow) biayaLoadRow.style.display = isSetrikaMode ? "none" : "";
-    if (biayaJamCell) biayaJamCell.classList.toggle("highlight", isSetrikaMode);
+    var biayaSetrikaRow = document.getElementById("gfBiayaSetrikaRow");
+    if (estimasiLoadCell) estimasiLoadCell.style.display = hasDryer ? "" : "none";
+    if (biayaLoadRow) biayaLoadRow.style.display = hasDryer ? "" : "none";
+    if (biayaSetrikaRow) biayaSetrikaRow.style.display = hasSetrikaUap ? "" : "none";
 
     var warnEl = document.getElementById("gfWarning");
-    if (!summary.statusValid) {
+    var warnings = [];
+    if (hasDryer && !summary.statusValidDryer) {
+      warnings.push("Pilih mesin pengering acuan agar estimasi load dan Biaya Gas Dryer Per Load bisa dihitung.");
+    }
+    if (hasSetrikaUap && !summary.statusValidSetrika) {
+      warnings.push("Pilih mesin setrika uap acuan agar Biaya Gas Setrika Per Jam bisa dihitung.");
+    }
+    if (warnings.length) {
       warnEl.style.display = "block";
-      warnEl.textContent = isSetrikaMode
-        ? "Pilih mesin setrika uap acuan agar biaya per jam bisa dihitung."
-        : "Pilih mesin pengering acuan agar estimasi load dan biaya per load bisa dihitung.";
+      warnEl.textContent = warnings.join(" ");
     } else {
       warnEl.style.display = "none";
     }
@@ -3815,13 +3803,6 @@ function selectGasCustom() {
       renderGasFormPreview();
     });
 
-    document.querySelectorAll("#gasRefTypePills .pill").forEach(function (pill) {
-      pill.addEventListener("click", function () {
-        gasFormState.refType = pill.getAttribute("data-val");
-        renderGasRefTypeUI();
-        renderGasFormPreview();
-      });
-    });
   }
 
   function saveGasForm() {
@@ -3839,21 +3820,24 @@ function selectGasCustom() {
       gasFormState.kapasitasLabel = formatNum(customKg).replace(".", ",") + " Kg";
     }
 
-    if (gasFormState.refType === "setrika") {
-      if (!gasFormState.setrikaRefId) {
-        showToast("Pilih mesin setrika uap acuan terlebih dahulu.", "err");
-        document.getElementById("gasSetrikaRef").classList.add("input-err");
-        return;
-      }
-      document.getElementById("gasSetrikaRef").classList.remove("input-err");
-    } else {
-      if (!gasFormState.dryerRefId) {
-        showToast("Pilih mesin pengering acuan terlebih dahulu.", "err");
-        document.getElementById("gasDryerRef").classList.add("input-err");
-        return;
-      }
-      document.getElementById("gasDryerRef").classList.remove("input-err");
+    // Satu tabung gas bisa dipakai bareng untuk Dryer DAN Setrika Uap - acuan
+    // mana yang wajib diisi mengikuti mesin apa saja yang ada di profil.
+    var hasDryer = ((gasCabangCache && gasCabangCache.mesinPengering) || []).length > 0;
+    var hasSetrikaUap = gasSetrikaUapList().length > 0;
+
+    if (hasDryer && !gasFormState.dryerRefId) {
+      showToast("Pilih mesin pengering acuan terlebih dahulu.", "err");
+      document.getElementById("gasDryerRef").classList.add("input-err");
+      return;
     }
+    document.getElementById("gasDryerRef").classList.remove("input-err");
+
+    if (hasSetrikaUap && !gasFormState.setrikaRefId) {
+      showToast("Pilih mesin setrika uap acuan terlebih dahulu.", "err");
+      document.getElementById("gasSetrikaRef").classList.add("input-err");
+      return;
+    }
+    document.getElementById("gasSetrikaRef").classList.remove("input-err");
 
     var btn = document.getElementById("gasSaveBtn");
     if (btn) { btn.disabled = true; btn.textContent = "Menyimpan..."; }
