@@ -2318,29 +2318,50 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             var detailRow = function (label, value) {
               return '<div class="hl-detail-row"><span class="hl-detail-label">' + escapeHtml(label) + '</span><span class="hl-detail-value">' + value + '</span></div>';
             };
+            var kgRow = function (label, value) {
+              return '<div class="hl-detail-row"><span class="hl-detail-label">' + escapeHtml(label) + '</span><span class="hl-detail-value hl-detail-value-highlight">' + value + '</span></div>';
+            };
             var detailHtml;
             if (item.hppPerLoad !== undefined) {
-              // Kategori Drop Off/Kiloan & Hybrid: HPP sumbernya per load,
-              // Harga Jual per Kg - tampilkan dua basis sekaligus.
+              // Kategori Drop Off/Kiloan & Hybrid: HPP sumbernya per load
+              // (biaya sekali jalan mesin), Harga Jual per Kg (yang dibayar
+              // pelanggan) - dipisah 2 kotak warna beda supaya jelas kelihatan
+              // ini dua basis yang berbeda, bukan angka polos berderet.
+              var minKgLoad = item.hargaJualPerKg > 0 ? (item.hppPerLoad / item.hargaJualPerKg) : 0;
               detailHtml =
-                detailRow('Harga Jual Per Kg', money0(item.hargaJualPerKg)) +
-                detailRow('HPP Per Load', money0(item.hppPerLoad)) +
-                detailRow('Margin Per Load', money0(item.marginPerLoad)) +
-                detailRow('% Margin Per Load', formatPercent(item.marginPercentPerLoad, 1)) +
-                detailRow('HPP Per Kg', money0(item.hppPerKg)) +
-                detailRow('Margin Per Kg', money0(item.marginPerKg)) +
-                detailRow('% Margin Per Kg', formatPercent(item.marginPercentPerKg, 1));
+                '<div class="hl-detail-group hl-detail-group-load">' +
+                  '<div class="hl-detail-group-title">Basis Per Load <span class="hl-detail-group-hint">&middot; biaya sekali jalan mesin</span></div>' +
+                  detailRow('HPP Per Load', money0(item.hppPerLoad)) +
+                  detailRow('Margin Per Load', money0(item.marginPerLoad)) +
+                  detailRow('% Margin Per Load', formatPercent(item.marginPercentPerLoad, 1)) +
+                '</div>' +
+                '<div class="hl-detail-group hl-detail-group-kg">' +
+                  '<div class="hl-detail-group-title">Basis Per Kg <span class="hl-detail-group-hint">&middot; harga jual ke pelanggan</span></div>' +
+                  kgRow('Harga Jual Per Kg', money0(item.hargaJualPerKg)) +
+                  detailRow('HPP Per Kg', money0(item.hppPerKg)) +
+                  detailRow('Margin Per Kg', money0(item.marginPerKg)) +
+                  detailRow('% Margin Per Kg', formatPercent(item.marginPercentPerKg, 1)) +
+                '</div>' +
+                (minKgLoad > 0 ? '<div class="hl-detail-insight">Supaya HPP Per Load (' + money0(item.hppPerLoad) + ') tertutup, order per transaksi idealnya minimal <b>' + formatNum(minKgLoad, 1) + ' Kg</b>. Di bawah itu, hasil jual belum menutup biaya sekali jalan mesin.</div>' : '');
             } else if (item.hppPerJam !== undefined) {
               // Kategori Jasa Setrika: HPP sumbernya per Kg, "per Jam"
               // dikonversi lewat kapasitas kg/jam mesin setrika.
+              var minKgJam = item.hargaJualPerKg > 0 ? (item.hppPerJam / item.hargaJualPerKg) : 0;
               detailHtml =
-                detailRow('Harga Jual Per Kg', money0(item.hargaJualPerKg)) +
-                detailRow('HPP Per Jam', money0(item.hppPerJam)) +
-                detailRow('Margin Per Jam', money0(item.marginPerJam)) +
-                detailRow('% Margin Per Jam', formatPercent(item.marginPercentPerJam, 1)) +
-                detailRow('HPP Per Kg', money0(item.hppPerKg)) +
-                detailRow('Margin Per Kg', money0(item.marginPerKg)) +
-                detailRow('% Margin Per Kg', formatPercent(item.marginPercentPerKg, 1));
+                '<div class="hl-detail-group hl-detail-group-load">' +
+                  '<div class="hl-detail-group-title">Basis Per Jam <span class="hl-detail-group-hint">&middot; biaya mesin setrika 1 jam</span></div>' +
+                  detailRow('HPP Per Jam', money0(item.hppPerJam)) +
+                  detailRow('Margin Per Jam', money0(item.marginPerJam)) +
+                  detailRow('% Margin Per Jam', formatPercent(item.marginPercentPerJam, 1)) +
+                '</div>' +
+                '<div class="hl-detail-group hl-detail-group-kg">' +
+                  '<div class="hl-detail-group-title">Basis Per Kg <span class="hl-detail-group-hint">&middot; harga jual ke pelanggan</span></div>' +
+                  kgRow('Harga Jual Per Kg', money0(item.hargaJualPerKg)) +
+                  detailRow('HPP Per Kg', money0(item.hppPerKg)) +
+                  detailRow('Margin Per Kg', money0(item.marginPerKg)) +
+                  detailRow('% Margin Per Kg', formatPercent(item.marginPercentPerKg, 1)) +
+                '</div>' +
+                (minKgJam > 0 ? '<div class="hl-detail-insight">Supaya HPP Per Jam (' + money0(item.hppPerJam) + ') tertutup, dalam 1 jam setrika idealnya minimal <b>' + formatNum(minKgJam, 1) + ' Kg</b> yang disetrika.</div>' : '');
             } else {
               detailHtml =
                 detailRow('HPP', money0(item.hpp)) +
