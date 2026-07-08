@@ -713,15 +713,6 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             </div>
           </div>
 
-          <div class="field" id="packingLayananWrap" style="display:none;">
-            <label>Dipakai untuk layanan</label>
-            <div class="packing-layanan-row">
-              <label class="packing-layanan-check"><input type="checkbox" id="packingLayananKiloan" value="kiloan"> Kiloan (Cuci/Kering/Setrika)</label>
-              <label class="packing-layanan-check"><input type="checkbox" id="packingLayananBedCover" value="bed_cover"> Bed Cover</label>
-            </div>
-            <div class="field-hint">Kalau plastik ini cuma dipakai untuk salah satu layanan (mis. Bed Cover pakai Plastik Jinjing, kiloan pakai Plastik HD/PP), centang sesuai pemakaian supaya HPP tiap layanan tidak ikut kebebanan biaya plastik yang tidak dipakainya.</div>
-          </div>
-
           <div class="row2">
             <div class="field">
               <label for="packingIsiKemasan">Isi per kemasan</label>
@@ -4454,14 +4445,9 @@ function selectGasCustom() {
       ukuranPanjang: 0,
       ukuranLebar: 0,
       kapKgPerLembar: 0,
-      layananPacking: ["kiloan", "bed_cover"],
       createdAt: null,
       updatedAt: null
     };
-  }
-
-  function isPackingPlastikNama(nama) {
-    return (nama || "").trim().toLowerCase().indexOf("plastik") >= 0;
   }
 
   function isPackingFixedNama(nama) {
@@ -4521,11 +4507,6 @@ function selectGasCustom() {
     document.getElementById("packingUkuranPanjang").value = packingFormState.ukuranPanjang || "";
     document.getElementById("packingUkuranLebar").value = packingFormState.ukuranLebar || "";
     document.getElementById("packingKapKgPerLembar").value = packingFormState.kapKgPerLembar || "";
-    var layananArr = Array.isArray(packingFormState.layananPacking) ? packingFormState.layananPacking : [];
-    var kiloanCb = document.getElementById("packingLayananKiloan");
-    var bedCoverCb = document.getElementById("packingLayananBedCover");
-    if (kiloanCb) kiloanCb.checked = layananArr.indexOf("kiloan") >= 0;
-    if (bedCoverCb) bedCoverCb.checked = layananArr.indexOf("bed_cover") >= 0;
   }
 
   function renderPackingForm() {
@@ -4542,9 +4523,6 @@ function selectGasCustom() {
     if (fixedWrap) fixedWrap.style.display = isFixed ? "" : "none";
     if (fixedLabel) fixedLabel.textContent = packingFormState.nama || "";
     if (namaField) namaField.style.display = isFixed ? "none" : "";
-
-    var layananWrap = document.getElementById("packingLayananWrap");
-    if (layananWrap) layananWrap.style.display = isPackingPlastikNama(packingFormState.nama) ? "" : "none";
   }
 
   function computeBiayaPackingSummaryClient(record) {
@@ -4574,20 +4552,10 @@ function selectGasCustom() {
     }
   }
 
-  function updatePackingLayananFromCheckbox() {
-    var layanan = [];
-    if (document.getElementById("packingLayananKiloan").checked) layanan.push("kiloan");
-    if (document.getElementById("packingLayananBedCover").checked) layanan.push("bed_cover");
-    packingFormState.layananPacking = layanan;
-  }
-
   function bindPackingFormInputs() {
     document.getElementById("packingNama").addEventListener("input", function (e) {
       packingFormState.nama = e.target.value;
-      renderPackingFormNamaMode();
     });
-    document.getElementById("packingLayananKiloan").addEventListener("change", updatePackingLayananFromCheckbox);
-    document.getElementById("packingLayananBedCover").addEventListener("change", updatePackingLayananFromCheckbox);
     document.getElementById("packingHargaBeli").addEventListener("input", function (e) {
       var digitsOnly = e.target.value.replace(/[^0-9]/g, "");
       var numVal = Number(digitsOnly) || 0;

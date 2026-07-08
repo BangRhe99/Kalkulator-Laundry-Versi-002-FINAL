@@ -15,17 +15,6 @@
  *      1 lembar packing ini - diisi manual oleh user di form, BUKAN hasil
  *      konversi satuan otomatis seperti Modul_BiayaChemical.gs)
  *
- * LAYANAN PACKING (khusus item "plastik" — nama mengandung kata "plastik",
- * mis. Plastik HD/PP/Jinjing/custom "Plastik satuan"):
- *   Outlet kategori Drop Off/Kiloan & Hybrid bisa saja pakai jenis plastik
- *   BERBEDA untuk kiloan reguler vs Bed Cover (mis. kiloan pakai HD+PP,
- *   Bed Cover pakai Jinjing). Field layananPacking (array ["kiloan",
- *   "bed_cover"]) menandai layanan mana yang memakai item plastik ini, supaya
- *   Modul_StrukturBiayaHPP.gs bisa menjumlah biaya packing PER LAYANAN,
- *   bukan rata semua item ke semua layanan. Item NON-plastik (Isolasi, dll)
- *   sengaja tidak dibedakan — selalu dihitung di semua layanan seperti biasa,
- *   lihat isPackingPlastikNama_.
- *
  * DEPENDENSI FILE INI:
  *   - Code.gs              : KEY_BIAYA_PACKING_ORDER
  *   - Util_Umum.gs         : toSafeString_, toNumber_, clamp_, round2_,
@@ -39,8 +28,6 @@
  * DIPANGGIL OLEH FILE LAIN:
  *   - deleteBiayaPackingByCabang_ dipanggil dari Modul_Cabang.gs (deleteCabang),
  *     supaya tidak ada record packing "hantu" saat cabang induk dihapus.
- *   - isPackingPlastikNama_ dipanggil dari Modul_StrukturBiayaHPP.gs untuk
- *     menentukan item mana yang perlu dipecah per layanan.
  *
  * DAFTAR ISI:
  *   SKEMA
@@ -53,7 +40,6 @@
  *     - deleteBiayaPacking          -> hapus 1 item
  *   FUNGSI INTERNAL (dipanggil modul lain, BUKAN dari frontend)
  *     - deleteBiayaPackingByCabang_ -> cascade delete saat cabang dihapus
- *     - isPackingPlastikNama_       -> cek apakah item ini "plastik" atau bukan
  *   VALIDASI / SANITASI
  *     - sanitizeBiayaPacking_       -> bersihkan & lengkapi payload dari frontend
  *     - validateBiayaPacking_       -> tolak jika melanggar aturan bisnis
@@ -67,7 +53,6 @@
 // ============================================================================
 
 const PACKING_SATUAN_VALID_ = ["pack", "kg"];
-const PACKING_LAYANAN_VALID_ = ["kiloan", "bed_cover"];
 
 function defaultBiayaPacking_() {
   return {
@@ -80,20 +65,9 @@ function defaultBiayaPacking_() {
     ukuranPanjang: 0,
     ukuranLebar: 0,
     kapKgPerLembar: 0,
-    layananPacking: ["kiloan", "bed_cover"],
     createdAt: null,
     updatedAt: null,
   };
-}
-
-/**
- * isPackingPlastikNama_: true kalau nama item mengandung kata "plastik"
- * (case-insensitive) — mencakup Plastik HD/PP/Jinjing bawaan maupun item
- * custom seperti "Plastik satuan". Item lain (Isolasi, Label, Dus, dll)
- * TIDAK dianggap plastik, jadi tidak ikut dipecah per layanan.
- */
-function isPackingPlastikNama_(nama) {
-  return String(nama || "").trim().toLowerCase().indexOf("plastik") >= 0;
 }
 
 // ============================================================================
@@ -302,7 +276,6 @@ function sanitizeBiayaPacking_(input) {
   out.ukuranPanjang = clamp_(toNumber_(input && input.ukuranPanjang, 0), 0, 10000);
   out.ukuranLebar = clamp_(toNumber_(input && input.ukuranLebar, 0), 0, 10000);
   out.kapKgPerLembar = clamp_(toNumber_(input && input.kapKgPerLembar, 0), 0, 10000);
-  out.layananPacking = sanitizePackingLayanan_(input && input.layananPacking);
 
   out.createdAt = (input && input.createdAt) || null;
   out.updatedAt = (input && input.updatedAt) || null;
@@ -313,18 +286,6 @@ function sanitizeBiayaPacking_(input) {
 function sanitizePackingSatuan_(val) {
   const v = toSafeString_(val, "", 20).toLowerCase();
   return PACKING_SATUAN_VALID_.indexOf(v) >= 0 ? v : "";
-}
-
-/**
- * sanitizePackingLayanan_: record LAMA (belum punya field ini sama sekali,
- * val === undefined) dianggap "dipakai di semua layanan" supaya perilaku
- * lama (rata semua item) tidak berubah tiba-tiba tanpa user menyentuhnya.
- * Kalau val berupa array (termasuk array kosong hasil user uncheck semua),
- * dihormati apa adanya.
- */
-function sanitizePackingLayanan_(val) {
-  if (!Array.isArray(val)) return ["kiloan", "bed_cover"];
-  return val.filter(function (v) { return PACKING_LAYANAN_VALID_.indexOf(v) >= 0; });
 }
 
 function validateBiayaPacking_(data) {
@@ -354,11 +315,8 @@ function validateBiayaPacking_(data) {
 // ============================================================================
 //
 // computeBiayaPackingSummary_ adalah SUMBER KEBENARAN TUNGGAL untuk hitungan
-// biaya packing PER ITEM. Frontend punya salinan identik untuk pratinjau
-// real-time (lihat Index.html), tapi modul lain WAJIB panggil ini, jangan
-// duplikasi rumus. Pemecahan biaya PER LAYANAN (kiloan vs bed cover) ada di
-// Modul_StrukturBiayaHPP.gs (sumStrukturHPPPackingBiayaPerKg_), bukan di sini,
-// karena itu murni soal agregasi lintas-item, bukan kalkulasi 1 item.
+// biaya packing. Frontend punya salinan identik untuk pratinjau real-time
+// (lihat Index.html), tapi modul lain WAJIB panggil ini, jangan duplikasi rumus.
 //
 function computeBiayaPackingSummary_(record) {
   const hargaPerLembar = record.isiKemasan > 0

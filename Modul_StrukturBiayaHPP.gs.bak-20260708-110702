@@ -344,9 +344,9 @@ function normalizeStrukturHPPInput_(sources) {
   const kapasitasKgPerLoad = getWeightedMachineCost_(cabang.mesinCuci, "kapasitasKg");
 
   const chemicalItems = sources.chemical && Array.isArray(sources.chemical.items) ? sources.chemical.items : [];
-  const packingItems = sources.packing && Array.isArray(sources.packing.items) ? sources.packing.items : [];
-  const packingPerKgKiloan = sumStrukturHPPPackingBiayaPerKg_(packingItems, "kiloan");
-  const packingPerKgBedCover = sumStrukturHPPPackingBiayaPerKg_(packingItems, "bed_cover");
+  const packingTotalPerKg = sources.packing && sources.packing.totalBiayaPerKg != null
+    ? strukturHPPNumber_(sources.packing.totalBiayaPerKg, 0)
+    : 0;
 
   const listrikSetrikaRows = Array.isArray(listrikSummary.setrika) ? listrikSummary.setrika : [];
   const setrikaRpPerJam = getWeightedMachineCost_(listrikSetrikaRows, "rpListrikPerJam");
@@ -382,38 +382,13 @@ function normalizeStrukturHPPInput_(sources) {
       deterjenPerKg: strukturHPPRound2_(findStrukturHPPChemicalBiayaPerKg_(chemicalItems, "Deterjen")),
       softenerPerKg: strukturHPPRound2_(findStrukturHPPChemicalBiayaPerKg_(chemicalItems, "Softener")),
       parfumPerKg: strukturHPPRound2_(findStrukturHPPChemicalBiayaPerKg_(chemicalItems, "Parfum")),
-      packingPerKgKiloan: strukturHPPRound2_(packingPerKgKiloan),
-      packingPerKgBedCover: strukturHPPRound2_(packingPerKgBedCover),
+      packingPerKg: strukturHPPRound2_(packingTotalPerKg),
       setrikaRpPerJam: strukturHPPRound2_(setrikaRpPerJam),
       setrikaKapasitasKgPerJam: strukturHPPRound2_(setrikaKapasitasKgPerJam),
       adaMesinSetrika: adaMesinSetrika,
     },
     sourceWarnings: Array.isArray(sources.sourceWarnings) ? sources.sourceWarnings : [],
   };
-}
-
-/**
- * sumStrukturHPPPackingBiayaPerKg_: jumlah biayaPerKg semua item packing yang
- * berlaku untuk 1 layanan tertentu ("kiloan" atau "bed_cover"). Item NON-
- * plastik (Isolasi, dll — lihat isPackingPlastikNama_ di Modul_BiayaPacking.gs)
- * SELALU ikut dihitung di semua layanan (perilaku lama, tidak dibedakan).
- * Item plastik hanya ikut kalau layananPacking-nya mencantumkan layananKey ini.
- */
-function sumStrukturHPPPackingBiayaPerKg_(items, layananKey) {
-  if (!Array.isArray(items)) return 0;
-  let total = 0;
-  for (let i = 0; i < items.length; i++) {
-    const entry = items[i] || {};
-    const record = entry.record || {};
-    const summary = entry.summary || {};
-    const isPlastik = typeof isPackingPlastikNama_ === "function"
-      ? isPackingPlastikNama_(record.nama)
-      : false;
-    const layananArr = Array.isArray(record.layananPacking) ? record.layananPacking : ["kiloan", "bed_cover"];
-    const included = !isPlastik || layananArr.indexOf(layananKey) >= 0;
-    if (included) total += strukturHPPNumber_(summary.biayaPerKg, 0);
-  }
-  return total;
 }
 
 function findStrukturHPPChemicalBiayaPerKg_(items, nama) {
@@ -630,7 +605,7 @@ function buildKiloanHPPStructure_(normalized, bedCoverAktif) {
 
   const deterjenPerKg = normalized.kiloan.deterjenPerKg;
   const softenerPerKg = normalized.kiloan.softenerPerKg;
-  const packingPerKg = normalized.kiloan.packingPerKgKiloan;
+  const packingPerKg = normalized.kiloan.packingPerKg;
   const setrikaPerKg = getStrukturHPPSetrikaPerKg_(normalized);
 
   const cuciSaja = calculateHPPService_(
@@ -749,7 +724,7 @@ function buildBedCoverHPPService_(normalized) {
       { key: "deterjen", label: "Deterjen", amount: toPerLoad(normalized.kiloan.deterjenPerKg), note: kg <= 0 ? "Kapasitas kg mesin cuci belum diisi." : "" },
       { key: "softener", label: "Softener", amount: toPerLoad(normalized.kiloan.softenerPerKg), note: "" },
       { key: "parfum", label: "Parfum", amount: toPerLoad(normalized.kiloan.parfumPerKg), note: "" },
-      { key: "packing", label: "Packing", amount: toPerLoad(normalized.kiloan.packingPerKgBedCover), note: "" },
+      { key: "packing", label: "Packing", amount: toPerLoad(normalized.kiloan.packingPerKg), note: "" },
     ],
     STRUKTUR_HPP_UNIT_LABEL_ITEM_
   );
