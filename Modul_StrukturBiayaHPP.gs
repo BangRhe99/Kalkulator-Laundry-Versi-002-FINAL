@@ -995,12 +995,14 @@ function calculateHPPService_(key, title, components, unitLabelOverride) {
     });
   }
 
-  // Rumus total HPP = penjumlahan seluruh nominal komponen.
-  const total = strukturHPPRound2_(
-    cleanComponents.reduce(function (sum, item) {
-      return sum + strukturHPPNumber_(item.amount, 0);
-    }, 0)
-  );
+  // Rumus total HPP = penjumlahan nominal komponen YANG SUDAH DIBULATKAN ke
+  // Rupiah bulat (sama seperti angka yang tampil di tiap baris di layar),
+  // supaya total selalu pas dengan penjumlahan manual dari angka yang
+  // terlihat - bukan dari nilai desimal (2 angka di belakang koma) sebelum
+  // dibulatkan, yang bisa selisih 1 rupiah karena pembulatan bertingkat.
+  const total = cleanComponents.reduce(function (sum, item) {
+    return sum + Math.round(strukturHPPNumber_(item.amount, 0));
+  }, 0);
 
   // Rumus persentase = nominal komponen / total HPP × 100.
   calculateComponentPercentages_(cleanComponents, total);
