@@ -377,9 +377,16 @@ function normalizeStrukturHPPInput_(sources) {
   const packingBedCoverSums = sumStrukturHPPPackingForBedCover_(packingItems);
 
   const listrikSetrikaRows = Array.isArray(listrikSummary.setrika) ? listrikSummary.setrika : [];
+  const mesinSetrikaSemua = Array.isArray(cabang.mesinSetrika) ? cabang.mesinSetrika : [];
   const setrikaRpPerJam = getWeightedMachineCost_(listrikSetrikaRows, "rpListrikPerJam");
-  const setrikaKapasitasKgPerJam = getWeightedMachineCost_(listrikSetrikaRows, "kapasitasKgPerJam");
-  const adaMesinSetrika = Array.isArray(cabang.mesinSetrika) && cabang.mesinSetrika.length > 0;
+  // Kapasitas kg/jam diambil dari SEMUA mesin setrika (listrik & uap), bukan
+  // cuma yang bertipe listrik, karena kapasitas ini dipakai bersama untuk
+  // konversi Air Setrika & Gas Setrika juga (lihat buildKiloanHPPStructure_).
+  const setrikaKapasitasKgPerJam = getWeightedMachineCost_(mesinSetrikaSemua, "kapasitasKgPerJam");
+  const adaMesinSetrika = mesinSetrikaSemua.length > 0;
+  const adaMesinSetrikaListrik = mesinSetrikaSemua.some(function (m) { return m && m.jenis === "listrik"; });
+  const airSetrikaRpPerJam = strukturHPPNumber_(airSummary.biayaAirSetrikaUapPerJam, 0);
+  const gasSetrikaRpPerJam = getWeightedGasSetrikaCost_(gasItems, mesinSetrikaSemua);
 
   return {
     cabang: {
@@ -416,7 +423,10 @@ function normalizeStrukturHPPInput_(sources) {
       packingPerLoadBedCoverDirect: strukturHPPRound2_(packingBedCoverSums.perLoadDirect),
       setrikaRpPerJam: strukturHPPRound2_(setrikaRpPerJam),
       setrikaKapasitasKgPerJam: strukturHPPRound2_(setrikaKapasitasKgPerJam),
+      airSetrikaRpPerJam: strukturHPPRound2_(airSetrikaRpPerJam),
+      gasSetrikaRpPerJam: strukturHPPRound2_(gasSetrikaRpPerJam),
       adaMesinSetrika: adaMesinSetrika,
+      adaMesinSetrikaListrik: adaMesinSetrikaListrik,
     },
     sourceWarnings: Array.isArray(sources.sourceWarnings) ? sources.sourceWarnings : [],
   };
@@ -732,9 +742,30 @@ function buildKiloanHPPStructure_(normalized, serviceAktifMap) {
 
   const deterjenPerLoad = toPerLoad(normalized.kiloan.deterjenPerKg);
   const softenerPerLoad = toPerLoad(normalized.kiloan.softenerPerKg);
-  const packingPerLoad = toPerLoad(normalized.kiloan.packingPerKgKiloan);
-  const setrikaPerLoad = toPerLoad(getStrukturHPPSetrikaPerKg_(normalized));
+
+  // Rincian biaya Setrika per sumber energi (Air/Gas/Listrik), bukan satu
+  // baris "Setrika" gabungan - supaya biaya setrika uap (Air/Gas) ikut
+  // kehitung, tidak cuma setrika listrik seperti sebelumnya. Ketiganya
+  // dikonversi lewat kapasitas kg/jam mesin setrika (semua jenis), lalu ke
+  // per load memakai kapasitas kg mesin cuci per load.
+  const setrikaKapasitasKgPerJam = normalized.kiloan.setrikaKapasitasKgPerJam;
+  const toPerKgSetrika = function (rpPerJam) {
+    return setrikaKapasitasKgPerJam > 0 ? strukturHPPRound2_(rpPerJam / setrikaKapasitasKgPerJam) : 0;
+  };
   const setrikaNote = normalized.kiloan.adaMesinSetrika ? "" : "Belum ada mesin setrika di Profil Outlet.";
+  const airSetrikaPerLoad = toPerLoad(toPerKgSetrika(normalized.kiloan.airSetrikaRpPerJam));
+  const gasSetrikaPerLoad = toPerLoad(toPerKgSetrika(normalized.kiloan.gasSetrikaRpPerJam));
+  const listrikSetrikaPerLoad = toPerLoad(getStrukturHPPSetrikaPerKg_(normalized));
+  const buildSetrikaComponents_ = function () {
+    const comps = [
+      { key: "air_setrika", label: "Air Setrika per Load", amount: airSetrikaPerLoad, note: setrikaNote },
+      { key: "gas_setrika", label: "Gas Setrika per Load", amount: gasSetrikaPerLoad, note: "" },
+    ];
+    if (normalized.kiloan.adaMesinSetrikaListrik) {
+      comps.push({ key: "listrik_setrika", label: "Listrik Setrika per Load", amount: listrikSetrikaPerLoad, note: "" });
+    }
+    return comps;
+  };
 
   // Khusus HPP Cuci Saja: Packing diwakili "Plastik HD" saja (baris gabungan
   // "Packing" dihapus, item packing lain di luar Plastik HD tidak dihitung di
@@ -752,8 +783,9 @@ function buildKiloanHPPStructure_(normalized, serviceAktifMap) {
     };
   });
 
-  // Khusus HPP Cuci Kering Lipat: Packing diuraikan per item (Plastik HD,
-  // Plastik PP, Isolasi, dll), baris gabungan "Packing" dihapus.
+  // Khusus HPP Cuci Kering Lipat & Cuci Kering Setrika: Packing diuraikan per
+  // item (Plastik HD, Plastik PP, Isolasi, dll), baris gabungan "Packing"
+  // dihapus. Dipakai bersama oleh kedua layanan (konversinya sama).
   const packingComponentsCuciKeringLipat = packingItemsKiloan.map(function (item, idx) {
     return {
       key: "packing_" + strukturHPPSlug_(item.nama) + "_" + idx,
@@ -767,7 +799,7 @@ function buildKiloanHPPStructure_(normalized, serviceAktifMap) {
     STRUKTUR_HPP_SERVICE_KEYS_.CUCI_SAJA,
     "HPP Cuci Saja",
     [
-      { key: "air", label: "Air per Load", amount: airPerLoad, note: "" },
+      { key: "air_washer", label: "Air Washer per Load", amount: airPerLoad, note: "" },
       { key: "listrik_washer", label: "Listrik Washer per Load", amount: washerPerLoad, note: "" },
       { key: "listrik_pompa", label: "Listrik Pompa per Load", amount: pompaPerLoad, note: "" },
       { key: "app_nota", label: "Biaya App Kasir & Nota per Load", amount: appNotaPerLoad, note: "" },
@@ -781,11 +813,11 @@ function buildKiloanHPPStructure_(normalized, serviceAktifMap) {
     STRUKTUR_HPP_SERVICE_KEYS_.CUCI_KERING_LIPAT,
     "HPP Cuci Kering Lipat",
     [
-      { key: "air", label: "Air per Load", amount: airPerLoad, note: "" },
+      { key: "air_washer", label: "Air Washer per Load", amount: airPerLoad, note: "" },
       { key: "listrik_washer", label: "Listrik Washer per Load", amount: washerPerLoad, note: "" },
       { key: "listrik_pompa", label: "Listrik Pompa per Load", amount: pompaPerLoad, note: "" },
       { key: "listrik_dryer", label: "Listrik Dryer per Load", amount: dryerPerLoad, note: "" },
-      { key: "gas_lpg", label: "Gas LPG per Load", amount: gasPerLoad, note: "" },
+      { key: "gas_dryer", label: "Gas Dryer per Load", amount: gasPerLoad, note: "" },
       { key: "app_nota", label: "Biaya App Kasir & Nota per Load", amount: appNotaPerLoad, note: "" },
       { key: "deterjen", label: "Deterjen per Load", amount: deterjenPerLoad, note: kgNote },
       { key: "softener", label: "Softener per Load", amount: softenerPerLoad, note: "" },
@@ -797,27 +829,25 @@ function buildKiloanHPPStructure_(normalized, serviceAktifMap) {
     STRUKTUR_HPP_SERVICE_KEYS_.CUCI_KERING_SETRIKA,
     "HPP Cuci Kering Setrika",
     [
-      { key: "air", label: "Air per Load", amount: airPerLoad, note: "" },
+      { key: "air_washer", label: "Air Washer per Load", amount: airPerLoad, note: "" },
       { key: "listrik_washer", label: "Listrik Washer per Load", amount: washerPerLoad, note: "" },
       { key: "listrik_pompa", label: "Listrik Pompa per Load", amount: pompaPerLoad, note: "" },
       { key: "listrik_dryer", label: "Listrik Dryer per Load", amount: dryerPerLoad, note: "" },
-      { key: "gas_lpg", label: "Gas LPG per Load", amount: gasPerLoad, note: "" },
-      { key: "setrika", label: "Setrika per Load", amount: setrikaPerLoad, note: setrikaNote },
+      { key: "gas_dryer", label: "Gas Dryer per Load", amount: gasPerLoad, note: "" },
+    ].concat(buildSetrikaComponents_(), [
       { key: "app_nota", label: "Biaya App Kasir & Nota per Load", amount: appNotaPerLoad, note: "" },
       { key: "deterjen", label: "Deterjen per Load", amount: deterjenPerLoad, note: kgNote },
       { key: "softener", label: "Softener per Load", amount: softenerPerLoad, note: "" },
-      { key: "packing", label: "Packing per Load", amount: packingPerLoad, note: "" },
-    ],
+    ]).concat(packingComponentsCuciKeringLipat),
     STRUKTUR_HPP_UNIT_LABEL_
   );
 
   const setrikaSaja = calculateHPPService_(
     STRUKTUR_HPP_SERVICE_KEYS_.SETRIKA_SAJA,
     "HPP Setrika Saja",
-    [
-      { key: "setrika", label: "Setrika per Load", amount: setrikaPerLoad, note: setrikaNote },
+    buildSetrikaComponents_().concat([
       { key: "app_nota", label: "Biaya App Kasir & Nota per Load", amount: appNotaPerLoad, note: kgNote },
-    ],
+    ]),
     STRUKTUR_HPP_UNIT_LABEL_
   );
 
@@ -1114,6 +1144,40 @@ function getWeightedGasCost_(items, mesinPengering) {
 
     const dryer = findStrukturHPPMachineById_(mesinPengering, record.dryerRefId);
     const unit = dryer ? Math.max(1, strukturHPPNumber_(dryer.jumlahUnit, 1)) : 1;
+
+    totalWeighted += amount * unit;
+    totalWeight += unit;
+  }
+
+  if (totalWeight <= 0) return 0;
+
+  return strukturHPPRound2_(totalWeighted / totalWeight);
+}
+
+/**
+ * getWeightedGasSetrikaCost_: rata-rata tertimbang biaya gas PER JAM khusus
+ * baris gas yang refType-nya "setrika" (gas dipakai memanaskan setrika uap -
+ * lihat computeBiayaGasSummary_ di Modul_BiayaGas.gs, basisnya per jam bukan
+ * per load). Ditimbang dengan jumlahUnit mesin setrika acuannya.
+ */
+function getWeightedGasSetrikaCost_(items, mesinSetrika) {
+  if (!Array.isArray(items) || items.length === 0) return 0;
+
+  let totalWeighted = 0;
+  let totalWeight = 0;
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i] || {};
+    const record = item.record || {};
+    const summary = item.summary || {};
+
+    if (record.refType !== "setrika") continue;
+
+    const amount = strukturHPPNumber_(summary.biayaPerJam, 0);
+    if (amount <= 0) continue;
+
+    const setrika = findStrukturHPPMachineById_(mesinSetrika, record.setrikaRefId);
+    const unit = setrika ? Math.max(1, strukturHPPNumber_(setrika.jumlahUnit, 1)) : 1;
 
     totalWeighted += amount * unit;
     totalWeight += unit;
