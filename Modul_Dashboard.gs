@@ -383,6 +383,7 @@ function getDashboardHPPSummary(cabangId) {
       let hppCuciKering = 0;
       let errorText = "";
       let bedCoverAktif = true;
+      let serviceToggles = [];
 
       try {
         if (typeof getStrukturBiayaHPP === "function") {
@@ -391,6 +392,9 @@ function getDashboardHPPSummary(cabangId) {
             layanan = dashboardArray_(hppRes.data.layanan);
             warnings = dashboardArray_(hppRes.data.warnings);
             bedCoverAktif = hppRes.data.bedCoverAktif !== false;
+            serviceToggles = dashboardArray_(hppRes.data.serviceToggles).map(function (t) {
+              return { key: t.key || "", title: t.title || "", aktif: t.aktif !== false };
+            });
           } else {
             errorText = hppRes && hppRes.error ? hppRes.error : "HPP belum bisa dibaca.";
           }
@@ -429,6 +433,7 @@ function getDashboardHPPSummary(cabangId) {
         hppCuciKering: hppCuciKering,
         layananList: layananList,
         bedCoverAktif: bedCoverAktif,
+        serviceToggles: serviceToggles,
         warningsCount: warnings.length + (errorText ? 1 : 0),
         errorText: errorText
       };

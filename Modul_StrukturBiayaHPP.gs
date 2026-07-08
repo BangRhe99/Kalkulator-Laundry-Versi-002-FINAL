@@ -41,6 +41,25 @@ const STRUKTUR_HPP_SERVICE_KEYS_ = {
 const STRUKTUR_HPP_UNIT_LABEL_KG_ = "per kg";
 const STRUKTUR_HPP_UNIT_LABEL_ITEM_ = "per item";
 
+// Layanan kiloan/hybrid yang bisa diaktif/nonaktifkan dari kartu Struktur
+// Biaya HPP. Default semua AKTIF - laundry sengaja mematikan kalau memang
+// tidak melayani layanan tsb (mis. tidak melayani Cuci Saja).
+const STRUKTUR_HPP_TOGGLABLE_KEYS_ = [
+  STRUKTUR_HPP_SERVICE_KEYS_.CUCI_SAJA,
+  STRUKTUR_HPP_SERVICE_KEYS_.CUCI_KERING_LIPAT,
+  STRUKTUR_HPP_SERVICE_KEYS_.CUCI_KERING_SETRIKA,
+  STRUKTUR_HPP_SERVICE_KEYS_.SETRIKA_SAJA,
+  STRUKTUR_HPP_SERVICE_KEYS_.BED_COVER,
+];
+
+const STRUKTUR_HPP_KILOAN_TOGGLE_TITLES_ = [
+  { key: STRUKTUR_HPP_SERVICE_KEYS_.CUCI_SAJA, title: "HPP Cuci Saja" },
+  { key: STRUKTUR_HPP_SERVICE_KEYS_.CUCI_KERING_LIPAT, title: "HPP Cuci Kering Lipat" },
+  { key: STRUKTUR_HPP_SERVICE_KEYS_.CUCI_KERING_SETRIKA, title: "HPP Cuci Kering Setrika" },
+  { key: STRUKTUR_HPP_SERVICE_KEYS_.SETRIKA_SAJA, title: "HPP Setrika Saja" },
+  { key: STRUKTUR_HPP_SERVICE_KEYS_.BED_COVER, title: "HPP Bed Cover" },
+];
+
 // ============================================================================
 // SECTION: PUBLIC FUNCTION
 // ============================================================================
@@ -70,15 +89,23 @@ function getStrukturBiayaHPP(cabangId) {
     let layanan;
     let konsepUsaha;
     let note;
+    let serviceToggles = [];
 
     if (kategori === "jasa_setrika") {
       layanan = buildJasaSetrikaHPPStructure_(normalized);
       konsepUsaha = "Jasa Setrika";
       note = "HPP Setrika Saja dihitung dari biaya Setrika (listrik/uap) dan App Kasir & Nota.";
     } else if (kategori === "drop_off" || kategori === "hybrid") {
-      layanan = buildKiloanHPPStructure_(normalized, bedCoverAktif);
+      const serviceAktifMap = {};
+      STRUKTUR_HPP_KILOAN_TOGGLE_TITLES_.forEach(function (item) {
+        serviceAktifMap[item.key] = isHPPLayananAktif_(cabangId, item.key);
+      });
+      layanan = buildKiloanHPPStructure_(normalized, serviceAktifMap);
       konsepUsaha = kategori === "hybrid" ? "Hybrid" : "Drop Off / Kiloan";
       note = "Biaya per load (mesin cuci/pengering) dikonversi ke per Kg memakai kapasitas kg mesin cuci. Bed Cover dihitung per item (1 Bed Cover = 1 load).";
+      serviceToggles = STRUKTUR_HPP_KILOAN_TOGGLE_TITLES_.map(function (item) {
+        return { key: item.key, title: item.title, aktif: serviceAktifMap[item.key] };
+      });
     } else {
       layanan = buildSelfServiceHPPStructure_(normalized);
       konsepUsaha = "Self Service Laundry";
@@ -93,6 +120,7 @@ function getStrukturBiayaHPP(cabangId) {
         sumberAir: normalized.air.sumberAir,
         layanan: layanan,
         bedCoverAktif: bedCoverAktif,
+        serviceToggles: serviceToggles,
         warnings: validation.warnings,
         meta: {
           generatedAt: new Date().toISOString(),
@@ -653,7 +681,8 @@ function buildSelfServiceHPPStructure_(normalized) {
  * satuan per Kg (dari Modul_BiayaChemical.gs/Modul_BiayaPacking.gs), jadi
  * langsung dijumlahkan tanpa konversi lagi.
  */
-function buildKiloanHPPStructure_(normalized, bedCoverAktif) {
+function buildKiloanHPPStructure_(normalized, serviceAktifMap) {
+  const aktifMap = serviceAktifMap || {};
   const appNota = normalized.notaKasir.biayaPerLoad;
   const kg = normalized.kiloan.kapasitasKgPerLoad;
   const perKg = function (perLoadValue) {
@@ -732,9 +761,13 @@ function buildKiloanHPPStructure_(normalized, bedCoverAktif) {
     STRUKTUR_HPP_UNIT_LABEL_KG_
   );
 
-  const layanan = [cuciSaja, cuciKeringLipat, cuciKeringSetrika, setrikaSaja];
+  const layanan = [];
+  if (aktifMap[STRUKTUR_HPP_SERVICE_KEYS_.CUCI_SAJA] !== false) layanan.push(cuciSaja);
+  if (aktifMap[STRUKTUR_HPP_SERVICE_KEYS_.CUCI_KERING_LIPAT] !== false) layanan.push(cuciKeringLipat);
+  if (aktifMap[STRUKTUR_HPP_SERVICE_KEYS_.CUCI_KERING_SETRIKA] !== false) layanan.push(cuciKeringSetrika);
+  if (aktifMap[STRUKTUR_HPP_SERVICE_KEYS_.SETRIKA_SAJA] !== false) layanan.push(setrikaSaja);
 
-  if (bedCoverAktif) {
+  if (aktifMap[STRUKTUR_HPP_SERVICE_KEYS_.BED_COVER]) {
     layanan.push(buildBedCoverHPPService_(normalized));
   }
 
@@ -843,6 +876,58 @@ function setBedCoverAktif(cabangId, aktif) {
     return { ok: true, data: { cabangId: cleanId, aktif: !!aktif } };
   } catch (err) {
     return strukturHPPErrorResponse_(err, "setBedCoverAktif");
+  }
+}
+
+/**
+ * Toggle aktif/nonaktif generik utk layanan HPP kiloan (Cuci Saja, Cuci
+ * Kering Lipat, Cuci Kering Setrika, Setrika Saja) di kartu Struktur Biaya
+ * HPP. Default semua AKTIF - laundry sengaja mematikan kalau memang tidak
+ * melayani layanan tsb (mis. tidak melayani Cuci Saja). Bed Cover tetap
+ * memakai penyimpanan lama (getBedCoverToggleKey_) supaya data existing tidak
+ * hilang.
+ */
+function getHPPLayananToggleKey_(cabangId, serviceKey) {
+  return "hppLayananAktif_" + serviceKey + "_" + cabangId;
+}
+
+function isHPPLayananAktif_(cabangId, serviceKey) {
+  if (serviceKey === STRUKTUR_HPP_SERVICE_KEYS_.BED_COVER) {
+    return isBedCoverAktif_(cabangId);
+  }
+  try {
+    const sheet = ensureDataSheet_();
+    const raw = readKey_(sheet, getHPPLayananToggleKey_(cabangId, serviceKey));
+    if (!raw) return true;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed.aktif === "boolean" ? parsed.aktif : true;
+  } catch (err) {
+    return true;
+  }
+}
+
+function setHPPLayananAktif(cabangId, serviceKey, aktif) {
+  try {
+    const cleanId = typeof cabangId === "string" ? cabangId.trim() : "";
+    if (!cleanId) {
+      return { ok: false, error: "ID cabang tidak valid.", stage: "setHPPLayananAktif:validate_cabang_id" };
+    }
+    if (STRUKTUR_HPP_TOGGLABLE_KEYS_.indexOf(serviceKey) === -1) {
+      return { ok: false, error: "Layanan tidak dikenali.", stage: "setHPPLayananAktif:validate_service_key" };
+    }
+    if (serviceKey === STRUKTUR_HPP_SERVICE_KEYS_.BED_COVER) {
+      return setBedCoverAktif(cleanId, aktif);
+    }
+
+    const sheet = ensureDataSheet_();
+    writeKey_(sheet, getHPPLayananToggleKey_(cleanId, serviceKey), JSON.stringify({
+      aktif: !!aktif,
+      updatedAt: new Date().toISOString(),
+    }));
+
+    return { ok: true, data: { cabangId: cleanId, serviceKey: serviceKey, aktif: !!aktif } };
+  } catch (err) {
+    return strukturHPPErrorResponse_(err, "setHPPLayananAktif");
   }
 }
 
