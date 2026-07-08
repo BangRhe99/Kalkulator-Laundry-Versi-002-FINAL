@@ -736,26 +736,21 @@ function buildKiloanHPPStructure_(normalized, serviceAktifMap) {
   const setrikaPerLoad = toPerLoad(getStrukturHPPSetrikaPerKg_(normalized));
   const setrikaNote = normalized.kiloan.adaMesinSetrika ? "" : "Belum ada mesin setrika di Profil Outlet.";
 
-  // Khusus HPP Cuci Saja: hanya "Plastik HD" yang ditampilkan sebagai baris
-  // sendiri, item packing lain (Plastik PP, Isolasi, dll) tetap digabung jadi
-  // satu baris "Packing" seperti semula.
+  // Khusus HPP Cuci Saja: Packing diwakili "Plastik HD" saja (baris gabungan
+  // "Packing" dihapus, item packing lain di luar Plastik HD tidak dihitung di
+  // sini).
   const packingItemsKiloan = Array.isArray(normalized.kiloan.packingItemsKiloan) ? normalized.kiloan.packingItemsKiloan : [];
   const packingHdItems = packingItemsKiloan.filter(function (item) {
     return strukturHPPSlug_(item.nama) === "plastik_hd";
   });
-  const packingOtherPerKgTotal = packingItemsKiloan.reduce(function (sum, item) {
-    return strukturHPPSlug_(item.nama) === "plastik_hd" ? sum : sum + strukturHPPNumber_(item.biayaPerKg, 0);
-  }, 0);
-  const packingComponentsCuciSaja = packingHdItems
-    .map(function (item, idx) {
-      return {
-        key: "packing_plastik_hd_" + idx,
-        label: item.nama,
-        amount: toPerLoad(item.biayaPerKg),
-        note: "",
-      };
-    })
-    .concat([{ key: "packing", label: "Packing per Load", amount: toPerLoad(packingOtherPerKgTotal), note: "" }]);
+  const packingComponentsCuciSaja = packingHdItems.map(function (item, idx) {
+    return {
+      key: "packing_plastik_hd_" + idx,
+      label: item.nama,
+      amount: toPerLoad(item.biayaPerKg),
+      note: "",
+    };
+  });
 
   const cuciSaja = calculateHPPService_(
     STRUKTUR_HPP_SERVICE_KEYS_.CUCI_SAJA,
