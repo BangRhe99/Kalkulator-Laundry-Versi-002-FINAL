@@ -905,7 +905,7 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
     =================================================================== -->
     <section class="screen" id="screenNotaKasirForm">
       <div class="list-header">
-        <h1 id="notaKasirTitle">Nota</h1>
+        <h1 id="notaKasirTitle">Admin/Nota Kasir</h1>
       </div>
 
       <div class="group-divider">Sistem nota / kasir</div>
@@ -5107,7 +5107,7 @@ function selectGasCustom() {
 
     showScreen("notaKasirForm");
     document.getElementById("notaKasirTitle").textContent =
-      "Nota" + (notaKasirCabangCache.namaLaundry ? " · " + notaKasirCabangCache.namaLaundry : "");
+      "Admin/Nota Kasir" + (notaKasirCabangCache.namaLaundry ? " · " + notaKasirCabangCache.namaLaundry : "");
     renderNotaKasirForm();
     setSaveStatus("", "");
 
@@ -5121,7 +5121,7 @@ function selectGasCustom() {
         notaKasirCabangCache = res.data.cabang || notaKasirCabangCache;
         notaKasirFormState = res.data.record || notaKasirFormState;
         document.getElementById("notaKasirTitle").textContent =
-          "Nota" + (notaKasirCabangCache.namaLaundry ? " · " + notaKasirCabangCache.namaLaundry : "");
+          "Admin/Nota Kasir" + (notaKasirCabangCache.namaLaundry ? " · " + notaKasirCabangCache.namaLaundry : "");
         renderNotaKasirForm();
         setSaveStatus("", "");
       })
@@ -5170,15 +5170,15 @@ function selectGasCustom() {
           "<div class=\"pill volt\" data-val=\"biaya_bulanan_dibagi_transaksi\" onclick=\"selectNotaKasirMetode('biaya_bulanan_dibagi_transaksi')\">Biaya bulanan dibagi transaksi</div>" +
           "<div class=\"pill sage\" data-val=\"gratis_tanpa_biaya_admin\" onclick=\"selectNotaKasirMetode('gratis_tanpa_biaya_admin')\">Gratis tanpa biaya admin</div>" +
         "</div>" +
-        "<div class=\"field\" id=\"notaBiayaPerTransaksiField\">" +
+        "<div class=\"field\">" +
           "<label for=\"notaBiayaPerTransaksi\">Biaya per transaksi (Rp)</label>" +
           "<input type=\"text\" inputmode=\"numeric\" pattern=\"[0-9]*\" id=\"notaBiayaPerTransaksi\" placeholder=\"Contoh: 155\">" +
         "</div>" +
-        "<div class=\"field\" id=\"notaBiayaBulananWrap\">" +
+        "<div class=\"field\">" +
           "<label for=\"notaBiayaBulananAplikasi\">Biaya bulanan aplikasi (Rp)</label>" +
           "<input type=\"text\" inputmode=\"numeric\" pattern=\"[0-9]*\" id=\"notaBiayaBulananAplikasi\" placeholder=\"Contoh: 0\">" +
         "</div>" +
-        "<div class=\"field\" id=\"notaEstimasiTransaksiWrap\">" +
+        "<div class=\"field\">" +
           "<label for=\"notaEstimasiTransaksiPerBulan\">Estimasi transaksi per bulan</label>" +
           "<input type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"1\" id=\"notaEstimasiTransaksiPerBulan\" placeholder=\"Contoh: 300\">" +
         "</div>" +
@@ -5208,14 +5208,6 @@ function selectGasCustom() {
     }
 
     syncNotaKasirPillStates();
-
-    var metodeAplikasiAktif = notaKasirFormState.metodeBiayaAplikasi;
-    var biayaPerTransaksiField = document.getElementById("notaBiayaPerTransaksiField");
-    var biayaBulananWrap = document.getElementById("notaBiayaBulananWrap");
-    var estimasiTransaksiWrap = document.getElementById("notaEstimasiTransaksiWrap");
-    if (biayaPerTransaksiField) biayaPerTransaksiField.style.display = (metodeAplikasiAktif === "biaya_bulanan_dibagi_transaksi") ? "none" : "";
-    if (biayaBulananWrap) biayaBulananWrap.style.display = (metodeAplikasiAktif === "biaya_langsung_per_transaksi") ? "none" : "";
-    if (estimasiTransaksiWrap) estimasiTransaksiWrap.style.display = (metodeAplikasiAktif === "biaya_langsung_per_transaksi") ? "none" : "";
 
     var biayaPerTransaksiInput = document.getElementById("notaBiayaPerTransaksi");
     if (biayaPerTransaksiInput) {
