@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 ===============================================================================
 FILE: Index.html
 PROJECT: Kalkulator Laundry Versi 002
@@ -598,14 +598,9 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             <div class="field-hint">Untuk item tambahan di luar 4 chemical utama. Isi sesuai nama chemical yang dipakai, misalnya Anti noda atau Pemutih.</div>
           </div>
 
-          <div class="field" id="chemicalTipeDeterjenField" style="display:none;">
-            <label for="chemicalTipeDeterjen">Tipe Deterjen</label>
-            <select id="chemicalTipeDeterjen">
-              <option value="">Pilih tipe deterjen</option>
-              <option value="cair">Cair</option>
-              <option value="bubuk">Bubuk</option>
-              <option value="sachet">Sachet</option>
-            </select>
+          <div class="field">
+            <label for="chemicalHargaBeli">Harga beli per kemasan (Rp)</label>
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="chemicalHargaBeli" placeholder="Contoh: 25.000">
           </div>
 
           <div class="row2">
@@ -615,43 +610,20 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             </div>
             <div class="field">
               <label for="chemicalSatuanKemasan">Satuan</label>
-              <select id="chemicalSatuanKemasan">
-                <option value="">Pilih satuan</option>
-                <option value="liter">Liter</option>
-                <option value="kg">Kg</option>
-                <option value="gram">gr</option>
-                <option value="ml">ml</option>
-              </select>
+              <input type="text" id="chemicalSatuanKemasan" placeholder="gram, ml, pcs">
             </div>
           </div>
 
           <div class="field">
-            <label for="chemicalHargaBeli">Harga beli per kemasan (Rp)</label>
-            <input type="text" inputmode="numeric" pattern="[0-9]*" id="chemicalHargaBeli" placeholder="Contoh: 25.000">
-          </div>
-
-          <div class="row2">
-            <div class="field">
-              <label for="chemicalTakaranPerKg">Takaran pemakaian per Kg cucian <span class="unit-badge" id="chemicalTakaranUnitBadge">-</span></label>
-              <input type="number" inputmode="decimal" min="0" step="0.01" id="chemicalTakaranPerKg" placeholder="Contoh: 15">
-              <div class="field-hint">Pakai satuan yang sama dengan isi kemasan di atas.</div>
-            </div>
-            <div class="field">
-              <label>Konversi Satuan</label>
-              <div class="chemical-nama-fixed" id="chemicalKonversiSatuan" style="font-weight:600;">-</div>
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="chemicalCuciRef">Mesin cuci acuan (kapasitas per load)</label>
-            <select id="chemicalCuciRef"></select>
-            <div class="field-hint">Dipakai untuk menghitung Biaya Chemical Per Load berdasarkan kapasitas maksimal mesin cuci ini.</div>
+            <label for="chemicalTakaranPerKg">Takaran pemakaian per Kg cucian</label>
+            <input type="number" inputmode="decimal" min="0" step="0.01" id="chemicalTakaranPerKg" placeholder="Contoh: 15">
+            <div class="field-hint">Pakai satuan yang sama dengan isi kemasan di atas.</div>
           </div>
 
           <div class="group-divider">Hasil otomatis</div>
           <div class="gas-card-result" style="border-top:none; padding-top:0; margin-top:0;">
             <div class="gas-result-grid" style="grid-template-columns: 1fr 1fr;">
-              <div class="gas-result-cell"><div class="label">Biaya Chemical Per Load</div><div class="val" id="cfBiayaPerLoad">Rp 0</div></div>
+              <div class="gas-result-cell"><div class="label">Harga per satuan</div><div class="val" id="cfHargaPerUnit">Rp 0</div></div>
               <div class="gas-result-cell highlight"><div class="label">Biaya per Kg</div><div class="val" id="cfBiayaPerKg">Rp 0</div></div>
             </div>
             <div class="gas-warning" id="cfWarning" style="display:none;"></div>
@@ -3997,27 +3969,18 @@ function selectGasCustom() {
       id: null,
       cabangId: cabangId,
       nama: "",
-      tipeDeterjen: "",
       hargaBeli: 0,
       isiKemasan: 0,
       satuanKemasan: "",
       takaranPerKg: 0,
-      cuciRefId: "",
       createdAt: null,
       updatedAt: null
     };
   }
 
-  var CHEMICAL_KONVERSI_DASAR = { liter: 1000, kg: 1000, gram: 1, ml: 1 };
-  var CHEMICAL_SATUAN_DASAR_LABEL = { liter: "ml", ml: "ml", kg: "gram", gram: "gram" };
-
   function isChemicalFixedNama(nama) {
     var v = (nama || "").trim().toLowerCase();
     return CHEMICAL_FIXED_NAMA.some(function (n) { return n.toLowerCase() === v; });
-  }
-
-  function isChemicalDeterjenNama(nama) {
-    return (nama || "").trim().toLowerCase() === "deterjen";
   }
 
   window.openChemicalFormNew = function (presetNama) {
@@ -4066,7 +4029,6 @@ function selectGasCustom() {
 
   function syncChemicalFormFieldsFromState() {
     document.getElementById("chemicalNama").value = chemicalFormState.nama || "";
-    document.getElementById("chemicalTipeDeterjen").value = chemicalFormState.tipeDeterjen || "";
     document.getElementById("chemicalHargaBeli").value = chemicalFormState.hargaBeli ? Number(chemicalFormState.hargaBeli).toLocaleString("id-ID") : "";
     document.getElementById("chemicalIsiKemasan").value = chemicalFormState.isiKemasan || "";
     document.getElementById("chemicalSatuanKemasan").value = chemicalFormState.satuanKemasan || "";
@@ -4076,8 +4038,6 @@ function selectGasCustom() {
   function renderChemicalForm() {
     syncChemicalFormFieldsFromState();
     renderChemicalFormNamaMode();
-    renderChemicalCuciOptions();
-    renderChemicalSatuanUI();
     renderChemicalFormPreview();
   }
 
@@ -4089,73 +4049,27 @@ function selectGasCustom() {
     if (fixedWrap) fixedWrap.style.display = isFixed ? "" : "none";
     if (fixedLabel) fixedLabel.textContent = chemicalFormState.nama || "";
     if (namaField) namaField.style.display = isFixed ? "none" : "";
-
-    var isDeterjen = isChemicalDeterjenNama(chemicalFormState.nama);
-    var tipeField = document.getElementById("chemicalTipeDeterjenField");
-    if (tipeField) tipeField.style.display = isDeterjen ? "" : "none";
-  }
-
-  function renderChemicalCuciOptions() {
-    var select = document.getElementById("chemicalCuciRef");
-    if (!select) return;
-    var mesinCuci = (chemicalCabangCache && chemicalCabangCache.mesinCuci) || [];
-    select.innerHTML = "";
-    var placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = "Pilih mesin cuci acuan";
-    select.appendChild(placeholder);
-    mesinCuci.forEach(function (m, idx) {
-      var opt = document.createElement("option");
-      opt.value = m.id;
-      opt.textContent = "Unit #" + (idx + 1) + " · " + formatNum(m.kapasitasKg || 0) + " Kg";
-      if (m.id === chemicalFormState.cuciRefId) opt.selected = true;
-      select.appendChild(opt);
-    });
-  }
-
-  function renderChemicalSatuanUI() {
-    var unitLabel = CHEMICAL_SATUAN_DASAR_LABEL[chemicalFormState.satuanKemasan] || "-";
-    var badge = document.getElementById("chemicalTakaranUnitBadge");
-    if (badge) badge.textContent = unitLabel;
   }
 
   function computeBiayaChemicalSummaryClient(record) {
-    var mesinCuci = (chemicalCabangCache && chemicalCabangCache.mesinCuci) || [];
-    var faktorKonversi = CHEMICAL_KONVERSI_DASAR[record.satuanKemasan] || 0;
-    var isiKemasanDasar = record.isiKemasan * faktorKonversi;
-    var hargaPerUnit = isiKemasanDasar > 0 ? round2(record.hargaBeli / isiKemasanDasar) : 0;
-
-    var cuci = mesinCuci.find(function (m) { return m.id === record.cuciRefId; }) || null;
-    var kapasitasKgCuci = cuci ? (Number(cuci.kapasitasKg) || 0) : 0;
-
-    var pemakaianPerLoadDasar = round2(record.takaranPerKg * kapasitasKgCuci);
-    var biayaPerLoad = round2(pemakaianPerLoadDasar * hargaPerUnit);
-    var biayaPerKg = kapasitasKgCuci > 0 ? round2(biayaPerLoad / kapasitasKgCuci) : 0;
-
+    var hargaPerUnit = record.isiKemasan > 0 ? round2(record.hargaBeli / record.isiKemasan) : 0;
+    var biayaPerKg = round2(hargaPerUnit * record.takaranPerKg);
     return {
       hargaPerUnit: hargaPerUnit,
-      satuanDasar: CHEMICAL_SATUAN_DASAR_LABEL[record.satuanKemasan] || "",
-      biayaPerLoad: biayaPerLoad,
       biayaPerKg: biayaPerKg,
-      statusValid: isiKemasanDasar > 0 && record.takaranPerKg > 0 && kapasitasKgCuci > 0
+      statusValid: record.isiKemasan > 0 && record.takaranPerKg > 0
     };
   }
 
   function renderChemicalFormPreview() {
     var summary = computeBiayaChemicalSummaryClient(chemicalFormState);
-
-    var konversiEl = document.getElementById("chemicalKonversiSatuan");
-    if (konversiEl) {
-      konversiEl.textContent = summary.satuanDasar ? (money0(summary.hargaPerUnit) + " / " + summary.satuanDasar) : "-";
-    }
-
-    document.getElementById("cfBiayaPerLoad").textContent = money0(summary.biayaPerLoad);
+    document.getElementById("cfHargaPerUnit").textContent = money0(summary.hargaPerUnit);
     document.getElementById("cfBiayaPerKg").textContent = money0(summary.biayaPerKg);
 
     var warnEl = document.getElementById("cfWarning");
     if (!summary.statusValid) {
       warnEl.style.display = "block";
-      warnEl.textContent = "Lengkapi isi kemasan, satuan, takaran per Kg, dan mesin cuci acuan supaya biaya bisa dihitung.";
+      warnEl.textContent = "Isi kemasan dan takaran per Kg harus lebih dari 0 supaya biaya bisa dihitung.";
     } else {
       warnEl.style.display = "none";
     }
@@ -4164,11 +4078,6 @@ function selectGasCustom() {
   function bindChemicalFormInputs() {
     document.getElementById("chemicalNama").addEventListener("input", function (e) {
       chemicalFormState.nama = e.target.value;
-      renderChemicalFormNamaMode();
-      renderChemicalFormPreview();
-    });
-    document.getElementById("chemicalTipeDeterjen").addEventListener("change", function (e) {
-      chemicalFormState.tipeDeterjen = e.target.value;
     });
     document.getElementById("chemicalHargaBeli").addEventListener("input", function (e) {
       var digitsOnly = e.target.value.replace(/[^0-9]/g, "");
@@ -4181,17 +4090,11 @@ function selectGasCustom() {
       chemicalFormState.isiKemasan = Number(e.target.value) || 0;
       renderChemicalFormPreview();
     });
-    document.getElementById("chemicalSatuanKemasan").addEventListener("change", function (e) {
+    document.getElementById("chemicalSatuanKemasan").addEventListener("input", function (e) {
       chemicalFormState.satuanKemasan = e.target.value;
-      renderChemicalSatuanUI();
-      renderChemicalFormPreview();
     });
     document.getElementById("chemicalTakaranPerKg").addEventListener("input", function (e) {
       chemicalFormState.takaranPerKg = Number(e.target.value) || 0;
-      renderChemicalFormPreview();
-    });
-    document.getElementById("chemicalCuciRef").addEventListener("change", function (e) {
-      chemicalFormState.cuciRefId = e.target.value;
       renderChemicalFormPreview();
     });
   }

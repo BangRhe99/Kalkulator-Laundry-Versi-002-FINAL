@@ -1,4 +1,4 @@
-<!--
+﻿<!--
 ===============================================================================
 FILE: Style_Components.html
 PROJECT: Kalkulator Laundry Versi 002
@@ -987,7 +987,7 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
     color: var(--text);
   }
 
-  #packingNamaFixedWrap .chemical-nama-fixed::after {
+  .chemical-nama-fixed::after {
     content: "Permanen";
     flex-shrink: 0;
     font-size: 10px;
@@ -998,19 +998,6 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
     border: 1px solid var(--border);
     border-radius: 999px;
     padding: 3px 9px;
-  }
-
-  .unit-badge {
-    display: inline-block;
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--text-faint);
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 1px 8px;
-    margin-left: 6px;
-    vertical-align: middle;
   }
 
   input[type="text"], input[type="number"], select {

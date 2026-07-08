@@ -7,19 +7,16 @@
  * (Deterjen, Softener, Parfum, Pelicin, dst — item bebas ditambah/dihapus,
  * bukan daftar tetap, karena tiap laundry pakai kombinasi berbeda).
  *
+ * BEDA dari Gas: tidak ada acuan mesin (dryerRefId). Basis hitungannya murni
+ * per Kg cucian, bukan per load — dipilih begitu karena fitur ini dipakai
+ * outlet kategori Drop Off/Kiloan & Hybrid yang memang menagih customer per Kg.
+ *
  * DASAR RUMUS (baca sebelum mengubah computeBiayaChemicalSummary_):
- *   1. isiKemasan dikonversi ke satuan dasar lewat CHEMICAL_KONVERSI_DASAR_
- *      (Liter/ml -> ml, Kg/gram -> gram), supaya harga kemasan yang ditulis
- *      per Liter tetap bisa dibandingkan dengan takaran yang ditulis dalam ml.
- *   2. hargaPerUnit = hargaBeli / isiKemasanDasar (Rp per ml atau per gram)
- *   3. Record WAJIB merujuk (cuciRefId) ke SATU baris mesinCuci milik cabang
- *      yang sama, untuk tahu kapasitas maksimal (kg) satu kali load.
- *   4. biayaPerLoad = (takaranPerKg * kapasitasKg mesin acuan) * hargaPerUnit
- *   5. biayaPerKg   = biayaPerLoad / kapasitasKg mesin acuan
- *      (Catatan: biayaPerKg secara aljabar = takaranPerKg * hargaPerUnit,
- *      sama seperti rumus lama sebelum ada mesin acuan — tapi sekarang
- *      cuciRefId wajib diisi supaya angka "Biaya Chemical Per Load" bisa
- *      ditampilkan ke user.)
+ *   1. hargaPerUnit = hargaBeli / isiKemasan
+ *      (Rp per satuan terkecil, mis. Rp per gram/ml/pcs)
+ *   2. biayaPerKg = hargaPerUnit * takaranPerKg
+ *      (takaranPerKg HARUS dalam satuan yang sama dengan isiKemasan — ini
+ *      tanggung jawab user saat isi form, tidak ada konversi satuan otomatis)
  *
  * DEPENDENSI FILE INI:
  *   - Code.gs              : KEY_BIAYA_CHEMICAL_ORDER
@@ -30,10 +27,6 @@
  *                            appendToOrder_, removeFromOrder_
  *   - Migrasi_Skema.gs     : ensureMigrated_
  *   - Modul_Cabang.gs      : sanitizeCabang_ (membaca profil cabang pemilik)
- *   - Modul_BiayaGas.gs    : findMachineById_, JENIS_MESIN_LABEL_ (dipakai
- *                            bersama utk cari & label baris mesinCuci acuan —
- *                            JANGAN duplikasi, file ini sengaja tidak
- *                            mendeklarasikan ulang keduanya)
  *
  * DIPANGGIL OLEH FILE LAIN:
  *   - deleteBiayaChemicalByCabang_ dipanggil dari Modul_Cabang.gs (deleteCabang),
@@ -62,20 +55,15 @@
 // SECTION: SKEMA / DEFAULT — MASTER BIAYA (CHEMICAL)
 // ============================================================================
 
-const CHEMICAL_KONVERSI_DASAR_ = { liter: 1000, kg: 1000, gram: 1, ml: 1 };
-const CHEMICAL_SATUAN_DASAR_LABEL_ = { liter: "ml", ml: "ml", kg: "gram", gram: "gram" };
-
 function defaultBiayaChemical_() {
   return {
     id: "",
     cabangId: "",
     nama: "",
-    tipeDeterjen: "",
     hargaBeli: 0,
     isiKemasan: 0,
     satuanKemasan: "",
     takaranPerKg: 0,
-    cuciRefId: "",
     createdAt: null,
     updatedAt: null,
   };
@@ -111,18 +99,14 @@ function listBiayaChemical(cabangId) {
       if (!raw) continue;
       const record = sanitizeBiayaChemical_(JSON.parse(raw));
       if (record.cabangId !== cabangId) continue;
-      const summary = computeBiayaChemicalSummary_(record, cabang);
+      const summary = computeBiayaChemicalSummary_(record);
       items.push({ record: record, summary: summary });
       totalBiayaPerKg += summary.biayaPerKg;
     }
     return {
       ok: true,
       data: {
-        cabang: {
-          id: cabang.id,
-          namaLaundry: cabang.profil.namaLaundry,
-          mesinCuci: cabang.mesinCuci,
-        },
+        cabang: { id: cabang.id, namaLaundry: cabang.profil.namaLaundry },
         items: items,
         totalBiayaPerKg: round2_(totalBiayaPerKg),
       },
@@ -147,14 +131,7 @@ function getBiayaChemical(id) {
       return { ok: false, error: "Data chemical tidak ditemukan. Mungkin sudah dihapus.", stage: "getBiayaChemical:lookup" };
     }
     const record = sanitizeBiayaChemical_(JSON.parse(raw));
-
-    const cabangRaw = readKey_(sheet, "cabang_" + record.cabangId);
-    if (!cabangRaw) {
-      return { ok: false, error: "Cabang pemilik data ini sudah tidak ada.", stage: "getBiayaChemical:lookup_cabang" };
-    }
-    const cabang = sanitizeCabang_(JSON.parse(cabangRaw));
-
-    return { ok: true, data: { record: record, summary: computeBiayaChemicalSummary_(record, cabang) } };
+    return { ok: true, data: { record: record, summary: computeBiayaChemicalSummary_(record) } };
   } catch (err) {
     return errorResponse_(err, "getBiayaChemical");
   }
@@ -176,7 +153,6 @@ function createBiayaChemical(payload) {
     if (!cabangRaw) {
       return { ok: false, error: "Cabang tujuan tidak ditemukan. Pilih cabang terlebih dahulu.", stage: "createBiayaChemical:lookup_cabang" };
     }
-    const cabang = sanitizeCabang_(JSON.parse(cabangRaw));
 
     const clean = sanitizeBiayaChemical_(payload);
     clean.id = newId_("chem");
@@ -185,7 +161,7 @@ function createBiayaChemical(payload) {
     clean.createdAt = now;
     clean.updatedAt = now;
 
-    const validation = validateBiayaChemical_(clean, cabang);
+    const validation = validateBiayaChemical_(clean);
     if (!validation.valid) {
       return { ok: false, error: validation.message, stage: "createBiayaChemical:validate_business_rules" };
     }
@@ -193,7 +169,7 @@ function createBiayaChemical(payload) {
     writeKey_(sheet, "biayaChemical_" + clean.id, JSON.stringify(clean));
     appendToOrder_(sheet, KEY_BIAYA_CHEMICAL_ORDER, clean.id);
 
-    return { ok: true, data: { record: clean, summary: computeBiayaChemicalSummary_(clean, cabang) } };
+    return { ok: true, data: { record: clean, summary: computeBiayaChemicalSummary_(clean) } };
   } catch (err) {
     return errorResponse_(err, "createBiayaChemical");
   }
@@ -220,25 +196,19 @@ function updateBiayaChemical(id, payload) {
     }
     const existing = JSON.parse(existingRaw);
 
-    const cabangRaw = readKey_(sheet, "cabang_" + existing.cabangId);
-    if (!cabangRaw) {
-      return { ok: false, error: "Cabang pemilik data ini sudah tidak ada.", stage: "updateBiayaChemical:lookup_cabang" };
-    }
-    const cabang = sanitizeCabang_(JSON.parse(cabangRaw));
-
     const clean = sanitizeBiayaChemical_(payload);
     clean.id = id;
     clean.cabangId = existing.cabangId;
     clean.createdAt = existing.createdAt || new Date().toISOString();
     clean.updatedAt = new Date().toISOString();
 
-    const validation = validateBiayaChemical_(clean, cabang);
+    const validation = validateBiayaChemical_(clean);
     if (!validation.valid) {
       return { ok: false, error: validation.message, stage: "updateBiayaChemical:validate_business_rules" };
     }
 
     writeKey_(sheet, "biayaChemical_" + id, JSON.stringify(clean));
-    return { ok: true, data: { record: clean, summary: computeBiayaChemicalSummary_(clean, cabang) } };
+    return { ok: true, data: { record: clean, summary: computeBiayaChemicalSummary_(clean) } };
   } catch (err) {
     return errorResponse_(err, "updateBiayaChemical");
   }
@@ -299,12 +269,10 @@ function sanitizeBiayaChemical_(input) {
   out.id = toSafeString_(input && input.id, "", 60);
   out.cabangId = toSafeString_(input && input.cabangId, "", 60);
   out.nama = toSafeString_(input && input.nama, "", 60);
-  out.tipeDeterjen = sanitizeTipeDeterjen_(input && input.tipeDeterjen);
   out.hargaBeli = clamp_(toNumber_(input && input.hargaBeli, 0), 0, 100000000);
   out.isiKemasan = clamp_(toNumber_(input && input.isiKemasan, 0), 0, 1000000);
-  out.satuanKemasan = sanitizeSatuanKemasan_(input && input.satuanKemasan);
+  out.satuanKemasan = toSafeString_(input && input.satuanKemasan, "", 20);
   out.takaranPerKg = clamp_(toNumber_(input && input.takaranPerKg, 0), 0, 100000);
-  out.cuciRefId = toSafeString_(input && input.cuciRefId, "", 60);
 
   out.createdAt = (input && input.createdAt) || null;
   out.updatedAt = (input && input.updatedAt) || null;
@@ -312,17 +280,7 @@ function sanitizeBiayaChemical_(input) {
   return out;
 }
 
-function sanitizeTipeDeterjen_(val) {
-  const v = toSafeString_(val, "", 20).toLowerCase();
-  return ["cair", "bubuk", "sachet"].indexOf(v) >= 0 ? v : "";
-}
-
-function sanitizeSatuanKemasan_(val) {
-  const v = toSafeString_(val, "", 20).toLowerCase();
-  return CHEMICAL_KONVERSI_DASAR_.hasOwnProperty(v) ? v : "";
-}
-
-function validateBiayaChemical_(data, cabang) {
+function validateBiayaChemical_(data) {
   if (!data.cabangId) {
     return { valid: false, message: "Cabang belum ditentukan." };
   }
@@ -336,17 +294,10 @@ function validateBiayaChemical_(data, cabang) {
     return { valid: false, message: "Isi per kemasan harus lebih dari 0." };
   }
   if (data.satuanKemasan.length === 0) {
-    return { valid: false, message: "Satuan kemasan belum dipilih (Liter, Kg, gr, atau ml)." };
+    return { valid: false, message: "Satuan kemasan belum diisi (contoh: gram, ml, pcs)." };
   }
   if (data.takaranPerKg <= 0) {
     return { valid: false, message: "Takaran pemakaian per Kg harus lebih dari 0." };
-  }
-  if (!data.cuciRefId) {
-    return { valid: false, message: "Pilih mesin cuci acuan untuk hitungan Biaya Chemical Per Load." };
-  }
-  const cuciExists = (cabang.mesinCuci || []).some(function (m) { return m.id === data.cuciRefId; });
-  if (!cuciExists) {
-    return { valid: false, message: "Mesin cuci acuan tidak ditemukan di profil cabang ini. Mungkin baris mesin itu sudah dihapus — pilih ulang acuannya." };
   }
   return { valid: true, message: "" };
 }
@@ -359,32 +310,15 @@ function validateBiayaChemical_(data, cabang) {
 // biaya chemical. Frontend punya salinan identik untuk pratinjau real-time
 // (lihat Index.html), tapi modul lain WAJIB panggil ini, jangan duplikasi rumus.
 //
-function computeBiayaChemicalSummary_(record, cabang) {
-  const faktorKonversi = CHEMICAL_KONVERSI_DASAR_[record.satuanKemasan] || 0;
-  const isiKemasanDasar = record.isiKemasan * faktorKonversi;
-  const hargaPerUnit = isiKemasanDasar > 0
-    ? round2_(record.hargaBeli / isiKemasanDasar)
+function computeBiayaChemicalSummary_(record) {
+  const hargaPerUnit = record.isiKemasan > 0
+    ? round2_(record.hargaBeli / record.isiKemasan)
     : 0;
-
-  const cuci = findMachineById_(cabang.mesinCuci, record.cuciRefId);
-  const kapasitasKgCuci = cuci ? toNumber_(cuci.kapasitasKg, 0) : 0;
-
-  const pemakaianPerLoadDasar = round2_(record.takaranPerKg * kapasitasKgCuci);
-  const biayaPerLoad = round2_(pemakaianPerLoadDasar * hargaPerUnit);
-  const biayaPerKg = kapasitasKgCuci > 0 ? round2_(biayaPerLoad / kapasitasKgCuci) : 0;
+  const biayaPerKg = round2_(hargaPerUnit * record.takaranPerKg);
 
   return {
     hargaPerUnit: hargaPerUnit,
-    satuanDasar: CHEMICAL_SATUAN_DASAR_LABEL_[record.satuanKemasan] || "",
-    cuciRefNama: cuci ? chemicalCuciDisplayName_(cuci) : "(mesin tidak ditemukan)",
-    kapasitasKgCuci: kapasitasKgCuci,
-    biayaPerLoad: biayaPerLoad,
     biayaPerKg: biayaPerKg,
-    statusValid: isiKemasanDasar > 0 && record.takaranPerKg > 0 && kapasitasKgCuci > 0,
+    statusValid: record.isiKemasan > 0 && record.takaranPerKg > 0,
   };
-}
-
-function chemicalCuciDisplayName_(m) {
-  const jenis = JENIS_MESIN_LABEL_[m.jenis] || "Mesin Cuci";
-  return jenis + " · " + (m.kapasitasKg || 0) + " Kg";
 }
