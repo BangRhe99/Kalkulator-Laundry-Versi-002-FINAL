@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ============================================================================
  * MODUL: DASHBOARD MENU UTAMA
  * ============================================================================
@@ -194,15 +194,6 @@ function getDashboardMasterBiayaSummary(cabangId) {
         }
       } catch (e) {}
       if (notaComplete) lengkapCount++; else missing.push("Nota/Kasir");
-
-      let chemicalComplete = false;
-      try {
-        if (typeof listBiayaChemical === "function") {
-          const chemicalRes = listBiayaChemical(cabangId);
-          chemicalComplete = !!(chemicalRes && chemicalRes.ok && chemicalRes.data && Array.isArray(chemicalRes.data.items) && chemicalRes.data.items.length > 0);
-        }
-      } catch (e) {}
-      if (chemicalComplete) lengkapCount++; else missing.push("Chemical");
       // Ambil nilai biaya per load per komponen
       const komponenBiaya = [];
       let totalBiayaPerLoad = 0;
@@ -282,25 +273,6 @@ function getDashboardMasterBiayaSummary(cabangId) {
         }
       } catch(e) {}
 
-      try {
-        if (typeof listBiayaChemical === "function") {
-          const chemicalRes = listBiayaChemical(cabangId);
-          if (chemicalRes && chemicalRes.ok && chemicalRes.data && chemicalRes.data.items) {
-            // Akumulasi biayaPerLoad SEMUA item chemical (Deterjen, Softener,
-            // Parfum, Pelicin, dan item tambahan lain) jadi satu angka total.
-            let chemicalTotalPerLoad = 0;
-            dashboardArray_(chemicalRes.data.items).forEach(function(c) {
-              const s = c.summary || {};
-              chemicalTotalPerLoad += dashboardNumber_(s.biayaPerLoad, 0);
-            });
-            if (chemicalComplete) {
-              komponenBiaya.push({ key: "chemical", label: "Chemical", biayaPerLoad: dashboardRound2_(chemicalTotalPerLoad) });
-              totalBiayaPerLoad += chemicalTotalPerLoad;
-            }
-          }
-        }
-      } catch(e) {}
-
       totalBiayaPerLoad = dashboardRound2_(totalBiayaPerLoad);
       komponenBiaya.forEach(function(k) {
         k.persen = totalBiayaPerLoad > 0 ? dashboardRound2_(k.biayaPerLoad / totalBiayaPerLoad * 100) : 0;
@@ -310,8 +282,8 @@ function getDashboardMasterBiayaSummary(cabangId) {
         cabangId: cabangId,
         namaLaundry: dashboardOutletName_(item),
         lengkapCount: lengkapCount,
-        totalKomponen: 5,
-        isComplete: lengkapCount === 5,
+        totalKomponen: 4,
+        isComplete: lengkapCount === 4,
         missing: missing,
         komponenBiaya: komponenBiaya,
         totalBiayaPerLoad: totalBiayaPerLoad
