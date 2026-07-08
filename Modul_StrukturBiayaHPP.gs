@@ -752,6 +752,17 @@ function buildKiloanHPPStructure_(normalized, serviceAktifMap) {
     };
   });
 
+  // Khusus HPP Cuci Kering Lipat: Packing diuraikan per item (Plastik HD,
+  // Plastik PP, Isolasi, dll), baris gabungan "Packing" dihapus.
+  const packingComponentsCuciKeringLipat = packingItemsKiloan.map(function (item, idx) {
+    return {
+      key: "packing_" + strukturHPPSlug_(item.nama) + "_" + idx,
+      label: item.nama,
+      amount: toPerLoad(item.biayaPerKg),
+      note: "",
+    };
+  });
+
   const cuciSaja = calculateHPPService_(
     STRUKTUR_HPP_SERVICE_KEYS_.CUCI_SAJA,
     "HPP Cuci Saja",
@@ -778,8 +789,7 @@ function buildKiloanHPPStructure_(normalized, serviceAktifMap) {
       { key: "app_nota", label: "Biaya App Kasir & Nota per Load", amount: appNotaPerLoad, note: "" },
       { key: "deterjen", label: "Deterjen per Load", amount: deterjenPerLoad, note: kgNote },
       { key: "softener", label: "Softener per Load", amount: softenerPerLoad, note: "" },
-      { key: "packing", label: "Packing per Load", amount: packingPerLoad, note: "" },
-    ],
+    ].concat(packingComponentsCuciKeringLipat),
     STRUKTUR_HPP_UNIT_LABEL_
   );
 
