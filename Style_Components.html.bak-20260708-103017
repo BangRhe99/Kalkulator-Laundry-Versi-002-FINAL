@@ -988,20 +988,17 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
     color: var(--text);
   }
 
-  .ukuran-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .ukuran-row input {
-    flex: 1;
-    min-width: 0;
-  }
-  .ukuran-row .ukuran-x {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text-faint);
+  #packingNamaFixedWrap .chemical-nama-fixed::after {
+    content: "Permanen";
     flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--text-faint);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px 9px;
   }
 
   .unit-badge {

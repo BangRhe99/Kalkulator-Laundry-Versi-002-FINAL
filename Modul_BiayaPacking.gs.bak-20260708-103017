@@ -4,16 +4,19 @@
  * ============================================================================
  * Fitur ini mengelola biaya kemasan/packing per cabang. Seperti Modul_BiayaGas,
  * ini MULTI-RECORD: satu cabang bisa punya banyak item packing sekaligus
- * (Plastik HD, Label, Dus, dst - item bebas ditambah/dihapus,
+ * (Plastik HD, Label, Dus, dst — item bebas ditambah/dihapus,
  * bukan daftar tetap, karena tiap laundry pakai kombinasi berbeda).
  *
+ * BEDA dari Gas: tidak ada acuan mesin (dryerRefId). Basis hitungannya murni
+ * per Kg cucian, bukan per load — dipilih begitu karena fitur ini dipakai
+ * outlet kategori Drop Off/Kiloan & Hybrid yang memang menagih customer per Kg.
+ *
  * DASAR RUMUS (baca sebelum mengubah computeBiayaPackingSummary_):
- *   1. hargaPerLembar = hargaBeli / isiKemasan (Rp per lembar/pcs kemasan)
- *   2. biayaPerLoad = hargaPerLembar (asumsi 1 lembar dipakai per pemakaian)
- *   3. biayaPerKg = biayaPerLoad / kapKgPerLembar
- *      (kapKgPerLembar = kapasitas berapa Kg cucian yang bisa dibungkus oleh
- *      1 lembar packing ini - diisi manual oleh user di form, BUKAN hasil
- *      konversi satuan otomatis seperti Modul_BiayaChemical.gs)
+ *   1. hargaPerUnit = hargaBeli / isiKemasan
+ *      (Rp per satuan terkecil, mis. Rp per gram/ml/pcs)
+ *   2. biayaPerKg = hargaPerUnit * takaranPerKg
+ *      (takaranPerKg HARUS dalam satuan yang sama dengan isiKemasan — ini
+ *      tanggung jawab user saat isi form, tidak ada konversi satuan otomatis)
  *
  * DEPENDENSI FILE INI:
  *   - Code.gs              : KEY_BIAYA_PACKING_ORDER
@@ -52,8 +55,6 @@
 // SECTION: SKEMA / DEFAULT — MASTER BIAYA (PACKING)
 // ============================================================================
 
-const PACKING_SATUAN_VALID_ = ["pack", "kg"];
-
 function defaultBiayaPacking_() {
   return {
     id: "",
@@ -62,16 +63,14 @@ function defaultBiayaPacking_() {
     hargaBeli: 0,
     isiKemasan: 0,
     satuanKemasan: "",
-    ukuranPanjang: 0,
-    ukuranLebar: 0,
-    kapKgPerLembar: 0,
+    takaranPerKg: 0,
     createdAt: null,
     updatedAt: null,
   };
 }
 
 // ============================================================================
-// SECTION: FUNGSI PUBLIK — CRUD MASTER BIAYA PACKING
+// SECTION: FUNGSI PUBLIK — CRUD MASTER BIAYA CHEMICAL
 // ============================================================================
 
 /**
@@ -261,7 +260,7 @@ function deleteBiayaPackingByCabang_(sheet, cabangId) {
 }
 
 // ----------------------------------------------------------------------------
-// VALIDASI / SANITASI — MASTER BIAYA PACKING
+// VALIDASI / SANITASI — MASTER BIAYA CHEMICAL
 // ----------------------------------------------------------------------------
 
 function sanitizeBiayaPacking_(input) {
@@ -272,20 +271,13 @@ function sanitizeBiayaPacking_(input) {
   out.nama = toSafeString_(input && input.nama, "", 60);
   out.hargaBeli = clamp_(toNumber_(input && input.hargaBeli, 0), 0, 100000000);
   out.isiKemasan = clamp_(toNumber_(input && input.isiKemasan, 0), 0, 1000000);
-  out.satuanKemasan = sanitizePackingSatuan_(input && input.satuanKemasan);
-  out.ukuranPanjang = clamp_(toNumber_(input && input.ukuranPanjang, 0), 0, 10000);
-  out.ukuranLebar = clamp_(toNumber_(input && input.ukuranLebar, 0), 0, 10000);
-  out.kapKgPerLembar = clamp_(toNumber_(input && input.kapKgPerLembar, 0), 0, 10000);
+  out.satuanKemasan = toSafeString_(input && input.satuanKemasan, "", 20);
+  out.takaranPerKg = clamp_(toNumber_(input && input.takaranPerKg, 0), 0, 100000);
 
   out.createdAt = (input && input.createdAt) || null;
   out.updatedAt = (input && input.updatedAt) || null;
 
   return out;
-}
-
-function sanitizePackingSatuan_(val) {
-  const v = toSafeString_(val, "", 20).toLowerCase();
-  return PACKING_SATUAN_VALID_.indexOf(v) >= 0 ? v : "";
 }
 
 function validateBiayaPacking_(data) {
@@ -302,16 +294,16 @@ function validateBiayaPacking_(data) {
     return { valid: false, message: "Isi per kemasan harus lebih dari 0." };
   }
   if (data.satuanKemasan.length === 0) {
-    return { valid: false, message: "Satuan kemasan belum dipilih (Pack atau Kg)." };
+    return { valid: false, message: "Satuan kemasan belum diisi (contoh: gram, ml, pcs)." };
   }
-  if (data.kapKgPerLembar <= 0) {
-    return { valid: false, message: "Kap Kg Per Lembar harus lebih dari 0." };
+  if (data.takaranPerKg <= 0) {
+    return { valid: false, message: "Takaran pemakaian per Kg harus lebih dari 0." };
   }
   return { valid: true, message: "" };
 }
 
 // ============================================================================
-// SECTION: KALKULASI MASTER BIAYA PACKING
+// SECTION: KALKULASI MASTER BIAYA CHEMICAL
 // ============================================================================
 //
 // computeBiayaPackingSummary_ adalah SUMBER KEBENARAN TUNGGAL untuk hitungan
@@ -319,18 +311,14 @@ function validateBiayaPacking_(data) {
 // (lihat Index.html), tapi modul lain WAJIB panggil ini, jangan duplikasi rumus.
 //
 function computeBiayaPackingSummary_(record) {
-  const hargaPerLembar = record.isiKemasan > 0
+  const hargaPerUnit = record.isiKemasan > 0
     ? round2_(record.hargaBeli / record.isiKemasan)
     : 0;
-  const biayaPerLoad = hargaPerLembar;
-  const biayaPerKg = record.kapKgPerLembar > 0
-    ? round2_(biayaPerLoad / record.kapKgPerLembar)
-    : 0;
+  const biayaPerKg = round2_(hargaPerUnit * record.takaranPerKg);
 
   return {
-    hargaPerUnit: hargaPerLembar,
-    biayaPerLoad: biayaPerLoad,
+    hargaPerUnit: hargaPerUnit,
     biayaPerKg: biayaPerKg,
-    statusValid: record.isiKemasan > 0 && record.kapKgPerLembar > 0,
+    statusValid: record.isiKemasan > 0 && record.takaranPerKg > 0,
   };
 }

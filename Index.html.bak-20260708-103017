@@ -695,22 +695,20 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
         </div>
         <div class="panel-body">
 
-          <div class="row2">
-            <div class="field">
-              <div id="packingNamaFixedWrap" style="display:none;">
-                <label>Nama item</label>
-                <div class="chemical-nama-fixed" id="packingNamaFixedLabel">-</div>
-              </div>
-              <div id="packingNamaField">
-                <label for="packingNama">Nama item</label>
-                <input type="text" id="packingNama" placeholder="Contoh: Plastik satuan, Label, Dus">
-                <div class="field-hint">Untuk item tambahan di luar 4 packing utama. Isi sesuai nama packing yang dipakai, misalnya Plastik satuan atau Label.</div>
-              </div>
-            </div>
-            <div class="field">
-              <label for="packingHargaBeli">Harga beli per kemasan (Rp)</label>
-              <input type="text" inputmode="numeric" pattern="[0-9]*" id="packingHargaBeli" placeholder="Contoh: 25.000">
-            </div>
+          <div class="field" id="packingNamaFixedWrap" style="display:none;">
+            <label>Nama item</label>
+            <div class="chemical-nama-fixed" id="packingNamaFixedLabel">-</div>
+          </div>
+
+          <div class="field" id="packingNamaField">
+            <label for="packingNama">Nama item</label>
+            <input type="text" id="packingNama" placeholder="Contoh: Plastik satuan, Label, Dus">
+            <div class="field-hint">Untuk item tambahan di luar 4 packing utama. Isi sesuai nama packing yang dipakai, misalnya Plastik satuan atau Label.</div>
+          </div>
+
+          <div class="field">
+            <label for="packingHargaBeli">Harga beli per kemasan (Rp)</label>
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="packingHargaBeli" placeholder="Contoh: 25.000">
           </div>
 
           <div class="row2">
@@ -720,45 +718,20 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
             </div>
             <div class="field">
               <label for="packingSatuanKemasan">Satuan</label>
-              <select id="packingSatuanKemasan">
-                <option value="">Pilih satuan</option>
-                <option value="pack">Pack</option>
-                <option value="kg">Kg</option>
-              </select>
+              <input type="text" id="packingSatuanKemasan" placeholder="gram, ml, pcs">
             </div>
           </div>
 
           <div class="field">
-            <label>Ukuran</label>
-            <div class="ukuran-row">
-              <input type="number" inputmode="decimal" min="0" step="0.1" id="packingUkuranPanjang" placeholder="mis. 50">
-              <span class="ukuran-x">X</span>
-              <input type="number" inputmode="decimal" min="0" step="0.1" id="packingUkuranLebar" placeholder="mis. 75">
-            </div>
-            <div class="field-hint">Ukuran lembar dalam cm, contoh 50 x 75.</div>
-          </div>
-
-          <div class="row2">
-            <div class="field">
-              <label>Harga Per Lembar</label>
-              <div class="chemical-nama-fixed" id="packingHargaPerLembar" style="font-weight:600;">Rp 0</div>
-            </div>
-            <div class="field">
-              <div style="display:flex; align-items:center; gap:4px; margin-bottom:6px;">
-                <label for="packingKapKgPerLembar" style="margin-bottom:0;">Kap Kg Per Lembar</label>
-                <span class="profil-kpi-okupansi" style="margin-top:0;">
-                  <button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this, event)" aria-label="Info Kap Kg Per Lembar">?</button>
-                  <div class="okupansi-tooltip">Per Lembar bisa diisi berapa Kg</div>
-                </span>
-              </div>
-              <input type="number" inputmode="decimal" min="0" step="0.01" id="packingKapKgPerLembar" placeholder="Contoh: 0.5">
-            </div>
+            <label for="packingTakaranPerKg">Takaran pemakaian per Kg cucian</label>
+            <input type="number" inputmode="decimal" min="0" step="0.01" id="packingTakaranPerKg" placeholder="Contoh: 15">
+            <div class="field-hint">Pakai satuan yang sama dengan isi kemasan di atas.</div>
           </div>
 
           <div class="group-divider">Hasil otomatis</div>
           <div class="gas-card-result" style="border-top:none; padding-top:0; margin-top:0;">
             <div class="gas-result-grid" style="grid-template-columns: 1fr 1fr;">
-              <div class="gas-result-cell"><div class="label">Biaya Packing Per Load</div><div class="val" id="pfBiayaPerLoad">Rp 0</div></div>
+              <div class="gas-result-cell"><div class="label">Harga per satuan</div><div class="val" id="pfHargaPerUnit">Rp 0</div></div>
               <div class="gas-result-cell highlight"><div class="label">Biaya per Kg</div><div class="val" id="pfBiayaPerKg">Rp 0</div></div>
             </div>
             <div class="gas-warning" id="pfWarning" style="display:none;"></div>
@@ -4316,7 +4289,6 @@ function selectGasCustom() {
    * label, dus, dll).
    */
   var PACKING_FIXED_NAMA = ["Plastik HD", "Plastik PP", "Plastik Jinjing", "Isolasi"];
-  var PACKING_SATUAN_LABEL = { pack: "Pack", kg: "Kg" };
 
   function findPackingEntryByNama(nama) {
     return packingItemsCache.find(function (entry) {
@@ -4337,7 +4309,7 @@ function selectGasCustom() {
             "<h3>" + escapeHtml(displayNama) + "</h3>" +
           "</div>" +
         "</div>" +
-        "<div class=\"field-hint\">Belum ada data. Isi harga beli & Kap Kg Per Lembar untuk mulai menghitung.</div>" +
+        "<div class=\"field-hint\">Belum ada data. Isi harga beli & takaran untuk mulai menghitung.</div>" +
         "<button class=\"add-cabang-btn flame\" type=\"button\" data-action=\"fill\" style=\"margin-top:10px;\">+ Isi data " + escapeHtml(displayNama) + "</button>";
 
       card.querySelector("[data-action='fill']").addEventListener("click", function () { window.openPackingFormNew(displayNama); });
@@ -4348,7 +4320,7 @@ function selectGasCustom() {
     var summary = entry.summary;
 
     var warningHtml = summary.statusValid ? "" :
-      "<div class=\"gas-warning\">Isi kemasan atau Kap Kg Per Lembar belum lengkap, biaya belum bisa dihitung.</div>";
+      "<div class=\"gas-warning\">Isi kemasan atau takaran belum lengkap, biaya belum bisa dihitung.</div>";
 
     card.innerHTML =
       "<div class=\"gas-card-top\">" +
@@ -4361,11 +4333,11 @@ function selectGasCustom() {
           "<button class=\"icon-btn\" type=\"button\" aria-label=\"Hapus\" data-action=\"delete\">&#10005;</button>" +
         "</div>" +
       "</div>" +
-      "<div class=\"meta-row\"><span class=\"meta-label\">Harga beli</span><span class=\"meta-val\">" + money0(record.hargaBeli) + " / " + formatNum(record.isiKemasan) + " " + escapeHtml(PACKING_SATUAN_LABEL[record.satuanKemasan] || record.satuanKemasan) + "</span></div>" +
-      "<div class=\"meta-row\"><span class=\"meta-label\">Kap Kg / Lembar</span><span class=\"meta-val\">" + formatNum(record.kapKgPerLembar) + " Kg</span></div>" +
+      "<div class=\"meta-row\"><span class=\"meta-label\">Harga beli</span><span class=\"meta-val\">" + money0(record.hargaBeli) + " / " + formatNum(record.isiKemasan) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
+      "<div class=\"meta-row\"><span class=\"meta-label\">Takaran per Kg</span><span class=\"meta-val\">" + formatNum(record.takaranPerKg) + " " + escapeHtml(record.satuanKemasan) + "</span></div>" +
       "<div class=\"gas-card-result\">" +
         "<div class=\"gas-result-grid\">" +
-          "<div class=\"gas-result-cell\"><div class=\"label\">Biaya / Load</div><div class=\"val\">" + money0(summary.biayaPerLoad) + "</div></div>" +
+          "<div class=\"gas-result-cell\"><div class=\"label\">Harga / satuan</div><div class=\"val\">" + money0(summary.hargaPerUnit) + "</div></div>" +
           "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / Kg</div><div class=\"val\">" + money0(summary.biayaPerKg) + "</div></div>" +
         "</div>" +
         warningHtml +
@@ -4442,9 +4414,7 @@ function selectGasCustom() {
       hargaBeli: 0,
       isiKemasan: 0,
       satuanKemasan: "",
-      ukuranPanjang: 0,
-      ukuranLebar: 0,
-      kapKgPerLembar: 0,
+      takaranPerKg: 0,
       createdAt: null,
       updatedAt: null
     };
@@ -4504,9 +4474,7 @@ function selectGasCustom() {
     document.getElementById("packingHargaBeli").value = packingFormState.hargaBeli ? Number(packingFormState.hargaBeli).toLocaleString("id-ID") : "";
     document.getElementById("packingIsiKemasan").value = packingFormState.isiKemasan || "";
     document.getElementById("packingSatuanKemasan").value = packingFormState.satuanKemasan || "";
-    document.getElementById("packingUkuranPanjang").value = packingFormState.ukuranPanjang || "";
-    document.getElementById("packingUkuranLebar").value = packingFormState.ukuranLebar || "";
-    document.getElementById("packingKapKgPerLembar").value = packingFormState.kapKgPerLembar || "";
+    document.getElementById("packingTakaranPerKg").value = packingFormState.takaranPerKg || "";
   }
 
   function renderPackingForm() {
@@ -4526,27 +4494,24 @@ function selectGasCustom() {
   }
 
   function computeBiayaPackingSummaryClient(record) {
-    var hargaPerLembar = record.isiKemasan > 0 ? round2(record.hargaBeli / record.isiKemasan) : 0;
-    var biayaPerKg = record.kapKgPerLembar > 0 ? round2(hargaPerLembar / record.kapKgPerLembar) : 0;
+    var hargaPerUnit = record.isiKemasan > 0 ? round2(record.hargaBeli / record.isiKemasan) : 0;
+    var biayaPerKg = round2(hargaPerUnit * record.takaranPerKg);
     return {
-      hargaPerUnit: hargaPerLembar,
-      biayaPerLoad: hargaPerLembar,
+      hargaPerUnit: hargaPerUnit,
       biayaPerKg: biayaPerKg,
-      statusValid: record.isiKemasan > 0 && record.kapKgPerLembar > 0
+      statusValid: record.isiKemasan > 0 && record.takaranPerKg > 0
     };
   }
 
   function renderPackingFormPreview() {
     var summary = computeBiayaPackingSummaryClient(packingFormState);
-    var hargaLembarEl = document.getElementById("packingHargaPerLembar");
-    if (hargaLembarEl) hargaLembarEl.textContent = money0(summary.hargaPerUnit);
-    document.getElementById("pfBiayaPerLoad").textContent = money0(summary.biayaPerLoad);
+    document.getElementById("pfHargaPerUnit").textContent = money0(summary.hargaPerUnit);
     document.getElementById("pfBiayaPerKg").textContent = money0(summary.biayaPerKg);
 
     var warnEl = document.getElementById("pfWarning");
     if (!summary.statusValid) {
       warnEl.style.display = "block";
-      warnEl.textContent = "Isi kemasan dan Kap Kg Per Lembar harus lebih dari 0 supaya biaya bisa dihitung.";
+      warnEl.textContent = "Isi kemasan dan takaran per Kg harus lebih dari 0 supaya biaya bisa dihitung.";
     } else {
       warnEl.style.display = "none";
     }
@@ -4567,17 +4532,11 @@ function selectGasCustom() {
       packingFormState.isiKemasan = Number(e.target.value) || 0;
       renderPackingFormPreview();
     });
-    document.getElementById("packingSatuanKemasan").addEventListener("change", function (e) {
+    document.getElementById("packingSatuanKemasan").addEventListener("input", function (e) {
       packingFormState.satuanKemasan = e.target.value;
     });
-    document.getElementById("packingUkuranPanjang").addEventListener("input", function (e) {
-      packingFormState.ukuranPanjang = Number(e.target.value) || 0;
-    });
-    document.getElementById("packingUkuranLebar").addEventListener("input", function (e) {
-      packingFormState.ukuranLebar = Number(e.target.value) || 0;
-    });
-    document.getElementById("packingKapKgPerLembar").addEventListener("input", function (e) {
-      packingFormState.kapKgPerLembar = Number(e.target.value) || 0;
+    document.getElementById("packingTakaranPerKg").addEventListener("input", function (e) {
+      packingFormState.takaranPerKg = Number(e.target.value) || 0;
       renderPackingFormPreview();
     });
   }
