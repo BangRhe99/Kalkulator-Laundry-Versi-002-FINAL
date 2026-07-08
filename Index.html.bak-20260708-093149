@@ -632,11 +632,8 @@ Setelah tahap ini dites aman, tahap berikutnya adalah memecah CSS per fitur.
 
           <div class="row2">
             <div class="field">
-              <label for="chemicalTakaranPerKg">Takaran pemakaian per Kg cucian</label>
-              <div class="input-with-unit">
-                <input type="number" inputmode="decimal" min="0" step="0.01" id="chemicalTakaranPerKg" placeholder="Contoh: 15">
-                <span class="unit-badge" id="chemicalTakaranUnitBadge">-</span>
-              </div>
+              <label for="chemicalTakaranPerKg">Takaran pemakaian per Kg cucian <span class="unit-badge" id="chemicalTakaranUnitBadge">-</span></label>
+              <input type="number" inputmode="decimal" min="0" step="0.01" id="chemicalTakaranPerKg" placeholder="Contoh: 15">
               <div class="field-hint">Pakai satuan yang sama dengan isi kemasan di atas.</div>
             </div>
             <div class="field">

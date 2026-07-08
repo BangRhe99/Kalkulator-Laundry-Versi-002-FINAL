@@ -1013,21 +1013,6 @@ Jika membuat fitur baru, pakai class komponen umum dari file ini terlebih dahulu
     vertical-align: middle;
   }
 
-  .input-with-unit {
-    position: relative;
-  }
-  .input-with-unit input {
-    padding-right: 48px;
-  }
-  .input-with-unit .unit-badge {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    margin-left: 0;
-    pointer-events: none;
-  }
-
   input[type="text"], input[type="number"], select {
     width: 100%;
     background: var(--panel-2);
