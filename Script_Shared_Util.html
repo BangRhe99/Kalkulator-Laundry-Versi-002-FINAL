@@ -235,7 +235,8 @@ menjalankan bootApp().
       '</defs>' +
       '<polygon points="' + lossPoly + '" fill="url(#bepLossGrad)"></polygon>' +
       '<polygon points="' + profitPoly + '" fill="url(#bepProfitGrad)"></polygon>' +
-      '<line x1="' + plotL + '" y1="' + plotB + '" x2="' + plotR + '" y2="' + plotB + '" stroke="var(--border)" stroke-width="1"></line>' +
+      '<line x1="' + plotL + '" y1="' + plotT + '" x2="' + plotL + '" y2="' + plotB + '" stroke="var(--text-dim)" stroke-width="1.5"></line>' +
+      '<line x1="' + plotL + '" y1="' + plotB + '" x2="' + plotR + '" y2="' + plotB + '" stroke="var(--text-dim)" stroke-width="1.5"></line>' +
 
       '<line x1="' + plotL + '" y1="' + yCost0 + '" x2="' + plotR + '" y2="' + yCost0 + '" stroke="var(--text-faint)" stroke-width="1" stroke-dasharray="4,3"></line>' +
       '<text x="' + plotL + '" y="' + (yCost0 - 5) + '" font-size="8" fill="var(--text-faint)">' + escapeHtml(formatJutaChart_(fixedCost)) + '</text>' +
