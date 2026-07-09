@@ -925,6 +925,9 @@ function getDashboardBEPSummary(cabangId) {
         bepOmsetPerHari: dashboardRound2_(bepOmsetPerBulan / 30),
         variableCostBepBulanan: dashboardRound2_(variableCostBepBulanan),
         totalBiayaSaatBep: dashboardRound2_(totalBiayaSaatBep),
+        serviceMix: weighted.services.map(function (s) {
+          return { key: s.key, title: s.title, percent: s.percent };
+        }),
         warnings: warnings,
         isComplete: weighted.ok && marginPerLoad > 0 && bepLoadPerBulan > 0
       }

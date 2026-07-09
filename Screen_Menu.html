@@ -77,7 +77,10 @@ tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
         <div class="menu-card dashboard-card tone-volt is-static">
           <div class="menu-icon">&#127919;</div>
           <div class="menu-body">
-            <div class="menu-title">Target Titik Impas (BEP)</div>
+            <div class="menu-title-row">
+              <div class="menu-title">Target Titik Impas (BEP)</div>
+              <button type="button" class="bep-mix-btn" onclick="openBepMix()">Atur %</button>
+            </div>
             <div class="dashboard-card-summary is-loading" id="dashboardBEPSummary">Memuat data...</div>
           </div>
         </div>

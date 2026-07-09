@@ -715,6 +715,8 @@ menjalankan bootApp().
         var warnings = Array.isArray(d.warnings) ? d.warnings : [];
         var html = "";
 
+        bepMixCurrentServices = Array.isArray(d.serviceMix) ? d.serviceMix : [];
+
         if (d.bepLoadPerBulan <= 0) {
           html = '<div class="bep-incomplete">' +
             '<div class="bep-incomplete-title">Data belum lengkap</div>' +
@@ -776,13 +778,9 @@ menjalankan bootApp().
         }
         var d = res.data || {};
         var warnings = Array.isArray(d.warnings) ? d.warnings : [];
+        var serviceMix = Array.isArray(d.serviceMix) ? d.serviceMix : [];
 
-        bepMixCurrentServices = Array.isArray(d.serviceMix) ? d.serviceMix : [];
-        var mixBtnHtml = bepMixCurrentServices.length > 1
-          ? '<button type="button" class="bep-mix-btn" onclick="openBepMix()">Atur %</button>'
-          : '';
-
-        var mixListHtml = bepMixCurrentServices.map(function (s) {
+        var mixListHtml = serviceMix.map(function (s) {
           return '<div class="potensi-mix-row">' +
             '<span class="potensi-mix-row-title">' + escapeHtml(s.title || s.key) + '</span>' +
             '<span class="potensi-mix-row-percent">' + escapeHtml(formatNum(s.percent, 0)) + '%</span>' +
@@ -792,7 +790,6 @@ menjalankan bootApp().
         var html = "";
         if (!d.maksimalTransaksiPerBulan || d.maksimalTransaksiPerBulan <= 0) {
           html = '<div class="bep-incomplete">' +
-            (mixBtnHtml ? '<div class="bep-incomplete-top">' + mixBtnHtml + '</div>' : '') +
             '<div class="bep-incomplete-title">Data belum lengkap</div>' +
             '<div class="bep-incomplete-list">' +
               warnings.map(function(w) { return '<span>' + escapeHtml(w) + '</span>'; }).join("") +
@@ -802,7 +799,6 @@ menjalankan bootApp().
           html = '<div class="potensi-card">' +
             '<div class="potensi-top">' +
               '<span class="potensi-top-label">Estimasi di kapasitas penuh</span>' +
-              mixBtnHtml +
             '</div>' +
             '<div class="potensi-estimate">' +
               '<div class="potensi-estimate-row"><span class="potensi-estimate-label">Estimasi Omset</span><span class="potensi-estimate-value">' + money0(d.estimasiOmsetPerBulan) + '</span></div>' +
