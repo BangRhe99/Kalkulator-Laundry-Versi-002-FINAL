@@ -697,15 +697,17 @@ function saveBepServiceMix(cabangId, mixMap) {
       total += val;
     });
 
-    if (total <= 0) {
-      return { ok: false, error: "Total persen mix harus lebih dari 0.", stage: "saveBepServiceMix:validate_total" };
+    // VALIDASI WAJIB: total kontribusi harus 100% (toleransi 0.5% utk
+    // pembulatan input desimal) -- BUKAN dinormalisasi otomatis, supaya user
+    // sadar & sengaja menetapkan proporsi yang benar (sesuai spesifikasi BEP
+    // Campuran Layanan).
+    if (Math.abs(total - 100) > 0.5) {
+      return {
+        ok: false,
+        error: "Total kontribusi layanan harus 100%.",
+        stage: "saveBepServiceMix:validate_total"
+      };
     }
-
-    // Sanitize: normalisasi otomatis ke total 100% (kalau user isi tidak
-    // pas 100, misal 98 atau 103), supaya tidak perlu tolak dengan error.
-    Object.keys(cleanMix).forEach(function (key) {
-      cleanMix[key] = dashboardRound2_((cleanMix[key] / total) * 100);
-    });
 
     var sheet = ensureDataSheet_();
     writeKey_(sheet, getBepMixKey_(cleanId), JSON.stringify({
@@ -720,6 +722,9 @@ function saveBepServiceMix(cabangId, mixMap) {
 }
 
 function bepEffectiveHarga_(item) {
+  // = omzetPerOrder (hargaJualPerKg x minimumOrderKg, sudah dikonversi di
+  // Modul_HargaLayanan.gs lewat kapasitasKgPerLoad) -- BUKAN harga per Kg
+  // mentah, supaya sebanding langsung dengan hpp per order.
   if (item.hargaJualPerLoad !== undefined) return dashboardNumber_(item.hargaJualPerLoad, 0);
   if (item.hargaJualPerJam !== undefined) return dashboardNumber_(item.hargaJualPerJam, 0);
   return dashboardNumber_(item.hargaJual, 0);
@@ -731,108 +736,176 @@ function bepEffectiveHpp_(item) {
   return dashboardNumber_(item.hpp, 0);
 }
 
+// ----------------------------------------------------------------------------
+// getBepWeightedServiceData_: SATU-SATUNYA tempat menghitung rataHPP/rataHarga
+// weighted-mix, dipakai BEP dan Potensi Omset supaya dua kartu itu selalu
+// konsisten (tidak ada rumus ganda). Menerapkan ATURAN VALIDASI WAJIB dari
+// spesifikasi BEP Campuran Layanan:
+//   1. Kalau ada layanan (yang seharusnya ikut dihitung) belum lengkap harga
+//      jual/HPP-nya -> JANGAN hitung BEP dulu (ok:false + pesan jelas),
+//      bukan cuma diam-diam dikeluarkan dari mix.
+//   2. Total kontribusi % harus 100% (toleransi 0.5%) -> kalau tidak, ok:false
+//      + pesan "Total kontribusi layanan harus 100%."
+// `services` (lengkap dengan `percent`) tetap dikembalikan MESKI ok:false,
+// supaya modal "Atur %" tetap bisa dipakai user memperbaiki datanya.
+// ----------------------------------------------------------------------------
+function getBepWeightedServiceData_(cabangId) {
+  var warnings = [];
+
+  var hppRes = getDashboardHPPSummary(cabangId);
+  var hppByKey = {};
+  if (hppRes && hppRes.ok && hppRes.data && hppRes.data.rows && hppRes.data.rows.length) {
+    dashboardArray_(hppRes.data.rows[0].layananList).forEach(function (svc) {
+      if (svc && svc.key) hppByKey[svc.key] = svc;
+    });
+  } else {
+    warnings.push("HPP belum tersedia.");
+  }
+
+  var hargaRes = getDashboardHargaLayananSummary(cabangId);
+  var requiredItems = [];
+  if (hargaRes && hargaRes.ok && hargaRes.data && hargaRes.data.rows && hargaRes.data.rows.length) {
+    var hargaRow = hargaRes.data.rows[0];
+    if (hargaRow && typeof getHargaLayanan === "function") {
+      var detailRes = getHargaLayanan(hargaRow.cabangId);
+      if (detailRes && detailRes.ok && detailRes.data && detailRes.data.layanan) {
+        // Bed Cover basisnya per item (bukan per order/load) -- tidak
+        // sebanding dgn model BEP campuran layanan di sini, tidak diikutkan.
+        requiredItems = detailRes.data.layanan.filter(function (item) {
+          return item && item.key && item.key !== "bed_cover";
+        });
+      }
+    }
+  }
+
+  if (!requiredItems.length) {
+    warnings.push("Harga jual belum diisi.");
+    return { ok: false, warnings: warnings, services: [], rataHPP: 0, rataHarga: 0 };
+  }
+
+  var activeKeys = requiredItems.map(function (item) { return item.key; });
+  var mix = getBepServiceMix_(cabangId, activeKeys);
+
+  var services = requiredItems.map(function (item) {
+    var hppSvc = hppByKey[item.key];
+    return {
+      key: item.key,
+      title: item.title || item.key,
+      harga: bepEffectiveHarga_(item),
+      hpp: hppSvc ? dashboardNumber_(hppSvc.total, 0) : bepEffectiveHpp_(item),
+      percent: dashboardRound2_(mix[item.key] || 0)
+    };
+  });
+
+  var totalMix = 0;
+  services.forEach(function (s) { totalMix += dashboardNumber_(s.percent, 0); });
+  var mixValid = Math.abs(totalMix - 100) <= 0.5;
+  if (!mixValid) {
+    warnings.push("Total kontribusi layanan harus 100%.");
+  }
+
+  var incompleteNames = services
+    .filter(function (s) { return !(s.harga > 0 && s.hpp > 0); })
+    .map(function (s) { return s.title; });
+  if (incompleteNames.length) {
+    warnings.push("Lengkapi dulu harga jual & HPP untuk: " + incompleteNames.join(", ") + ".");
+  }
+
+  if (!mixValid || incompleteNames.length) {
+    return { ok: false, warnings: warnings, services: services, rataHPP: 0, rataHarga: 0 };
+  }
+
+  // rataHPP & rataHarga = weighted average (metode SAMA persis utk keduanya),
+  // TIDAK dibulatkan di sini -- pembulatan hanya untuk tampilan akhir.
+  var rataHPP = 0;
+  var rataHarga = 0;
+  services.forEach(function (s) {
+    var pct = dashboardNumber_(s.percent, 0) / 100;
+    rataHPP += s.hpp * pct;
+    rataHarga += s.harga * pct;
+  });
+
+  return {
+    ok: true,
+    warnings: warnings,
+    services: services,
+    rataHPP: rataHPP,
+    rataHarga: rataHarga
+  };
+}
+
 function getDashboardBEPSummary(cabangId) {
   try {
     var fixedCostRes = getDashboardFixedCostSummary(cabangId);
-    var hppRes = getDashboardHPPSummary(cabangId);
-    var hargaRes = getDashboardHargaLayananSummary(cabangId);
-
     var warnings = [];
     var fixedCostPerBulan = 0;
 
-    // Ambil fixed cost
     if (fixedCostRes && fixedCostRes.ok && fixedCostRes.data) {
       fixedCostPerBulan = dashboardNumber_(fixedCostRes.data.totalFixedCostPerBulan, 0);
     } else {
       warnings.push("Fixed cost belum diisi.");
     }
 
-    // Ambil HPP per layanan (key -> total HPP)
-    var hppByKey = {};
-    if (hppRes && hppRes.ok && hppRes.data && hppRes.data.rows && hppRes.data.rows.length) {
-      var hppRow = hppRes.data.rows[0];
-      dashboardArray_(hppRow.layananList).forEach(function (svc) {
-        if (svc && svc.key) hppByKey[svc.key] = svc;
-      });
-    } else {
-      warnings.push("HPP belum tersedia.");
-    }
+    var weighted = getBepWeightedServiceData_(cabangId);
+    warnings = warnings.concat(weighted.warnings);
 
-    // Ambil harga jual per layanan
-    var hargaLayananItems = [];
-    if (hargaRes && hargaRes.ok && hargaRes.data && hargaRes.data.rows && hargaRes.data.rows.length) {
-      var hargaRow = hargaRes.data.rows[0];
-      if (hargaRow && typeof getHargaLayanan === "function") {
-        var detailRes = getHargaLayanan(hargaRow.cabangId);
-        if (detailRes && detailRes.ok && detailRes.data && detailRes.data.layanan) {
-          hargaLayananItems = detailRes.data.layanan;
-        }
-      }
-    }
-
-    // Layanan aktif utk BEP = layanan yang punya HPP DAN harga jual > 0
-    var activeServices = [];
-    hargaLayananItems.forEach(function (item) {
-      if (!item || !item.key) return;
-      var hppSvc = hppByKey[item.key];
-      var harga = bepEffectiveHarga_(item);
-      var hpp = hppSvc ? dashboardNumber_(hppSvc.total, 0) : bepEffectiveHpp_(item);
-      if (harga > 0 && hpp > 0) {
-        activeServices.push({ key: item.key, title: item.title || item.key, harga: harga, hpp: hpp });
-      }
-    });
-
-    var activeKeys = activeServices.map(function (s) { return s.key; });
-    var mix = getBepServiceMix_(cabangId, activeKeys);
-
-    // rataHPP & rataHarga dihitung dengan METODE YANG SAMA: weighted average
-    // pakai persen mix kontribusi tiap layanan (bukan lagi midpoint min-max
-    // vs rata-rata biasa yang tidak konsisten).
-    var rataHPP = 0;
-    var rataHarga = 0;
-    activeServices.forEach(function (s) {
-      var pct = dashboardNumber_(mix[s.key], 0) / 100;
-      rataHPP += s.hpp * pct;
-      rataHarga += s.harga * pct;
-    });
-    rataHPP = dashboardRound2_(rataHPP);
-    rataHarga = dashboardRound2_(rataHarga);
-
-    if (rataHarga <= 0) warnings.push("Harga jual belum diisi.");
-    if (rataHPP <= 0) warnings.push("HPP belum bisa dihitung.");
-
-    // Hitung BEP
-    var marginPerLoad = dashboardRound2_(rataHarga - rataHPP);
+    var rataHPP = weighted.rataHPP;
+    var rataHarga = weighted.rataHarga;
+    var marginPerLoad = 0;
     var bepLoadPerBulan = 0;
     var bepOmsetPerBulan = 0;
+    var variableCostBepBulanan = 0;
+    var totalBiayaSaatBep = 0;
 
-    if (marginPerLoad > 0 && fixedCostPerBulan > 0) {
-      bepLoadPerBulan = Math.ceil(fixedCostPerBulan / marginPerLoad);
-      bepOmsetPerBulan = dashboardRound2_(bepLoadPerBulan * rataHarga);
-    } else if (marginPerLoad <= 0 && rataHarga > 0) {
-      warnings.push("Margin per load negatif atau nol — harga jual lebih rendah dari HPP.");
+    if (weighted.ok) {
+      // RUMUS BEP CAMPURAN (tidak dibulatkan sampai tahap tampilan akhir):
+      marginPerLoad = rataHarga - rataHPP;
+
+      if (marginPerLoad > 0 && fixedCostPerBulan > 0) {
+        bepLoadPerBulan = fixedCostPerBulan / marginPerLoad;
+        bepOmsetPerBulan = bepLoadPerBulan * rataHarga;
+        variableCostBepBulanan = bepLoadPerBulan * rataHPP;
+        totalBiayaSaatBep = fixedCostPerBulan + variableCostBepBulanan;
+
+        // VALIDASI WAJIB: saat BEP, omzet harus (kurang lebih) sama dengan
+        // total biaya. Kalau melenceng jauh, itu tanda rumus/satuan salah --
+        // jangan diam-diam, munculkan peringatan supaya ketahuan dari log.
+        var selisihRelatif = omzetBepBulanan_selisihRelatif_(bepOmsetPerBulan, totalBiayaSaatBep);
+        if (selisihRelatif > 0.01) {
+          warnings.push("Perhitungan BEP tidak konsisten (selisih omzet vs total biaya > 1%) - cek data harga/HPP.");
+        }
+      } else if (marginPerLoad <= 0) {
+        warnings.push("Margin kontribusi belum aman. Harga jual belum cukup untuk menutup HPP.");
+      }
     }
 
     return {
       ok: true,
       data: {
         fixedCostPerBulan: fixedCostPerBulan,
-        rataHPP: rataHPP,
-        rataHarga: rataHarga,
-        marginPerLoad: marginPerLoad,
-        bepLoadPerBulan: bepLoadPerBulan,
-        bepOmsetPerBulan: bepOmsetPerBulan,
+        rataHPP: dashboardRound2_(rataHPP),
+        rataHarga: dashboardRound2_(rataHarga),
+        marginPerLoad: dashboardRound2_(marginPerLoad),
+        bepLoadPerBulan: dashboardRound2_(bepLoadPerBulan),
+        bepOmsetPerBulan: dashboardRound2_(bepOmsetPerBulan),
         bepLoadPerMinggu: dashboardRound2_(bepLoadPerBulan / 4),
         bepOmsetPerMinggu: dashboardRound2_(bepOmsetPerBulan / 4),
         bepLoadPerHari: dashboardRound2_(bepLoadPerBulan / 30),
         bepOmsetPerHari: dashboardRound2_(bepOmsetPerBulan / 30),
+        variableCostBepBulanan: dashboardRound2_(variableCostBepBulanan),
+        totalBiayaSaatBep: dashboardRound2_(totalBiayaSaatBep),
         warnings: warnings,
-        isComplete: warnings.length === 0
+        isComplete: weighted.ok && marginPerLoad > 0 && bepLoadPerBulan > 0
       }
     };
   } catch (err) {
     return dashboardError_(err, "getDashboardBEPSummary");
   }
+}
+
+function omzetBepBulanan_selisihRelatif_(omzetBep, totalBiayaBep) {
+  var basis = Math.max(Math.abs(omzetBep), Math.abs(totalBiayaBep), 1);
+  return Math.abs(omzetBep - totalBiayaBep) / basis;
 }
 
 // ----------------------------------------------------------------------------
@@ -861,8 +934,6 @@ function bepMachineUsageMap_(key) {
 function getDashboardPotensiOmsetSummary(cabangId) {
   try {
     var fixedCostRes = getDashboardFixedCostSummary(cabangId);
-    var hppRes = getDashboardHPPSummary(cabangId);
-    var hargaRes = getDashboardHargaLayananSummary(cabangId);
     var cabangRes = getDashboardCabangSummary(cabangId);
 
     var warnings = [];
@@ -873,54 +944,11 @@ function getDashboardPotensiOmsetSummary(cabangId) {
       warnings.push("Fixed cost belum diisi.");
     }
 
-    var hppByKey = {};
-    if (hppRes && hppRes.ok && hppRes.data && hppRes.data.rows && hppRes.data.rows.length) {
-      dashboardArray_(hppRes.data.rows[0].layananList).forEach(function (svc) {
-        if (svc && svc.key) hppByKey[svc.key] = svc;
-      });
-    } else {
-      warnings.push("HPP belum tersedia.");
-    }
-
-    var hargaLayananItems = [];
-    if (hargaRes && hargaRes.ok && hargaRes.data && hargaRes.data.rows && hargaRes.data.rows.length) {
-      var hargaRow = hargaRes.data.rows[0];
-      if (hargaRow && typeof getHargaLayanan === "function") {
-        var detailRes = getHargaLayanan(hargaRow.cabangId);
-        if (detailRes && detailRes.ok && detailRes.data && detailRes.data.layanan) {
-          hargaLayananItems = detailRes.data.layanan;
-        }
-      }
-    }
-
-    // Bed Cover sengaja tidak masuk (basisnya per item, bukan per load -
-    // tidak sebanding dgn kalkulasi bottleneck load-equivalent di bawah).
-    var activeServices = [];
-    hargaLayananItems.forEach(function (item) {
-      if (!item || !item.key || item.key === "bed_cover") return;
-      var hppSvc = hppByKey[item.key];
-      var harga = bepEffectiveHarga_(item);
-      var hpp = hppSvc ? dashboardNumber_(hppSvc.total, 0) : bepEffectiveHpp_(item);
-      if (harga > 0 && hpp > 0) {
-        activeServices.push({ key: item.key, title: item.title || item.key, harga: harga, hpp: hpp });
-      }
-    });
-
-    var activeKeys = activeServices.map(function (s) { return s.key; });
-    var mix = getBepServiceMix_(cabangId, activeKeys);
-
-    var rataHPP = 0;
-    var rataHarga = 0;
-    activeServices.forEach(function (s) {
-      var pct = dashboardNumber_(mix[s.key], 0) / 100;
-      rataHPP += s.hpp * pct;
-      rataHarga += s.harga * pct;
-    });
-    rataHPP = dashboardRound2_(rataHPP);
-    rataHarga = dashboardRound2_(rataHarga);
-
-    if (rataHarga <= 0) warnings.push("Harga jual belum diisi.");
-    if (rataHPP <= 0) warnings.push("HPP belum bisa dihitung.");
+    var weighted = getBepWeightedServiceData_(cabangId);
+    warnings = warnings.concat(weighted.warnings);
+    var activeServices = weighted.services;
+    var rataHPP = weighted.rataHPP;
+    var rataHarga = weighted.rataHarga;
 
     // Kapasitas mentah mesin cuci & pengering (load/bulan, okupansi sudah
     // termasuk) - persis field yang sama dipakai kartu Profil Outlet.
@@ -956,7 +984,7 @@ function getDashboardPotensiOmsetSummary(cabangId) {
     var usageShare = { washer: 0, dryer: 0, setrika: 0 };
     activeServices.forEach(function (s) {
       var usage = bepMachineUsageMap_(s.key);
-      var pct = dashboardNumber_(mix[s.key], 0) / 100;
+      var pct = dashboardNumber_(s.percent, 0) / 100;
       usageShare.washer += usage.washer * pct;
       usageShare.dryer += usage.dryer * pct;
       usageShare.setrika += usage.setrika * pct;
@@ -971,30 +999,30 @@ function getDashboardPotensiOmsetSummary(cabangId) {
       }
     });
 
-    var maksimalTransaksiPerBulan = candidateLoads.length ? dashboardRound2_(Math.min.apply(null, candidateLoads)) : 0;
-    if (!maksimalTransaksiPerBulan) {
+    var maksimalTransaksiPerBulan = (weighted.ok && candidateLoads.length) ? Math.min.apply(null, candidateLoads) : 0;
+    if (weighted.ok && !maksimalTransaksiPerBulan) {
       warnings.push("Kapasitas mesin belum bisa dihitung - cek Profil Outlet & konversi kapasitas kg per load.");
     }
 
-    var estimasiOmsetPerBulan = dashboardRound2_(rataHarga * maksimalTransaksiPerBulan);
-    var estimasiBiayaProduksiPerBulan = dashboardRound2_(rataHPP * maksimalTransaksiPerBulan);
-    var estimasiProfitPerBulan = dashboardRound2_(estimasiOmsetPerBulan - estimasiBiayaProduksiPerBulan - fixedCostPerBulan);
+    var estimasiOmsetPerBulan = rataHarga * maksimalTransaksiPerBulan;
+    var estimasiBiayaProduksiPerBulan = rataHPP * maksimalTransaksiPerBulan;
+    var estimasiProfitPerBulan = estimasiOmsetPerBulan - estimasiBiayaProduksiPerBulan - fixedCostPerBulan;
 
     return {
       ok: true,
       data: {
-        maksimalTransaksiPerBulan: maksimalTransaksiPerBulan,
-        rataHPP: rataHPP,
-        rataHarga: rataHarga,
+        maksimalTransaksiPerBulan: dashboardRound2_(maksimalTransaksiPerBulan),
+        rataHPP: dashboardRound2_(rataHPP),
+        rataHarga: dashboardRound2_(rataHarga),
         fixedCostPerBulan: fixedCostPerBulan,
-        estimasiOmsetPerBulan: estimasiOmsetPerBulan,
-        estimasiBiayaProduksiPerBulan: estimasiBiayaProduksiPerBulan,
-        estimasiProfitPerBulan: estimasiProfitPerBulan,
+        estimasiOmsetPerBulan: dashboardRound2_(estimasiOmsetPerBulan),
+        estimasiBiayaProduksiPerBulan: dashboardRound2_(estimasiBiayaProduksiPerBulan),
+        estimasiProfitPerBulan: dashboardRound2_(estimasiProfitPerBulan),
         serviceMix: activeServices.map(function (s) {
-          return { key: s.key, title: s.title, percent: dashboardRound2_(mix[s.key] || 0) };
+          return { key: s.key, title: s.title, percent: s.percent };
         }),
         warnings: warnings,
-        isComplete: warnings.length === 0 && maksimalTransaksiPerBulan > 0
+        isComplete: weighted.ok && maksimalTransaksiPerBulan > 0
       }
     };
   } catch (err) {
