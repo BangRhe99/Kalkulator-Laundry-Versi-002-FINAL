@@ -1,0 +1,404 @@
+<!--
+===============================================================================
+FILE: Script_Fitur_HargaLayanan.html
+PROJECT: Kalkulator Laundry Versi 002
+ISI: Fitur Harga Layanan
+
+FUNGSI:
+List outlet + detail input harga jual per layanan & per Kg, simulasi margin, simulasi order minimum berdasarkan kapasitas mesin.
+
+PENTING -- catat sebelum edit:
+Semua file Script_*.html berbagi SATU scope global yang sama (Apps Script
+include() cuma menggabungkan teks mentah jadi satu <script> demi <script>
+di halaman yang sama -- bukan module system). Karena itu file ini SENGAJA
+TIDAK dibungkus (function(){...})() -- kalau kamu bungkus lagi, fungsi di
+file ini jadi tidak kelihatan dari file lain dan app akan rusak.
+Urutan include TIDAK masalah untuk deklarasi function/var (hoisting),
+TAPI Script_Boot_Main.html WAJIB tetap paling terakhir karena dia yang
+menjalankan bootApp().
+===============================================================================
+-->
+<script>
+"use strict";
+  function renderHargaLayananOutletList() {
+    var listEl = document.getElementById("hargaLayananOutletList");
+    var countEl = document.getElementById("hargaLayananOutletCount");
+    if (!listEl) return;
+
+    var cabangs = Array.isArray(cabangListCache) ? cabangListCache : [];
+    if (countEl) countEl.textContent = cabangs.length + " outlet";
+
+    if (!cabangs.length) {
+      listEl.innerHTML =
+        '<div class="empty-state">' +
+          '<div class="icon">&#127981;</div>' +
+          '<p>Belum ada outlet. Silakan buat Profil Outlet terlebih dahulu.</p>' +
+        '</div>';
+      return;
+    }
+
+    listEl.innerHTML = cabangs.map(function (item) {
+      var cabang = normalizeOutletRow_(item);
+      var cabangId = getOutletId_(cabang);
+      var namaLaundry = getCabangNamaHargaLayanan(cabang);
+      var kategoriText = getCabangKategoriHargaLayanan(cabang);
+
+      return (
+        '<div class="menu-card tone-sage" onclick="openHargaLayananDetail(\'' + escapeJsAttr(cabangId) + '\')">' +
+          '<div class="menu-icon">&#128176;</div>' +
+          '<div class="menu-body">' +
+            '<div class="menu-title">' + escapeHtml(namaLaundry) + '</div>' +
+            '<div class="menu-desc">' + escapeHtml(kategoriText) + '</div>' +
+            '<div class="fc-list-summary" id="hargaLayananSummary_' + escapeHtml(cabangId) + '">' +
+              '<div class="fc-list-empty-note" style="margin-top:0; padding-top:0; border-top:none;">Memuat rangkuman harga layanan...</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="menu-arrow">&#8594;</div>' +
+        '</div>'
+      );
+    }).join("");
+
+    hydrateHargaLayananSummaryCards(cabangs);
+  }
+
+  function getCabangNamaHargaLayanan(cabang) {
+    return cabang && cabang.profil && cabang.profil.namaLaundry
+      ? cabang.profil.namaLaundry
+      : (cabang && cabang.namaLaundry ? cabang.namaLaundry : "Outlet tanpa nama");
+  }
+
+  function getCabangKategoriHargaLayanan(cabang) {
+    var kategori = cabang && cabang.profil && cabang.profil.kategoriLayanan
+      ? cabang.profil.kategoriLayanan
+      : (cabang && cabang.kategoriLayanan ? cabang.kategoriLayanan : "");
+
+    return KATEGORI_LABEL[kategori] || kategori || "-";
+  }
+
+  function hydrateHargaLayananSummaryCards(cabangs) {
+    cabangs.forEach(function (item) {
+      var cabang = normalizeOutletRow_(item);
+      var cabangId = getOutletId_(cabang);
+      if (!cabangId) return;
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          var target = document.getElementById("hargaLayananSummary_" + cabangId);
+          if (!target) return;
+
+          if (!res || !res.ok || !res.data) {
+            target.innerHTML = '<div class="fc-list-empty-note">Rangkuman belum bisa dimuat. Klik outlet untuk membuka detail.</div>';
+            return;
+          }
+
+          target.innerHTML = renderHargaLayananSummaryHtml(res.data);
+        })
+        .withFailureHandler(function () {
+          var target = document.getElementById("hargaLayananSummary_" + cabangId);
+          if (target) {
+            target.innerHTML = '<div class="fc-list-empty-note">Rangkuman belum bisa dimuat. Klik outlet untuk membuka detail.</div>';
+          }
+        })
+        .getHargaLayanan(cabangId);
+    });
+  }
+
+  function renderHargaLayananSummaryHtml(data) {
+    data = data || {};
+    var layanan = Array.isArray(data.layanan) ? data.layanan : [];
+    var totalLayanan = layanan.length;
+    var layananTerisi = layanan.filter(function (item) { return Number(item.hargaJual || 0) > 0; });
+    var jumlahTerisi = layananTerisi.length;
+
+    if (!totalLayanan) {
+      return '<div class="fc-list-empty-note">Belum ada layanan yang bisa ditampilkan untuk outlet ini.</div>';
+    }
+
+    if (!jumlahTerisi) {
+      return '<div class="fc-list-empty-note">Belum ada harga jual. Klik outlet ini untuk mulai mengisi harga layanan.</div>';
+    }
+
+    var avgMarginPercent = layananTerisi.reduce(function (sum, item) {
+      return sum + (Number(item.marginPercent || 0));
+    }, 0) / jumlahTerisi;
+
+    var avgMarginRupiah = layananTerisi.reduce(function (sum, item) {
+      return sum + (Number(item.margin || 0));
+    }, 0) / jumlahTerisi;
+
+    var breakdownHtml = layanan.map(function (item) {
+      var harga = Number(item.hargaJual || 0);
+      var margin = Number(item.margin || 0);
+      var label = harga > 0 ? money0(harga) + ' · Margin ' + money0(margin) + ' · % Margin ' + formatNum(Number(item.marginPercent || 0)) + '%' : 'Belum diisi';
+      return '<div class="fc-list-breakdown-row"><span class="k">' + escapeHtml(item.title || '-') + '</span><span class="v">' + escapeHtml(label) + '</span></div>';
+    }).join("");
+
+    return (
+      '<div class="fc-list-summary-top">' +
+        '<div class="fc-list-metric highlight"><div class="label">Rata-rata margin</div><div class="value">' + money0(avgMarginRupiah) + '</div></div>' +
+        '<div class="fc-list-metric"><div class="label">Rata-rata % margin</div><div class="value">' + formatNum(avgMarginPercent) + '%</div></div>' +
+      '</div>' +
+      '<div class="fc-list-breakdown-row" style="margin-bottom:6px;"><span class="k">Harga terisi</span><span class="v">' + jumlahTerisi + '/' + totalLayanan + ' layanan</span></div>' +
+      '<div class="fc-list-breakdown">' + breakdownHtml + '</div>'
+    );
+  }
+
+  window.openHargaLayananDetail = function (cabangId) {
+    hargaLayananCurrentCabangId = cabangId;
+    showScreen("hargaLayananDetail");
+    renderHargaLayananLoading();
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "memuat Harga Layanan");
+          return;
+        }
+
+        renderHargaLayananDetail(res.data);
+        setSaveStatus("", "");
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError(
+          {
+            error: err && err.message ? err.message : String(err),
+            stage: "client:hargaLayanan:getHargaLayanan"
+          },
+          "memuat Harga Layanan"
+        );
+      })
+      .getHargaLayanan(cabangId);
+  };
+
+  function renderHargaLayananLoading() {
+    var titleEl = document.getElementById("hargaLayananTitle");
+    var subtitleEl = document.getElementById("hargaLayananSubtitle");
+    var kategoriEl = document.getElementById("hargaLayananKategori");
+    var warningBox = document.getElementById("hargaLayananWarningBox");
+    var listEl = document.getElementById("hargaLayananServiceList");
+
+    if (titleEl) titleEl.textContent = "Harga Layanan";
+    if (subtitleEl) subtitleEl.textContent = "Memuat data harga layanan...";
+    if (kategoriEl) kategoriEl.textContent = "-";
+    if (warningBox) warningBox.style.display = "none";
+
+    if (listEl) {
+      listEl.innerHTML =
+        '<div class="panel">' +
+          '<div class="skeleton-line" style="width:55%; margin-bottom:12px;"></div>' +
+          '<div class="skeleton-line" style="width:100%; margin-bottom:8px;"></div>' +
+          '<div class="skeleton-line" style="width:75%;"></div>' +
+        '</div>';
+    }
+  }
+
+  function renderHargaLayananDetail(data) {
+    data = data || {};
+
+    var cabang = data.cabang || {};
+    var layanan = Array.isArray(data.layanan) ? data.layanan : [];
+    var warnings = Array.isArray(data.warnings) ? data.warnings : [];
+    var titleEl = document.getElementById("hargaLayananTitle");
+    var subtitleEl = document.getElementById("hargaLayananSubtitle");
+    var kategoriEl = document.getElementById("hargaLayananKategori");
+    var listEl = document.getElementById("hargaLayananServiceList");
+
+    if (titleEl) titleEl.textContent = "Harga Layanan";
+    if (subtitleEl) subtitleEl.textContent = cabang.namaLaundry || "Tentukan harga jual dan cek margin tiap layanan";
+    if (kategoriEl) kategoriEl.textContent = cabang.kategoriLabel || "-";
+
+    renderHargaLayananWarnings(warnings);
+
+    if (!listEl) return;
+
+    if (!layanan.length) {
+      listEl.innerHTML =
+        '<div class="empty-state">' +
+          '<div class="icon">&#128176;</div>' +
+          '<p>Belum ada layanan yang bisa ditampilkan untuk outlet ini.</p>' +
+        '</div>';
+      return;
+    }
+
+    listEl.innerHTML = layanan.map(renderHargaLayananServiceCard).join("");
+  }
+
+  function renderHargaLayananServiceCard(item) {
+    item = item || {};
+
+    var status = item.status || "impas";
+    var statusLabel = item.statusLabel || "Impas";
+    var key = item.key || "";
+
+    return (
+      '<div class="hl-service-card" data-harga-layanan-card="' + escapeHtml(key) + '" data-hpp="' + Number(item.hpp || 0) + '">' +
+        '<div class="hl-service-top">' +
+          '<div>' +
+            '<div class="hl-service-name">' + escapeHtml(item.title || "-") + '</div>' +
+            '<div class="hl-service-unit">' + escapeHtml(item.unitLabel || "") + '</div>' +
+          '</div>' +
+          '<div class="hl-status-pill ' + escapeHtml(status) + '">' + escapeHtml(statusLabel) + '</div>' +
+        '</div>' +
+
+        '<div class="hl-metric-grid">' +
+          '<div class="hl-metric">' +
+            '<div class="label">HPP Layanan</div>' +
+            '<div class="value">' + formatRupiahTanpaDesimal(item.hpp || 0) + '</div>' +
+          '</div>' +
+          '<div class="field" style="margin-bottom:0;">' +
+            '<label>Harga Jual</label>' +
+            '<input type="text" inputmode="numeric" pattern="[0-9]*" data-harga-layanan-key="' + escapeHtml(key) + '" value="' + (Number(item.hargaJual || 0) > 0 ? Number(item.hargaJual || 0).toLocaleString("id-ID") : "") + '" oninput="onHargaLayananInput(event)">' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="hl-metric-grid">' +
+          '<div class="hl-metric highlight">' +
+            '<div class="label">Margin</div>' +
+            '<div class="value hl-margin-value">' + formatRupiahTanpaDesimal(item.margin || 0) + '</div>' +
+          '</div>' +
+          '<div class="hl-metric">' +
+            '<div class="label">% Margin</div>' +
+            '<div class="value hl-margin-percent-value">' + formatNum(item.marginPercent || 0) + '%</div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="hl-note"><b>Margin bukan laba bersih.</b> Margin belum dikurangi biaya tetap bulanan.</div>' +
+      '</div>'
+    );
+  }
+
+  function renderHargaLayananWarnings(warnings) {
+    var box = document.getElementById("hargaLayananWarningBox");
+    var list = document.getElementById("hargaLayananWarningList");
+
+    if (!box || !list) return;
+
+    list.innerHTML = "";
+
+    if (!warnings || !warnings.length) {
+      box.style.display = "none";
+      return;
+    }
+
+    warnings.forEach(function (msg) {
+      var li = document.createElement("li");
+      li.textContent = msg;
+      list.appendChild(li);
+    });
+
+    box.style.display = "block";
+  }
+
+  function onHargaLayananInput(evt) {
+    var input = evt && evt.target;
+    if (input) {
+      var digitsOnly = input.value.replace(/[^0-9]/g, "");
+      var numVal = Number(digitsOnly) || 0;
+      input.value = numVal > 0 ? numVal.toLocaleString("id-ID") : "";
+    }
+
+    refreshHargaLayananPreview();
+    setSaveStatus("Belum disimpan", "busy");
+
+    if (hargaLayananDebounceTimer) {
+      clearTimeout(hargaLayananDebounceTimer);
+    }
+
+    hargaLayananDebounceTimer = setTimeout(function () {
+      setSaveStatus("Siap disimpan", "busy");
+    }, 650);
+  }
+  window.onHargaLayananInput = onHargaLayananInput;
+
+  function refreshHargaLayananPreview() {
+    document.querySelectorAll("[data-harga-layanan-card]").forEach(function (card) {
+      var input = card.querySelector("[data-harga-layanan-key]");
+      if (!input) return;
+
+      var hpp = Number(card.getAttribute("data-hpp") || 0);
+      var hargaJual = Number(String(input.value || "0").replace(/[^0-9]/g, ""));
+      hargaJual = isFinite(hargaJual) && hargaJual > 0 ? hargaJual : 0;
+
+      var margin = hargaJual - hpp;
+      var marginPercent = hargaJual > 0 ? (margin / hargaJual) * 100 : 0;
+      var statusInfo = getHargaLayananStatusClient(margin, marginPercent);
+
+      var marginEl = card.querySelector(".hl-margin-value");
+      var percentEl = card.querySelector(".hl-margin-percent-value");
+      var statusEl = card.querySelector(".hl-status-pill");
+
+      if (marginEl) marginEl.textContent = formatRupiahTanpaDesimal(margin);
+      if (percentEl) percentEl.textContent = formatNum(marginPercent) + "%";
+      if (statusEl) {
+        statusEl.className = "hl-status-pill " + statusInfo.status;
+        statusEl.textContent = statusInfo.label;
+      }
+    });
+  }
+
+  function getHargaLayananStatusClient(margin, marginPercent) {
+    if (margin < 0) return { status: "rugi", label: "Rugi" };
+    if (margin === 0) return { status: "impas", label: "Impas" };
+    if (marginPercent > 0 && marginPercent < 20) return { status: "tipis", label: "Tipis" };
+    return { status: "aman", label: "Aman" };
+  }
+
+  function collectHargaLayananPayload() {
+    var inputs = document.querySelectorAll("[data-harga-layanan-key]");
+    var hargaJual = {};
+
+    inputs.forEach(function (input) {
+      var key = input.getAttribute("data-harga-layanan-key");
+      var value = Number(String(input.value || "0").replace(/[^0-9]/g, ""));
+      hargaJual[key] = isFinite(value) && value > 0 ? value : 0;
+    });
+
+    return { hargaJual: hargaJual };
+  }
+
+  function saveHargaLayananFromInputs() {
+    if (!hargaLayananCurrentCabangId) return;
+
+    var btn = document.getElementById("hargaLayananSaveBtn");
+    if (btn) btn.disabled = true;
+    setSaveStatus("Menyimpan...", "busy");
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (btn) btn.disabled = false;
+
+        if (!res || !res.ok) {
+          handleBackendError(res, "menyimpan Harga Layanan");
+          return;
+        }
+
+        setSaveStatus("Tersimpan", "ok");
+        showToast("Harga layanan tersimpan.", "ok");
+        openHargaLayananOutletList();
+      })
+      .withFailureHandler(function (err) {
+        if (btn) btn.disabled = false;
+        handleBackendError(
+          {
+            error: err && err.message ? err.message : String(err),
+            stage: "client:hargaLayanan:saveHargaLayanan"
+          },
+          "menyimpan Harga Layanan"
+        );
+      })
+      .saveHargaLayanan(hargaLayananCurrentCabangId, collectHargaLayananPayload());
+  }
+
+  function resetHargaLayananCurrent() {
+    if (!hargaLayananCurrentCabangId) return;
+    if (!window.confirm("Reset semua harga jual layanan untuk outlet ini?")) return;
+
+    document.querySelectorAll("[data-harga-layanan-key]").forEach(function (input) {
+      input.value = 0;
+    });
+
+    refreshHargaLayananPreview();
+    saveHargaLayananFromInputs();
+  }
+
+</script>

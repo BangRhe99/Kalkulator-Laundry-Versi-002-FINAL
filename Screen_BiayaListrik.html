@@ -1,0 +1,92 @@
+<!--
+===============================================================================
+FILE: Screen_BiayaListrik.html
+PROJECK: Kalkulator Laundry Versi 002
+ISI: Layar Master Biaya > Listrik
+
+FUNGSI:
+Form konfigurasi biaya listrik per cabang (satu konfigurasi per cabang).
+
+Di-include dari Index.html lewat include('Screen_BiayaListrik'). Jangan tambah
+tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
+===============================================================================
+-->
+    <section class="screen" id="screenListrikForm">
+      <div class="list-header">
+        <h1 id="listrikTitle">Analisa Biaya Listrik</h1>
+      </div>
+
+      <div class="tdl-panel">
+        <label for="listrikTdl">Tarif Dasar Listrik (TDL) per kWh (Rp)</label>
+        <div class="tdl-input-row" style="margin-top:8px;">
+          <span class="prefix">Rp</span>
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="listrikTdl" placeholder="1700">
+        </div>
+        <div class="field-hint">Bisa diubah menyesuaikan golongan daya listrik laundry Anda.</div>
+      </div>
+
+      <div class="listrik-kategori-grid">
+        <div class="listrik-kategori-card">
+          <div class="listrik-kategori-top">
+            <div class="title-group" style="display:flex;align-items:center;gap:8px;">
+              <span class="listrik-kategori-icon cuci">&#128167;</span>
+              <span class="name cuci">Mesin Cuci</span>
+            </div>
+          </div>
+          <label for="listrikWattCuci">Daya / mesin (Watt)</label>
+          <input type="number" inputmode="decimal" min="0" step="1" id="listrikWattCuci" placeholder="450">
+          <div class="listrik-rincian-list" id="listrikRincianCuci"></div>
+        </div>
+
+        <div class="listrik-kategori-card">
+          <div class="listrik-kategori-top">
+            <div class="title-group" style="display:flex;align-items:center;gap:8px;">
+              <span class="listrik-kategori-icon kering">&#128168;</span>
+              <span class="name kering">Mesin Pengering</span>
+            </div>
+          </div>
+          <label for="listrikWattKering">Daya / mesin (Watt)</label>
+          <input type="number" inputmode="decimal" min="0" step="1" id="listrikWattKering" placeholder="448">
+          <div class="listrik-rincian-list" id="listrikRincianKering"></div>
+        </div>
+
+        <div class="listrik-kategori-card full">
+          <div class="listrik-kategori-top">
+            <div class="title-group" style="display:flex;align-items:center;gap:8px;">
+              <span class="listrik-kategori-icon pompa">&#127754;</span>
+              <span class="name pompa">Pompa Air</span>
+            </div>
+          </div>
+          <label for="listrikWattPompa">Daya total pompa (Watt)</label>
+          <input type="number" inputmode="decimal" min="0" step="1" id="listrikWattPompa" placeholder="280">
+          <div class="field-hint" id="listrikPompaHint">Dialokasikan rata ke setiap mesin cuci yang ada di profil cabang ini.</div>
+        </div>
+
+        <div class="listrik-kategori-card full" id="listrikSetrikaCard" style="display:none;">
+          <div class="listrik-kategori-top">
+            <div class="title-group" style="display:flex;align-items:center;gap:8px;">
+              <span class="listrik-kategori-icon setrika">&#9889;</span>
+              <span class="name setrika">Setrika Listrik</span>
+            </div>
+          </div>
+          <label for="listrikWattSetrika">Daya / mesin (Watt)</label>
+          <input type="number" inputmode="decimal" min="0" step="1" id="listrikWattSetrika" placeholder="300">
+          <div class="field-hint">Dihitung per jam, bukan per load â€” sesuai kapasitas mesin setrika di profil cabang ini.</div>
+          <div class="listrik-rincian-list" id="listrikRincianSetrika"></div>
+        </div>
+      </div>
+
+      <div class="listrik-kategori-card full" id="listrikTotalCard" style="margin-top:16px;">
+        <div class="listrik-kategori-top">
+          <div class="title-group" style="display:flex;align-items:center;gap:8px;">
+            <span class="listrik-kategori-icon">&#128202;</span>
+            <span class="name">Total Estimasi Biaya Listrik</span>
+          </div>
+        </div>
+        <div class="listrik-rincian-list" id="listrikTotalRincian"></div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         LAYAR: ANALISA BIAYA AIR (satu konfigurasi per cabang)
+    =================================================================== -->

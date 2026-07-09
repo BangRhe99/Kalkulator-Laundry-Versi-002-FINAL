@@ -1,23 +1,17 @@
 <!--
 ===============================================================================
-FILE: Screen_FixedCost.html
-PROJECT: Kalkulator Laundry Versi 002
-TAHAP: 4 — Pecah HTML Screen
+FILE: Screen_BiayaTetapOutlet.html
+PROJECK: Kalkulator Laundry Versi 002
+ISI: Layar Biaya Tetap Outlet
 
 FUNGSI:
-Berisi pecahan tampilan screen dari Index.html.
+Daftar outlet + form biaya tetap (gaji, depresiasi, biaya lain-lain) per outlet.
 
-ATURAN:
-- ID elemen dipertahankan.
-- Nama screen dipertahankan.
-- Urutan screen mengikuti Index.html asli.
-- File ini hanya berisi markup screen.
-- Logic JavaScript tetap berada di Index.html.
-- Styling tetap mengikuti file style yang sudah ada.
+Di-include dari Index.html lewat include('Screen_BiayaTetapOutlet'). Jangan tambah
+tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
 ===============================================================================
 -->
-
-<section class="screen" id="screenBiayaTetapList">
+    <section class="screen" id="screenBiayaTetapList">
       <div class="list-header">
         <h1>Biaya Tetap Outlet</h1>
         <span class="count" id="biayaTetapOutletCount">0 outlet</span>
@@ -30,7 +24,10 @@ ATURAN:
       <div id="biayaTetapOutletList" class="menu-grid"></div>
     </section>
 
-<section class="screen" id="screenBiayaTetapForm">
+    <!-- ===================================================================
+         LAYAR: BIAYA TETAP OUTLET ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â form & rangkuman
+    =================================================================== -->
+    <section class="screen" id="screenBiayaTetapForm">
       <div class="fc-head">
         <div class="fc-title">Biaya Tetap Outlet (Fixed Cost)</div>
         <div class="fc-desc">Catat biaya tetap bulanan sebagai dasar menghitung BEP, target omzet, margin, dan harga jual.</div>
@@ -40,3 +37,6 @@ ATURAN:
         <div class="hpp-loading">Memuat biaya tetap outlet...</div>
       </div>
     </section>
+
+
+  </div>

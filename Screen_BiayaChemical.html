@@ -1,0 +1,121 @@
+<!--
+===============================================================================
+FILE: Screen_BiayaChemical.html
+PROJECK: Kalkulator Laundry Versi 002
+ISI: Layar Master Biaya > Chemical
+
+FUNGSI:
+Daftar & form biaya chemical per cabang (multi-record: deterjen, softener, dll).
+
+Di-include dari Index.html lewat include('Screen_BiayaChemical'). Jangan tambah
+tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
+===============================================================================
+-->
+    <section class="screen" id="screenChemicalList">
+      <div class="list-header">
+        <h1 id="chemicalListTitle">Analisa Biaya Chemical</h1>
+        <span class="count" id="chemicalListCount">0 data</span>
+      </div>
+      <div id="chemicalListEmpty" class="empty-state" style="display:none;">
+        <div class="icon">&#129514;</div>
+        <p>Belum ada data chemical untuk cabang ini.<br>Tambahkan item pertama (deterjen, softener, parfum, dll) untuk mulai menghitung.</p>
+      </div>
+      <div class="gas-grid" id="chemicalList"></div>
+      <div class="gas-card-result" id="chemicalTotalBox" style="margin-top:4px; margin-bottom:14px;">
+        <div class="gas-result-grid" style="grid-template-columns: 1fr;">
+          <div class="gas-result-cell highlight"><div class="label">Total biaya chemical / Kg</div><div class="val" id="chemicalTotalPerKg">Rp 0</div></div>
+        </div>
+      </div>
+      <button class="add-cabang-btn flame" onclick="openChemicalFormNew()">+ Tambah item chemical</button>
+    </section>
+
+    <!-- ===================================================================
+         LAYAR: FORM TAMBAH/EDIT BIAYA CHEMICAL
+    =================================================================== -->
+    <section class="screen" id="screenChemicalForm">
+      <section class="panel" data-panel="chemical">
+        <div class="panel-head">
+          <h2 id="chemicalFormTitle">Analisa Biaya Chemical</h2>
+        </div>
+        <div class="panel-body">
+
+          <div class="field" id="chemicalNamaFixedWrap" style="display:none;">
+            <label>Nama item</label>
+            <div class="chemical-nama-fixed" id="chemicalNamaFixedLabel">-</div>
+          </div>
+
+          <div class="field" id="chemicalNamaField">
+            <label for="chemicalNama">Nama item</label>
+            <input type="text" id="chemicalNama" placeholder="Contoh: Anti noda, Pemutih, Pewangi khusus">
+            <div class="field-hint">Untuk item tambahan di luar 4 chemical utama. Isi sesuai nama chemical yang dipakai, misalnya Anti noda atau Pemutih.</div>
+          </div>
+
+          <div class="field" id="chemicalTipeDeterjenField" style="display:none;">
+            <label for="chemicalTipeDeterjen">Tipe Deterjen</label>
+            <select id="chemicalTipeDeterjen">
+              <option value="">Pilih tipe deterjen</option>
+              <option value="cair">Cair</option>
+              <option value="bubuk">Bubuk</option>
+              <option value="sachet">Sachet</option>
+            </select>
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label for="chemicalIsiKemasan">Isi per kemasan</label>
+              <input type="number" inputmode="decimal" min="0" step="0.01" id="chemicalIsiKemasan" placeholder="Contoh: 1000">
+            </div>
+            <div class="field">
+              <label for="chemicalSatuanKemasan">Satuan</label>
+              <select id="chemicalSatuanKemasan">
+                <option value="">Pilih satuan</option>
+                <option value="liter">Liter</option>
+                <option value="kg">Kg</option>
+                <option value="gram">gr</option>
+                <option value="ml">ml</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="chemicalHargaBeli">Harga beli per kemasan (Rp)</label>
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="chemicalHargaBeli" placeholder="Contoh: 25.000">
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label for="chemicalTakaranPerKg">Takaran pemakaian per Kg cucian</label>
+              <div class="input-with-unit">
+                <input type="number" inputmode="decimal" min="0" step="0.01" id="chemicalTakaranPerKg" placeholder="Contoh: 15">
+                <span class="unit-badge" id="chemicalTakaranUnitBadge">-</span>
+              </div>
+              <div class="field-hint">Pakai satuan yang sama dengan isi kemasan di atas.</div>
+            </div>
+            <div class="field">
+              <label>Konversi Satuan</label>
+              <div class="chemical-nama-fixed" id="chemicalKonversiSatuan" style="font-weight:600;">-</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="chemicalCuciRef">Mesin cuci acuan (kapasitas per load)</label>
+            <select id="chemicalCuciRef"></select>
+            <div class="field-hint">Dipakai untuk menghitung Biaya Chemical Per Load berdasarkan kapasitas maksimal mesin cuci ini.</div>
+          </div>
+
+          <div class="group-divider">Hasil otomatis</div>
+          <div class="gas-card-result" style="border-top:none; padding-top:0; margin-top:0;">
+            <div class="gas-result-grid" style="grid-template-columns: 1fr 1fr;">
+              <div class="gas-result-cell"><div class="label">Biaya Chemical Per Load</div><div class="val" id="cfBiayaPerLoad">Rp 0</div></div>
+              <div class="gas-result-cell highlight"><div class="label">Biaya per Kg</div><div class="val" id="cfBiayaPerKg">Rp 0</div></div>
+            </div>
+            <div class="gas-warning" id="cfWarning" style="display:none;"></div>
+          </div>
+
+        </div>
+      </section>
+    </section>
+
+    <!-- ===================================================================
+         LAYAR: DAFTAR BIAYA PACKING milik satu cabang
+    =================================================================== -->

@@ -1,0 +1,475 @@
+<!--
+===============================================================================
+FILE: Script_Fitur_BiayaPacking.html
+PROJECT: Kalkulator Laundry Versi 002
+ISI: Fitur Master Biaya > Packing
+
+FUNGSI:
+CRUD & preview biaya packing per cabang (multi-record: plastik/isolasi/dll), kalkulasi biaya per Kg client-side.
+
+PENTING -- catat sebelum edit:
+Semua file Script_*.html berbagi SATU scope global yang sama (Apps Script
+include() cuma menggabungkan teks mentah jadi satu <script> demi <script>
+di halaman yang sama -- bukan module system). Karena itu file ini SENGAJA
+TIDAK dibungkus (function(){...})() -- kalau kamu bungkus lagi, fungsi di
+file ini jadi tidak kelihatan dari file lain dan app akan rusak.
+Urutan include TIDAK masalah untuk deklarasi function/var (hoisting),
+TAPI Script_Boot_Main.html WAJIB tetap paling terakhir karena dia yang
+menjalankan bootApp().
+===============================================================================
+-->
+<script>
+"use strict";
+  function openPackingList(cabangId) {
+    view.packingCabangId = cabangId;
+    showScreen("packingList");
+    document.getElementById("packingListTitle").textContent = "Analisa Biaya Packing";
+    document.getElementById("packingListCount").textContent = "memuat...";
+    document.getElementById("packingList").innerHTML = "";
+    document.getElementById("packingListEmpty").style.display = "none";
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "memuat data biaya packing");
+          showScreen("masterBiaya");
+          refreshBiayaPickCabangList();
+          return;
+        }
+        packingCabangCache = res.data.cabang;
+        packingItemsCache = res.data.items;
+        packingTotalCache = res.data.totalBiayaPerKg;
+        document.getElementById("packingListTitle").textContent = "Analisa Biaya Packing · " + (packingCabangCache.namaLaundry || "(Tanpa nama)");
+        renderPackingList();
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listBiayaPacking" }, "memuat data biaya packing");
+        showScreen("masterBiaya");
+        refreshBiayaPickCabangList();
+      })
+      .listBiayaPacking(cabangId);
+  }
+  window.openPackingList = openPackingList;
+
+  /**
+   * PACKING_FIXED_NAMA: 4 item yang paling umum dipakai laundry, selalu
+   * ditampilkan sebagai card duluan (kosong kalau belum diisi). Sama seperti
+   * CHEMICAL_FIXED_NAMA - hanya urutan tampilan di frontend, data tetap
+   * tersimpan sebagai record packing biasa (field "nama" bebas teks),
+   * supaya tetap fleksibel untuk item tambahan apa pun (plastik satuan,
+   * label, dus, dll).
+   */
+  var PACKING_FIXED_NAMA = ["Plastik HD", "Plastik PP", "Plastik Jinjing", "Isolasi"];
+  var PACKING_SATUAN_LABEL = { pack: "Pack", kg: "Kg" };
+
+  function findPackingEntryByNama(nama) {
+    return packingItemsCache.find(function (entry) {
+      return entry.record && entry.record.nama &&
+        entry.record.nama.trim().toLowerCase() === nama.toLowerCase();
+    }) || null;
+  }
+
+  function buildPackingCard(displayNama, entry) {
+    var card = document.createElement("div");
+    card.className = "gas-card";
+
+    if (!entry) {
+      card.innerHTML =
+        "<div class=\"gas-card-top\">" +
+          "<div class=\"title-group\">" +
+            "<span class=\"flame-dot\"></span>" +
+            "<h3>" + escapeHtml(displayNama) + "</h3>" +
+          "</div>" +
+        "</div>" +
+        "<div class=\"field-hint\">Belum ada data. Isi harga beli & Kap Kg Per Lembar untuk mulai menghitung.</div>" +
+        "<button class=\"add-cabang-btn flame\" type=\"button\" data-action=\"fill\" style=\"margin-top:10px;\">+ Isi data " + escapeHtml(displayNama) + "</button>";
+
+      card.querySelector("[data-action='fill']").addEventListener("click", function () { window.openPackingFormNew(displayNama); });
+      return card;
+    }
+
+    var record = entry.record;
+    var summary = entry.summary;
+
+    var warningHtml = summary.statusValid ? "" :
+      "<div class=\"gas-warning\">Isi kemasan atau Kap Kg Per Lembar belum lengkap, biaya belum bisa dihitung.</div>";
+
+    card.innerHTML =
+      "<div class=\"gas-card-top\">" +
+        "<div class=\"title-group\">" +
+          "<span class=\"flame-dot\"></span>" +
+          "<h3>" + escapeHtml(displayNama) + "</h3>" +
+        "</div>" +
+        "<div class=\"actions\">" +
+          "<button class=\"icon-btn\" type=\"button\" aria-label=\"Edit\" data-action=\"edit\">&#9998;</button>" +
+          "<button class=\"icon-btn\" type=\"button\" aria-label=\"Hapus\" data-action=\"delete\">&#10005;</button>" +
+        "</div>" +
+      "</div>" +
+      "<div class=\"meta-row\"><span class=\"meta-label\">Harga beli</span><span class=\"meta-val\">" + money0(record.hargaBeli) + " / " + formatNum(record.isiKemasan) + " " + escapeHtml(PACKING_SATUAN_LABEL[record.satuanKemasan] || record.satuanKemasan) + "</span></div>" +
+      "<div class=\"meta-row\"><span class=\"meta-label\">Kap Kg / Lembar</span><span class=\"meta-val\">" + formatNum(record.kapKgPerLembar) + " Kg</span></div>" +
+      "<div class=\"gas-card-result\">" +
+        "<div class=\"gas-result-grid\">" +
+          "<div class=\"gas-result-cell\"><div class=\"label\">Biaya / Load</div><div class=\"val\">" + money0(summary.biayaPerLoad) + "</div></div>" +
+          "<div class=\"gas-result-cell highlight\"><div class=\"label\">Biaya / Kg</div><div class=\"val\">" + money0(summary.biayaPerKg) + "</div></div>" +
+        "</div>" +
+        warningHtml +
+      "</div>";
+
+    card.querySelector("[data-action='edit']").addEventListener("click", function () { openPackingFormEdit(record.id); });
+    card.querySelector("[data-action='delete']").addEventListener("click", function () { openConfirmDeletePacking(record); });
+
+    return card;
+  }
+
+  function renderPackingList() {
+    var listEl = document.getElementById("packingList");
+    var emptyEl = document.getElementById("packingListEmpty");
+    var countEl = document.getElementById("packingListCount");
+    var totalEl = document.getElementById("packingTotalPerKg");
+
+    countEl.textContent = packingItemsCache.length + " data";
+    totalEl.textContent = money0(packingTotalCache || 0);
+    listEl.innerHTML = "";
+    emptyEl.style.display = "none";
+
+    var usedIds = {};
+
+    PACKING_FIXED_NAMA.forEach(function (fixedNama) {
+      var entry = findPackingEntryByNama(fixedNama);
+      if (entry) usedIds[entry.record.id] = true;
+      listEl.appendChild(buildPackingCard(fixedNama, entry));
+    });
+
+    packingItemsCache.forEach(function (entry) {
+      if (usedIds[entry.record.id]) return;
+      listEl.appendChild(buildPackingCard(entry.record.nama || "(Tanpa nama)", entry));
+    });
+  }
+
+  function openConfirmDeletePacking(record) {
+    document.getElementById("confirmTitle").textContent = "Hapus item packing ini?";
+    document.getElementById("confirmText").textContent =
+      "Data packing \"" + (record.nama || "ini") + "\" akan dihapus permanen dan tidak bisa dikembalikan.";
+    document.getElementById("confirmOverlay").classList.add("show");
+
+    var btn = document.getElementById("confirmDeleteBtn");
+    btn.onclick = function () { confirmDeletePacking(record.id); };
+  }
+
+  function confirmDeletePacking(id) {
+    var btn = document.getElementById("confirmDeleteBtn");
+    btn.disabled = true;
+    btn.textContent = "Menghapus...";
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = "Hapus";
+        closeConfirm();
+        if (!res || !res.ok) { handleBackendError(res, "menghapus data packing"); return; }
+        showToast("Data packing berhasil dihapus.", "ok");
+        openPackingList(view.packingCabangId);
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = "Hapus";
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:deleteBiayaPacking" }, "menghapus data packing");
+      })
+      .deleteBiayaPacking(id);
+  }
+
+  function defaultPackingRecord(cabangId) {
+    return {
+      id: null,
+      cabangId: cabangId,
+      nama: "",
+      hargaBeli: 0,
+      isiKemasan: 0,
+      satuanKemasan: "",
+      ukuranPanjang: 0,
+      ukuranLebar: 0,
+      kapKgPerLembar: 0,
+      kapPerOrderan: 0,
+      layananPacking: ["kiloan", "bed_cover"],
+      createdAt: null,
+      updatedAt: null
+    };
+  }
+
+  function isPackingPlastikNama(nama) {
+    return (nama || "").trim().toLowerCase().indexOf("plastik") >= 0;
+  }
+
+  function isPackingJinjingBedCoverLocked(record) {
+    var nama = ((record && record.nama) || "").trim().toLowerCase();
+    var layanan = Array.isArray(record && record.layananPacking) ? record.layananPacking : [];
+    return nama === "plastik jinjing" && layanan.indexOf("bed_cover") >= 0;
+  }
+
+  function isPackingIsolasiNama(nama) {
+    return (nama || "").trim().toLowerCase() === "isolasi";
+  }
+
+  function isPackingFixedNama(nama) {
+    var v = (nama || "").trim().toLowerCase();
+    return PACKING_FIXED_NAMA.some(function (n) { return n.toLowerCase() === v; });
+  }
+
+  window.openPackingFormNew = function (presetNama) {
+    if (!packingCabangCache) { showToast("Pilih cabang terlebih dahulu.", "err"); return; }
+    view.packingIsNew = true;
+    view.packingEditingId = null;
+    packingFormState = defaultPackingRecord(view.packingCabangId);
+    if (presetNama) packingFormState.nama = presetNama;
+    view.packingIsFixedNama = isPackingFixedNama(presetNama);
+    showScreen("packingForm");
+    document.getElementById("packingFormTitle").textContent = view.packingIsFixedNama
+      ? "Isi Data " + presetNama
+      : "Tambah Item Packing";
+    renderPackingForm();
+    setSaveStatus("", "");
+  };
+
+  function openPackingFormEdit(id) {
+    view.packingIsNew = false;
+    view.packingEditingId = id;
+    showScreen("packingForm");
+    document.getElementById("packingFormTitle").textContent = "Edit Item Packing";
+    setSaveStatus("Memuat...", "busy");
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "memuat data packing untuk diedit");
+          openPackingList(view.packingCabangId);
+          return;
+        }
+        packingFormState = res.data.record;
+        view.packingIsFixedNama = isPackingFixedNama(packingFormState.nama);
+        if (view.packingIsFixedNama) {
+          document.getElementById("packingFormTitle").textContent = "Edit Data " + packingFormState.nama;
+        }
+        renderPackingForm();
+        setSaveStatus("", "");
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaPacking" }, "memuat data packing untuk diedit");
+        openPackingList(view.packingCabangId);
+      })
+      .getBiayaPacking(id);
+  }
+
+  function syncPackingFormFieldsFromState() {
+    document.getElementById("packingNama").value = packingFormState.nama || "";
+    document.getElementById("packingHargaBeli").value = packingFormState.hargaBeli ? Number(packingFormState.hargaBeli).toLocaleString("id-ID") : "";
+    document.getElementById("packingIsiKemasan").value = packingFormState.isiKemasan || "";
+    document.getElementById("packingSatuanKemasan").value = packingFormState.satuanKemasan || "";
+    document.getElementById("packingUkuranPanjang").value = packingFormState.ukuranPanjang || "";
+    document.getElementById("packingUkuranLebar").value = packingFormState.ukuranLebar || "";
+    document.getElementById("packingKapKgPerLembar").value = packingFormState.kapKgPerLembar || "";
+    document.getElementById("packingKapPerOrderan").value = packingFormState.kapPerOrderan || "";
+    var layananArr = Array.isArray(packingFormState.layananPacking) ? packingFormState.layananPacking : [];
+    var kiloanCb = document.getElementById("packingLayananKiloan");
+    var bedCoverCb = document.getElementById("packingLayananBedCover");
+    if (kiloanCb) kiloanCb.checked = layananArr.indexOf("kiloan") >= 0;
+    if (bedCoverCb) bedCoverCb.checked = layananArr.indexOf("bed_cover") >= 0;
+  }
+
+  function renderPackingForm() {
+    syncPackingFormFieldsFromState();
+    renderPackingFormNamaMode();
+    renderPackingFormPreview();
+  }
+
+  function renderPackingFormNamaMode() {
+    var isFixed = !!view.packingIsFixedNama;
+    var fixedWrap = document.getElementById("packingNamaFixedWrap");
+    var fixedLabel = document.getElementById("packingNamaFixedLabel");
+    var namaField = document.getElementById("packingNamaField");
+    if (fixedWrap) fixedWrap.style.display = isFixed ? "" : "none";
+    if (fixedLabel) fixedLabel.textContent = packingFormState.nama || "";
+    if (namaField) namaField.style.display = isFixed ? "none" : "";
+
+    var layananWrap = document.getElementById("packingLayananWrap");
+    if (layananWrap) layananWrap.style.display = isPackingPlastikNama(packingFormState.nama) ? "" : "none";
+
+    var isIsolasi = isPackingIsolasiNama(packingFormState.nama);
+
+    var hargaBeliLabel = document.getElementById("packingHargaBeliLabel");
+    if (hargaBeliLabel) hargaBeliLabel.textContent = isIsolasi ? "Harga Per Roll (Rp)" : "Harga beli per kemasan (Rp)";
+
+    var isiSatuanWrap = document.getElementById("packingIsiSatuanWrap");
+    if (isiSatuanWrap) isiSatuanWrap.style.display = isIsolasi ? "none" : "";
+
+    var ukuranHint = document.getElementById("packingUkuranHint");
+    if (ukuranHint) ukuranHint.textContent = isIsolasi
+      ? "Yard (yd) adalah satuan panjang yang umum digunakan pada roll isolasi."
+      : "Ukuran lembar dalam cm, contoh 50 x 75.";
+
+    var hargaLembarWrap = document.getElementById("packingHargaPerLembarWrap");
+    var kapOrderanWrap = document.getElementById("packingKapPerOrderanWrap");
+    if (hargaLembarWrap) hargaLembarWrap.style.display = isIsolasi ? "none" : "";
+    if (kapOrderanWrap) kapOrderanWrap.style.display = isIsolasi ? "" : "none";
+
+    var kapKgLabel = document.getElementById("packingKapKgPerLembarLabel");
+    var kapKgTooltip = document.getElementById("packingKapKgPerLembarTooltip");
+    if (kapKgLabel) kapKgLabel.textContent = isIsolasi ? "Kap Kg Per Roll" : "Kap Kg Per Lembar";
+    if (kapKgTooltip) kapKgTooltip.innerHTML = isIsolasi
+      ? "Isi perkiraan jumlah order untuk 1 roll solasi.<br>Contoh: 1 roll cukup 50 orderan, maka harga 1 roll dibagi 50."
+      : "Per Lembar bisa diisi berapa Kg";
+  }
+
+  function computeBiayaPackingSummaryClient(record) {
+    if (isPackingIsolasiNama(record.nama)) {
+      var biayaPerLoadIsolasi = record.kapKgPerLembar > 0 ? round2(record.hargaBeli / record.kapKgPerLembar) : 0;
+      var biayaPerKgIsolasi = record.kapPerOrderan > 0 ? round2(biayaPerLoadIsolasi / record.kapPerOrderan) : 0;
+      return {
+        hargaPerUnit: biayaPerLoadIsolasi,
+        biayaPerLoad: biayaPerLoadIsolasi,
+        biayaPerKg: biayaPerKgIsolasi,
+        kapKgLocked: false,
+        statusValid: record.kapKgPerLembar > 0 && record.kapPerOrderan > 0
+      };
+    }
+
+    var hargaPerLembar = record.isiKemasan > 0 ? round2(record.hargaBeli / record.isiKemasan) : 0;
+    var kapKgLocked = isPackingJinjingBedCoverLocked(record);
+    var biayaPerKg = (!kapKgLocked && record.kapKgPerLembar > 0) ? round2(hargaPerLembar / record.kapKgPerLembar) : 0;
+    return {
+      hargaPerUnit: hargaPerLembar,
+      biayaPerLoad: hargaPerLembar,
+      biayaPerKg: biayaPerKg,
+      kapKgLocked: kapKgLocked,
+      statusValid: record.isiKemasan > 0 && (kapKgLocked || record.kapKgPerLembar > 0)
+    };
+  }
+
+  function renderPackingFormPreview() {
+    var summary = computeBiayaPackingSummaryClient(packingFormState);
+    var hargaLembarEl = document.getElementById("packingHargaPerLembar");
+    if (hargaLembarEl) hargaLembarEl.textContent = money0(summary.hargaPerUnit);
+    document.getElementById("pfBiayaPerLoad").textContent = money0(summary.biayaPerLoad);
+    document.getElementById("pfBiayaPerKg").textContent = summary.kapKgLocked ? "-" : money0(summary.biayaPerKg);
+
+    var kapKgInput = document.getElementById("packingKapKgPerLembar");
+    if (kapKgInput) kapKgInput.disabled = summary.kapKgLocked;
+
+    var kapKgCell = document.getElementById("pfBiayaPerKgCell");
+    if (kapKgCell) kapKgCell.classList.toggle("dimmed", summary.kapKgLocked);
+
+    var lockNote = document.getElementById("pfKapKgLockNote");
+    if (lockNote) lockNote.style.display = summary.kapKgLocked ? "block" : "none";
+
+    var warnEl = document.getElementById("pfWarning");
+    if (isPackingIsolasiNama(packingFormState.nama)) {
+      warnEl.style.display = "none";
+    } else if (!summary.statusValid) {
+      warnEl.style.display = "block";
+      warnEl.textContent = "Isi kemasan dan Kap Kg Per Lembar harus lebih dari 0 supaya biaya bisa dihitung.";
+    } else {
+      warnEl.style.display = "none";
+    }
+  }
+
+  function updatePackingLayananFromCheckbox() {
+    var layanan = [];
+    if (document.getElementById("packingLayananKiloan").checked) layanan.push("kiloan");
+    if (document.getElementById("packingLayananBedCover").checked) layanan.push("bed_cover");
+    packingFormState.layananPacking = layanan;
+    renderPackingFormPreview();
+  }
+
+  function bindPackingFormInputs() {
+    document.getElementById("packingNama").addEventListener("input", function (e) {
+      packingFormState.nama = e.target.value;
+      renderPackingFormNamaMode();
+    });
+    document.getElementById("packingLayananKiloan").addEventListener("change", updatePackingLayananFromCheckbox);
+    document.getElementById("packingLayananBedCover").addEventListener("change", updatePackingLayananFromCheckbox);
+    document.getElementById("packingHargaBeli").addEventListener("input", function (e) {
+      var digitsOnly = e.target.value.replace(/[^0-9]/g, "");
+      var numVal = Number(digitsOnly) || 0;
+      packingFormState.hargaBeli = numVal;
+      e.target.value = numVal > 0 ? numVal.toLocaleString("id-ID") : "";
+      renderPackingFormPreview();
+    });
+    document.getElementById("packingIsiKemasan").addEventListener("input", function (e) {
+      packingFormState.isiKemasan = Number(e.target.value) || 0;
+      renderPackingFormPreview();
+    });
+    document.getElementById("packingSatuanKemasan").addEventListener("change", function (e) {
+      packingFormState.satuanKemasan = e.target.value;
+    });
+    document.getElementById("packingUkuranPanjang").addEventListener("input", function (e) {
+      packingFormState.ukuranPanjang = Number(e.target.value) || 0;
+    });
+    document.getElementById("packingUkuranLebar").addEventListener("input", function (e) {
+      packingFormState.ukuranLebar = Number(e.target.value) || 0;
+    });
+    document.getElementById("packingKapKgPerLembar").addEventListener("input", function (e) {
+      packingFormState.kapKgPerLembar = Number(e.target.value) || 0;
+      renderPackingFormPreview();
+    });
+    document.getElementById("packingKapPerOrderan").addEventListener("input", function (e) {
+      packingFormState.kapPerOrderan = Number(e.target.value) || 0;
+      renderPackingFormPreview();
+    });
+  }
+
+  function savePackingForm() {
+    if (!packingFormState.nama || !packingFormState.nama.trim()) {
+      showToast("Isi nama item packing terlebih dahulu.", "err");
+      document.getElementById("packingNama").classList.add("input-err");
+      return;
+    }
+    document.getElementById("packingNama").classList.remove("input-err");
+
+    var btn = document.getElementById("packingSaveBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "Menyimpan..."; }
+    setSaveStatus("Menyimpan...", "busy");
+
+    function onDone(res, actionLabel, restoreLabel) {
+      if (btn) { btn.disabled = false; btn.textContent = restoreLabel; }
+      if (!res || !res.ok) { handleBackendError(res, actionLabel); return; }
+      showToast("Data biaya packing tersimpan.", "ok");
+      setSaveStatus("Tersimpan", "ok");
+      showScreen("masterBiaya");
+      refreshBiayaPickCabangList();
+    }
+
+    if (view.packingIsNew) {
+      google.script.run
+        .withSuccessHandler(function (res) { onDone(res, "menyimpan data packing baru", "Simpan item packing"); })
+        .withFailureHandler(function (err) {
+          if (btn) { btn.disabled = false; btn.textContent = "Simpan item packing"; }
+          handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:createBiayaPacking" }, "menyimpan data packing baru");
+        })
+        .createBiayaPacking(packingFormState);
+    } else {
+      google.script.run
+        .withSuccessHandler(function (res) { onDone(res, "menyimpan perubahan data packing", "Simpan perubahan"); })
+        .withFailureHandler(function (err) {
+          if (btn) { btn.disabled = false; btn.textContent = "Simpan perubahan"; }
+          handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:updateBiayaPacking" }, "menyimpan perubahan data packing");
+        })
+        .updateBiayaPacking(view.packingEditingId, packingFormState);
+    }
+  }
+
+  /**
+   * ===========================================================================
+   * SECTION: MASTER BIAYA ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â LISTRIK
+   * ===========================================================================
+   * Semua fungsi di bawah ini diberi prefix "listrik"/"Listrik" secara
+   * konsisten, mengikuti pola prefix "gas"/"Gas" di section sebelumnya.
+   *
+   * BERBEDA dari Gas: tidak ada list/create/delete multi-record. Hanya SATU
+   * layar (screenListrikForm) yang langsung berfungsi sebagai tampilan +
+   * form sekaligus (mirip gambar referensi: tidak ada mode "lihat" vs "edit"
+   * terpisah, semua field langsung bisa diketik dan hasil berubah live).
+   * ===========================================================================
+   */
+
+  var JENIS_MESIN_LABEL_CLIENT = { rumah_tangga: "Home", konversi: "Konversi", komersial: "Komersial" };
+
+</script>

@@ -1,23 +1,17 @@
 <!--
 ===============================================================================
 FILE: Screen_HargaLayanan.html
-PROJECT: Kalkulator Laundry Versi 002
-TAHAP: 4 — Pecah HTML Screen
+PROJECK: Kalkulator Laundry Versi 002
+ISI: Layar Harga Layanan
 
 FUNGSI:
-Berisi pecahan tampilan screen dari Index.html.
+Daftar outlet + detail input harga jual per layanan & per Kg, simulasi margin.
 
-ATURAN:
-- ID elemen dipertahankan.
-- Nama screen dipertahankan.
-- Urutan screen mengikuti Index.html asli.
-- File ini hanya berisi markup screen.
-- Logic JavaScript tetap berada di Index.html.
-- Styling tetap mengikuti file style yang sudah ada.
+Di-include dari Index.html lewat include('Screen_HargaLayanan'). Jangan tambah
+tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
 ===============================================================================
 -->
-
-<section class="screen" id="screenHargaLayananList">
+    <section class="screen" id="screenHargaLayananList">
       <div class="list-header">
         <h1>Harga Layanan</h1>
         <span class="count" id="hargaLayananOutletCount">0 outlet</span>
@@ -30,7 +24,10 @@ ATURAN:
       <div id="hargaLayananOutletList" class="menu-grid"></div>
     </section>
 
-<section class="screen" id="screenHargaLayananDetail">
+    <!-- ===================================================================
+         LAYAR: HARGA LAYANAN ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â detail per outlet
+    =================================================================== -->
+    <section class="screen" id="screenHargaLayananDetail">
       <div class="hl-head">
         <div class="hl-title" id="hargaLayananTitle">Harga Layanan</div>
         <div class="hl-desc" id="hargaLayananSubtitle">Tentukan harga jual dan cek margin tiap layanan</div>
@@ -54,3 +51,7 @@ ATURAN:
         <div class="hpp-loading">Memuat harga layanan...</div>
       </div>
     </section>
+
+    <!-- ===================================================================
+         LAYAR: BIAYA TETAP OUTLET ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â pilih outlet
+    =================================================================== -->

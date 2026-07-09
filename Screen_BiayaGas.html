@@ -1,0 +1,113 @@
+<!--
+===============================================================================
+FILE: Screen_BiayaGas.html
+PROJECK: Kalkulator Laundry Versi 002
+ISI: Layar Master Biaya > Gas LPG
+
+FUNGSI:
+Daftar & form biaya gas per cabang (multi-record).
+
+Di-include dari Index.html lewat include('Screen_BiayaGas'). Jangan tambah
+tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
+===============================================================================
+-->
+    <section class="screen" id="screenGasList">
+      <div class="list-header">
+        <h1 id="gasListTitle">Analisa Biaya Gas</h1>
+        <span class="count" id="gasListCount">0 data</span>
+      </div>
+      <div id="gasListEmpty" class="empty-state" style="display:none;">
+        <div class="icon">&#128293;</div>
+        <p>Belum ada data biaya gas untuk cabang ini.<br>Tambahkan tabung pertama untuk mulai menghitung.</p>
+      </div>
+      <div class="gas-grid" id="gasList"></div>
+      <button class="add-cabang-btn flame" onclick="openGasFormNew()">+ Tambah data gas</button>
+    </section>
+
+    <!-- ===================================================================
+         LAYAR: FORM TAMBAH/EDIT BIAYA GAS
+    =================================================================== -->
+    <section class="screen" id="screenGasForm">
+      <section class="panel" data-panel="gas">
+        <div class="panel-head">
+          <h2 id="gasFormTitle">Analisa Biaya Gas</h2>
+        </div>
+        <div class="panel-body">
+
+          <div class="field">
+            <label>Kapasitas Gas LPG</label>
+            <div class="pill-group" id="gasKapasitasPills"></div>
+          </div>
+
+          <div class="field" id="gasKapasitasCustomField" style="display:none;">
+            <label for="gasKapasitasCustomKg">Kapasitas custom (Kg)</label>
+            <input type="number" inputmode="decimal" min="0" step="0.1" id="gasKapasitasCustomKg" placeholder="Contoh: 22">
+          </div>
+
+          <div class="field">
+            <label for="gasHarga">Harga per tabung (Rp)</label>
+            <input type="text" inputmode="numeric" pattern="[0-9]*" id="gasHarga" placeholder="Contoh: 21000">
+          </div>
+
+          <div class="field">
+            <label for="gasEstimasiJam">Estimasi pemakaian (jam)</label>
+            <input type="number" inputmode="decimal" min="0" step="0.1" id="gasEstimasiJam" placeholder="Contoh: 32">
+            <div class="field-hint">Boleh diubah sesuai pengalaman pemakaian outlet ini. Nilai di atas hanya saran awal per kapasitas.</div>
+          </div>
+
+          <div class="field" id="gasDryerRefWrap">
+            <label for="gasDryerRef">Acuan mesin pengering (untuk konversi load)</label>
+            <select id="gasDryerRef"></select>
+            <div class="field-hint">Durasi 1 load diambil dari mesin pengering ini, sesuai data profil cabang.</div>
+          </div>
+
+          <div class="field" id="gasSetrikaRefWrap" style="display:none;">
+            <label for="gasSetrikaRef">Acuan mesin setrika (uap)</label>
+            <select id="gasSetrikaRef"></select>
+            <div class="field-hint">Gas dipakai untuk memanaskan setrika uap. Biaya dihitung per jam, bukan per load.</div>
+          </div>
+
+          <div class="group-divider">Hasil otomatis</div>
+          <div class="gas-card-result" style="border-top:none; padding-top:0; margin-top:0;">
+            <div class="gas-result-grid">
+              <div class="gas-result-cell">
+                <div class="label">Konversi waktu</div>
+                <div class="val" id="gfKonversiMenit">0<span class="unit">menit</span></div>
+              </div>
+              <div class="gas-result-cell" id="gfEstimasiLoadCell">
+                <div class="label">Estimasi load pemakaian</div>
+                <div class="val" id="gfEstimasiLoad">0<span class="unit">load</span></div>
+              </div>
+            </div>
+            <div class="gas-result-grid">
+              <div class="gas-result-cell">
+                <div class="label">Biaya per jam</div>
+                <div class="val" id="gfBiayaJam">Rp 0</div>
+              </div>
+              <div class="gas-result-cell">
+                <div class="label">Biaya per menit</div>
+                <div class="val" id="gfBiayaMenit">Rp 0</div>
+              </div>
+            </div>
+            <div class="gas-result-grid" style="grid-template-columns: 1fr;" id="gfBiayaLoadRow">
+              <div class="gas-result-cell highlight">
+                <div class="label">Biaya Gas Dryer Per Load</div>
+                <div class="val" id="gfBiayaLoad">Rp 0</div>
+              </div>
+            </div>
+            <div class="gas-result-grid" style="grid-template-columns: 1fr;" id="gfBiayaSetrikaRow">
+              <div class="gas-result-cell highlight">
+                <div class="label">Biaya Gas Setrika Per Jam</div>
+                <div class="val" id="gfBiayaSetrikaPerJam">Rp 0</div>
+              </div>
+            </div>
+            <div class="gas-warning" id="gfWarning" style="display:none;"></div>
+          </div>
+
+        </div>
+      </section>
+    </section>
+
+    <!-- ===================================================================
+         LAYAR: DAFTAR BIAYA CHEMICAL milik satu cabang
+    =================================================================== -->

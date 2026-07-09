@@ -1,70 +1,89 @@
 <!--
 ===============================================================================
 FILE: Screen_Menu.html
-PROJECT: Kalkulator Laundry Versi 002
-TAHAP: 4 — Pecah HTML Screen
+PROJECK: Kalkulator Laundry Versi 002
+ISI: Layar Dashboard/Menu Utama
 
 FUNGSI:
-Berisi pecahan tampilan screen dari Index.html.
+Kartu ringkasan bisnis: Cabang, Master Biaya, HPP, Harga Layanan, Fixed Cost, BEP. Pintu masuk pertama saat app dibuka.
 
-ATURAN:
-- ID elemen dipertahankan.
-- Nama screen dipertahankan.
-- Urutan screen mengikuti Index.html asli.
-- File ini hanya berisi markup screen.
-- Logic JavaScript tetap berada di Index.html.
-- Styling tetap mengikuti file style yang sudah ada.
+Di-include dari Index.html lewat include('Screen_Menu'). Jangan tambah
+tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
 ===============================================================================
 -->
+    <section class="screen" id="screenMenu">
+      <div class="dashboard-header">
+        <div class="dashboard-header-top">
+          <div class="dashboard-header-text">
+            <h1 class="dashboard-title">Dashboard Bisnis</h1>
+            <p class="dashboard-subtitle">Ringkasan kondisi outlet Anda saat ini.</p>
+          </div>
+          <div class="dashboard-filter-right">
+            <button class="outlet-filter-pill" type="button" id="dashboardOutletFilter" onclick="openOutletPicker()">
+              <span class="outlet-filter-name">Syakira Laundry</span>
+              <svg class="outlet-filter-arrow" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <div class="outlet-count-label" id="dashboardOutletCountLabel"></div>
+          </div>
+        </div>
 
-<section class="screen" id="screenMenu">
-      <div class="list-header">
-        <h1>Menu utama</h1>
-      </div>
-      <div class="menu-grid">
-        <div class="menu-card tone-sage" onclick="openScreenCabangList()">
+      <div class="menu-grid dashboard-grid">
+        <div class="menu-card dashboard-card tone-sage" onclick="openScreenCabangList()">
           <div class="menu-icon">&#127981;</div>
           <div class="menu-body">
-            <div class="menu-title">Cabang &amp; lokasi</div>
-            <div class="menu-desc">Kelola profil operasional, mesin cuci dan pengering per outlet.</div>
+            <div class="menu-title">Profil Outlet</div>
+            <div class="dashboard-card-summary is-loading" id="dashboardCabangSummary">Memuat data...</div>
           </div>
           <div class="menu-arrow">&#8594;</div>
         </div>
-
-        <div class="menu-card tone-flame" onclick="openScreenMasterBiaya()">
+        <div class="menu-card dashboard-card tone-flame" onclick="openScreenMasterBiaya()">
           <div class="menu-icon">&#128293;</div>
           <div class="menu-body">
-            <div class="menu-title">Master Biaya</div>
-            <div class="menu-desc">Hitung Biaya Produksi Per Outlet: Gas LPG, Listrik, Air, Admin/Nota</div>
+            <div class="menu-title">Master Biaya Produksi</div>
+
+            <div class="dashboard-card-summary is-loading" id="dashboardMasterBiayaSummary">Memuat data...</div>
           </div>
           <div class="menu-arrow">&#8594;</div>
         </div>
 
-        <div class="menu-card tone-volt" onclick="openStrukturHPPOutletList()">
+        <div class="menu-card dashboard-card tone-volt" onclick="openStrukturHPPOutletList()">
           <div class="menu-icon">&#128202;</div>
           <div class="menu-body">
-            <div class="menu-title">Struktur Biaya HPP</div>
-            <div class="menu-desc">Rincian komponen, persentase, dan total Harga Pokok Produksi per outlet.</div>
+            <div class="menu-title">Struktur Biaya HPP &middot; Variable Cost</div>
+            <div class="dashboard-card-summary is-loading" id="dashboardHppSummary">Memuat data...</div>
           </div>
           <div class="menu-arrow">&#8594;</div>
         </div>
 
-        <div class="menu-card tone-sage" onclick="openHargaLayananOutletList()">
+        <div class="menu-card dashboard-card tone-sage" onclick="openHargaLayananOutletList()">
           <div class="menu-icon">&#128176;</div>
           <div class="menu-body">
             <div class="menu-title">Harga Layanan</div>
-            <div class="menu-desc">Tentukan harga jual dan cek margin tiap layanan.</div>
+            <div class="dashboard-card-summary is-loading" id="dashboardHargaLayananSummary">Memuat data...</div>
           </div>
           <div class="menu-arrow">&#8594;</div>
         </div>
 
-        <div class="menu-card tone-sage" onclick="openBiayaTetapOutletList()">
+        <div class="menu-card dashboard-card tone-sage" onclick="openBiayaTetapOutletList()">
           <div class="menu-icon">&#128179;</div>
           <div class="menu-body">
             <div class="menu-title">Biaya Tetap Outlet (Fixed Cost)</div>
-            <div class="menu-desc">Catat biaya tetap bulanan seperti sewa, gaji, internet, penyusutan mesin, perawatan dan operasional rutin lainnya.</div>
+            <div class="dashboard-card-summary is-loading" id="dashboardFixedCostSummary">Memuat data...</div>
           </div>
           <div class="menu-arrow">&#8594;</div>
         </div>
+        <div class="menu-card dashboard-card tone-volt is-static">
+          <div class="menu-icon">&#127919;</div>
+          <div class="menu-body">
+            <div class="menu-title">Target Titik Impas (BEP)</div>
+            <div class="dashboard-card-summary is-loading" id="dashboardBEPSummary">Memuat data...</div>
+          </div>
+        </div>
       </div>
     </section>
+
+    <!-- ===================================================================
+         LAYAR: DAFTAR CABANG (sebelumnya screenList)
+    =================================================================== -->

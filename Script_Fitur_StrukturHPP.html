@@ -1,0 +1,290 @@
+<!--
+===============================================================================
+FILE: Script_Fitur_StrukturHPP.html
+PROJECT: Kalkulator Laundry Versi 002
+ISI: Fitur Struktur Biaya HPP
+
+FUNGSI:
+List outlet + render rincian komponen HPP per layanan (sumber data agregat dari semua Modul_Biaya*.gs).
+
+PENTING -- catat sebelum edit:
+Semua file Script_*.html berbagi SATU scope global yang sama (Apps Script
+include() cuma menggabungkan teks mentah jadi satu <script> demi <script>
+di halaman yang sama -- bukan module system). Karena itu file ini SENGAJA
+TIDAK dibungkus (function(){...})() -- kalau kamu bungkus lagi, fungsi di
+file ini jadi tidak kelihatan dari file lain dan app akan rusak.
+Urutan include TIDAK masalah untuk deklarasi function/var (hoisting),
+TAPI Script_Boot_Main.html WAJIB tetap paling terakhir karena dia yang
+menjalankan bootApp().
+===============================================================================
+-->
+<script>
+"use strict";
+  function normalizeOutletRow_(item) {
+    if (!item) return {};
+    return item.cabang || item.outlet || item.profil || item;
+  }
+
+  function getOutletId_(cabang) {
+    cabang = cabang || {};
+    return String(
+      cabang.id ||
+      cabang.cabangId ||
+      cabang.outletId ||
+      cabang.idCabang ||
+      ""
+    ).trim();
+  }
+
+  function getOutletNama_(cabang) {
+    cabang = cabang || {};
+    var profil = cabang.profil || {};
+    return (
+      profil.namaLaundry ||
+      cabang.namaLaundry ||
+      cabang.nama ||
+      cabang.namaCabang ||
+      "Outlet tanpa nama"
+    );
+  }
+
+  window.openStrukturHPPOutletList = function () {
+    showScreen("strukturHPPList");
+
+    var listEl = document.getElementById("strukturHPPOutletList");
+    var countEl = document.getElementById("strukturHPPOutletCount");
+
+    if (!listEl) return;
+
+    listEl.innerHTML =
+      '<div class="hpp-loading">Memuat daftar outlet...</div>';
+
+    function renderFromCache() {
+      var cabangs = Array.isArray(cabangListCache) ? cabangListCache : [];
+
+      if (countEl) {
+        countEl.textContent = cabangs.length + " outlet";
+      }
+
+      if (!cabangs.length) {
+        listEl.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="icon">&#127981;</div>' +
+            '<p>Belum ada outlet. Silakan buat Profil Outlet terlebih dahulu.</p>' +
+          '</div>';
+        return;
+      }
+
+      listEl.innerHTML = cabangs.map(function (item) {
+        var cabang = normalizeOutletRow_(item);
+        var cabangId = getOutletId_(cabang);
+        var namaLaundry = getOutletNama_(cabang);
+
+        return (
+          '<div class="menu-card tone-volt" onclick="openStrukturHPPDetail(\'' + escapeJsAttr(cabangId) + '\')">' +
+            '<div class="menu-icon">&#128202;</div>' +
+            '<div class="menu-body">' +
+              '<div class="menu-title">' + escapeHtml(namaLaundry) + '</div>' +
+              '<div class="menu-desc">Lihat rincian HPP cuci, kering, dan cuci kering.</div>' +
+            '</div>' +
+            '<div class="menu-arrow">&#8594;</div>' +
+          '</div>'
+        );
+      }).join("");
+    }
+
+    if (Array.isArray(cabangListCache) && cabangListCache.length) {
+      renderFromCache();
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "memuat daftar outlet Struktur Biaya HPP");
+          listEl.innerHTML =
+            '<div class="empty-state">' +
+              '<div class="icon">&#9888;</div>' +
+              '<p>Gagal memuat daftar outlet.</p>' +
+            '</div>';
+          return;
+        }
+
+        cabangListCache = Array.isArray(res.data) ? res.data : [];
+        renderFromCache();
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError(
+          {
+            error: err && err.message ? err.message : String(err),
+            stage: "client:strukturHPP:listCabang"
+          },
+          "memuat daftar outlet Struktur Biaya HPP"
+        );
+
+        listEl.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="icon">&#9888;</div>' +
+            '<p>Gagal memuat daftar outlet.</p>' +
+          '</div>';
+      })
+      .listCabang();
+  };
+
+  window.openStrukturHPPDetail = function (cabangId) {
+    if (!cabangId) {
+      showToast("ID outlet tidak valid.", "err");
+      return;
+    }
+
+    showScreen("strukturHPPDetail");
+
+    var contentEl = document.getElementById("strukturHPPContent");
+    if (!contentEl) return;
+
+    contentEl.innerHTML =
+      '<div class="hpp-loading">Memuat struktur biaya HPP...</div>';
+
+    setSaveStatus("Menghitung...", "busy");
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "memuat Struktur Biaya HPP");
+          contentEl.innerHTML =
+            '<div class="empty-state">' +
+              '<div class="icon">&#9888;</div>' +
+              '<p>' + escapeHtml(res && res.error ? res.error : "Gagal memuat Struktur Biaya HPP.") + '</p>' +
+            '</div>';
+          setSaveStatus("Gagal", "err");
+          return;
+        }
+
+        renderStrukturHPP(res.data);
+        setSaveStatus("Tersimpan", "ok");
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError(
+          {
+            error: err && err.message ? err.message : String(err),
+            stage: "client:strukturHPP:getStrukturBiayaHPP"
+          },
+          "memuat Struktur Biaya HPP"
+        );
+
+        contentEl.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="icon">&#9888;</div>' +
+            '<p>' + escapeHtml(err && err.message ? err.message : String(err)) + '</p>' +
+          '</div>';
+        setSaveStatus("Gagal", "err");
+      })
+      .getStrukturBiayaHPP(cabangId);
+  };
+
+  function renderStrukturHPP(data) {
+    var contentEl = document.getElementById("strukturHPPContent");
+    if (!contentEl) return;
+
+    data = data || {};
+
+    var cabang = data.cabang || {};
+    var layanan = Array.isArray(data.layanan) ? data.layanan : [];
+    var warnings = Array.isArray(data.warnings) ? data.warnings : [];
+
+    var warningHtml = warnings.length
+      ? (
+        '<div class="hpp-warning-box">' +
+          '<div class="hpp-warning-title">Catatan Data</div>' +
+          '<ul>' +
+            warnings.map(function (w) {
+              return '<li>' + escapeHtml(w) + '</li>';
+            }).join("") +
+          '</ul>' +
+        '</div>'
+      )
+      : "";
+
+    var serviceHtml = layanan.length
+      ? layanan.map(renderStrukturHPPServiceCard).join("")
+      : (
+        '<div class="empty-state">' +
+          '<div class="icon">&#128202;</div>' +
+          '<p>Belum ada hasil Struktur Biaya HPP untuk outlet ini.</p>' +
+        '</div>'
+      );
+
+    contentEl.innerHTML =
+      '<div class="summary-hero">' +
+        '<div class="summary-eyebrow">SELF SERVICE LAUNDRY</div>' +
+        '<div class="summary-title">' + escapeHtml(cabang.namaLaundry || "Outlet") + '</div>' +
+        '<div class="summary-meta">' +
+          '<span>Satuan: <b>' + escapeHtml(data.satuan || "per load") + '</b></span>' +
+          '<span>Sumber air: <b>' + escapeHtml(data.sumberAir || "-") + '</b></span>' +
+        '</div>' +
+      '</div>' +
+      warningHtml +
+      serviceHtml;
+  }
+
+  function renderStrukturHPPServiceCard(service) {
+    service = service || {};
+    var components = Array.isArray(service.components) ? service.components : [];
+
+    return (
+      '<div class="hpp-service-card">' +
+        '<div class="hpp-service-top">' +
+          '<div>' +
+            '<div class="hpp-service-name">' + escapeHtml(service.title || "HPP") + '</div>' +
+            '<div class="hpp-service-unit">' + escapeHtml(service.unitLabel || "per load") + '</div>' +
+          '</div>' +
+          '<div class="hpp-service-total">' +
+            '<div class="hpp-total-label">Total HPP</div>' +
+            '<div class="hpp-total-value">' + formatRupiahTanpaDesimal(service.total || 0) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="hpp-component-list">' +
+          components.map(renderStrukturHPPComponentRow).join("") +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderStrukturHPPComponentRow(item) {
+    item = item || {};
+
+    var percent = Number(item.percent || 0);
+    var safePercent = Math.max(0, Math.min(100, isFinite(percent) ? percent : 0));
+
+    return (
+      '<div class="hpp-component-row">' +
+        '<div class="hpp-component-line">' +
+          '<div class="hpp-component-name">' + escapeHtml(item.label || "Komponen") + '</div>' +
+          '<div class="hpp-component-amount">' + formatRupiahTanpaDesimal(item.amount || 0) + '</div>' +
+          '<div class="hpp-component-percent">' + safePercent.toFixed(2) + '%</div>' +
+        '</div>' +
+        '<div class="hpp-progress">' +
+          '<div class="hpp-progress-fill" style="width:' + safePercent + '%;"></div>' +
+        '</div>' +
+        (item.note ? '<div class="hpp-component-note">' + escapeHtml(item.note) + '</div>' : '') +
+      '</div>'
+    );
+  }
+
+  /* Fungsi umum tahap 5 dipindahkan ke file Script_Shared_*.html. */
+
+  function escapeJsAttr(value) {
+    return String(value === null || value === undefined ? "" : value)
+      .replace(/\\/g, "\\\\")
+      .replace(/'/g, "\\'")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+
+  /* =======================================================================
+   * BIAYA TETAP OUTLET (FIXED COST)
+   * ======================================================================= */
+
+</script>

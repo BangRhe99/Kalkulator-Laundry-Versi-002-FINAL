@@ -1,0 +1,1016 @@
+<!--
+===============================================================================
+FILE: Script_Fitur_Dashboard.html
+PROJECT: Kalkulator Laundry Versi 002
+ISI: Fitur Dashboard (screenMenu)
+
+FUNGSI:
+Render 6 kartu ringkasan dashboard (Cabang, Master Biaya, HPP, Harga Layanan, Fixed Cost, BEP), outlet picker/filter, footer, cache & fetch summary lintas modul. Kalau mau ubah tampilan/isi kartu dashboard, cari di sini.
+
+PENTING -- catat sebelum edit:
+Semua file Script_*.html berbagi SATU scope global yang sama (Apps Script
+include() cuma menggabungkan teks mentah jadi satu <script> demi <script>
+di halaman yang sama -- bukan module system). Karena itu file ini SENGAJA
+TIDAK dibungkus (function(){...})() -- kalau kamu bungkus lagi, fungsi di
+file ini jadi tidak kelihatan dari file lain dan app akan rusak.
+Urutan include TIDAK masalah untuk deklarasi function/var (hoisting),
+TAPI Script_Boot_Main.html WAJIB tetap paling terakhir karena dia yang
+menjalankan bootApp().
+===============================================================================
+-->
+<script>
+"use strict";
+  function setDashboardCardHtml(id, html) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.className = "dashboard-card-summary";
+    el.innerHTML = html;
+  }
+
+  function setDashboardCardLoading(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.className = "dashboard-card-summary is-loading";
+    el.innerHTML = "Memuat data...";
+  }
+
+  function setDashboardCardError(id, message) {
+    setDashboardCardHtml(
+      id,
+      '<div class="dashboard-outlet-row is-danger">' +
+        '<span class="dashboard-outlet-name">Gagal memuat</span>' +
+        '<span class="dashboard-outlet-value">' + escapeHtml(message || "Coba refresh.") + '</span>' +
+      '</div>'
+    );
+  }
+
+  function formatDashboardRp(value) {
+    var n = Number(value) || 0;
+    if (typeof formatRp === "function") return formatRp(n);
+    if (typeof money0 === "function") return money0(n);
+    if (typeof formatRupiah === "function") return formatRupiah(n);
+    return "Rp" + Math.round(n).toLocaleString("id-ID");
+  }
+
+  function dashboardMoreRowsText(total, shown) {
+    var more = Math.max(0, (Number(total) || 0) - (Number(shown) || 0));
+    return more > 0
+      ? '<div class="dashboard-more">+' + more + ' outlet lain</div>'
+      : "";
+  }
+
+  function setDashboardAllLoading(skipCabangCard) {
+    if (!skipCabangCard) setDashboardCardLoading("dashboardCabangSummary");
+    setDashboardCardLoading("dashboardMasterBiayaSummary");
+    setDashboardCardLoading("dashboardHppSummary");
+    setDashboardCardLoading("dashboardHargaLayananSummary");
+    setDashboardCardLoading("dashboardFixedCostSummary");
+  }
+
+  /**
+   * mapCabangRowToProfilSummary_: salinan ringan dari transform yang dilakukan
+   * getDashboardCabangSummary_ di backend (Modul_Dashboard.gs), supaya card
+   * "Profil Outlet" bisa dirender SEKETIKA dari cabangListCache yang sudah ada
+   * di memori (tanpa nunggu roundtrip getDashboardFullSummary), begitu user
+   * ganti outlet di picker. Backend tetap sumber kebenaran tunggal - fetch
+   * asli tetap jalan di belakang layar dan akan menimpa render optimistik ini.
+   */
+  function mapCabangRowToProfilSummary_(item) {
+    var summary = item.summary || {};
+    var cuci = summary.cuci || {};
+    var kering = summary.kering || {};
+    var setrikaSummary = summary.setrika || {};
+    var mesinCuci = item.mesinCuci || [];
+    var mesinPengering = item.mesinPengering || [];
+    var mesinSetrika = item.mesinSetrika || [];
+    var okupansiSrc = item.okupansi || {};
+
+    return {
+      cabangId: String(item.id || ""),
+      namaLaundry: item.namaLaundry || "Outlet tanpa nama",
+      kategoriLayanan: String(item.kategoriLayanan || ""),
+      totalUnitCuci: Number(item.totalUnitCuci) || 0,
+      totalUnitPengering: Number(item.totalUnitPengering) || 0,
+      loadCuciPerBulan: round2(cuci.loadPerBulan),
+      loadKeringPerBulan: round2(kering.loadPerBulan),
+      jamBukaMenit: Number(item.jamBukaMenit) || 0,
+      jamTutupMenit: Number(item.jamTutupMenit) || 0,
+      jenisCuci: mesinCuci.length ? (mesinCuci[0].jenis === "rumah_tangga" ? "home" : mesinCuci[0].jenis === "komersial" ? "commercial" : (mesinCuci[0].jenis || "")) : "",
+      jenisKering: mesinPengering.length ? (mesinPengering[0].jenis === "komersial" ? "commercial" : (mesinPengering[0].jenis || "")) : "",
+      durasiCuci: mesinCuci.length ? (Number(mesinCuci[0].durasiMenit) || 0) : 0,
+      durasiKering: mesinPengering.length ? (Number(mesinPengering[0].durasiMenit) || 0) : 0,
+      okupansiCuci: Number(okupansiSrc.cuciPersen) || 0,
+      okupansiKering: Number(okupansiSrc.keringPersen) || 0,
+      totalUnitSetrika: Number(setrikaSummary.totalUnit) || 0,
+      kapasitasSetrikaKgPerJam: round2(setrikaSummary.kapasitasKgPerJam),
+      jenisSetrika: mesinSetrika.length ? String(mesinSetrika[0].jenis || "") : "",
+      okupansiSetrika: Number(okupansiSrc.setrikaPersen) || 0
+    };
+  }
+
+  function refreshDashboardFast() {
+    if (!document.getElementById("dashboardCabangSummary")) return;
+
+    var rows = cabangListCache || [];
+    var current = rows.find(function (c) { return c.id === dashboardSelectedOutletId; });
+    if (current) {
+      renderDashboardCabangCard({ ok: true, data: { rows: [mapCabangRowToProfilSummary_(current)] } });
+    }
+    refreshDashboard(!!current);
+  }
+
+  /**
+   * =========================================================================
+   * OUTLET PICKER (filter Dashboard per outlet)
+   * =========================================================================
+   */
+  var DASHBOARD_OUTLET_STORAGE_KEY = "dashboardSelectedOutletId";
+  var dashboardSelectedOutletId = null;
+
+  function getStoredOutletId_() {
+    try {
+      return window.localStorage.getItem(DASHBOARD_OUTLET_STORAGE_KEY);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setStoredOutletId_(id) {
+    try {
+      window.localStorage.setItem(DASHBOARD_OUTLET_STORAGE_KEY, id);
+    } catch (e) {}
+  }
+
+  function updateOutletFilterPillText_() {
+    var nameEl = document.querySelector("#dashboardOutletFilter .outlet-filter-name");
+    if (!nameEl) return;
+
+    var rows = cabangListCache || [];
+    var current = rows.find(function (c) { return c.id === dashboardSelectedOutletId; });
+    nameEl.textContent = current ? (current.namaLaundry || "Outlet tanpa nama") : "Pilih outlet";
+
+    var pillEl = document.getElementById("dashboardOutletFilter");
+    if (pillEl) pillEl.classList.toggle("single-outlet", rows.length <= 1);
+
+    var countEl = document.getElementById("dashboardOutletCountLabel");
+    if (countEl) {
+      countEl.textContent = rows.length > 1 ? rows.length + " outlet aktif" : "";
+    }
+  }
+
+  function ensureDashboardOutletSelection_() {
+    var rows = cabangListCache || [];
+    if (!rows.length) {
+      dashboardSelectedOutletId = null;
+      updateOutletFilterPillText_();
+      return;
+    }
+
+    var stored = getStoredOutletId_();
+    var storedExists = rows.some(function (c) { return c.id === stored; });
+
+    if (storedExists) {
+      dashboardSelectedOutletId = stored;
+    } else {
+      dashboardSelectedOutletId = rows[0].id;
+      setStoredOutletId_(dashboardSelectedOutletId);
+    }
+
+    updateOutletFilterPillText_();
+  }
+
+  function renderOutletPickerList_() {
+    var listEl = document.getElementById("outletPickerList");
+    if (!listEl) return;
+
+    var rows = cabangListCache || [];
+
+    if (!rows.length) {
+      listEl.innerHTML = "<div class=\"empty-hint\">Belum ada outlet. Tambahkan di menu Profil Outlet.</div>";
+      return;
+    }
+
+    listEl.innerHTML = rows.map(function (item) {
+      var isActive = item.id === dashboardSelectedOutletId;
+      return (
+        "<div class=\"outlet-picker-item" + (isActive ? " active" : "") + "\" data-outlet-id=\"" + escapeHtml(item.id) + "\">" +
+          "<span>" + escapeHtml(item.namaLaundry || "Outlet tanpa nama") + "</span>" +
+          "<svg class=\"check-icon\" viewBox=\"0 0 24 24\" width=\"18\" height=\"18\"><path d=\"M5 13l4 4L19 7\" stroke=\"currentColor\" stroke-width=\"2.4\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>" +
+        "</div>"
+      );
+    }).join("");
+
+    listEl.querySelectorAll("[data-outlet-id]").forEach(function (el) {
+      el.addEventListener("click", function () {
+        var id = el.getAttribute("data-outlet-id");
+        var changed = id !== dashboardSelectedOutletId;
+        dashboardSelectedOutletId = id;
+        setStoredOutletId_(id);
+        updateOutletFilterPillText_();
+        renderOutletPickerList_();
+        closeOutletPicker();
+        if (changed) refreshDashboardFast();
+      });
+    });
+  }
+
+  window.openOutletPicker = function () {
+    var rows = cabangListCache || [];
+    if (rows.length <= 1) return;
+    renderOutletPickerList_();
+    document.getElementById("outletPickerOverlay").classList.add("show");
+  };
+
+  window.closeOutletPicker = function () {
+    document.getElementById("outletPickerOverlay").classList.remove("show");
+  };
+
+  var dashboardRequestSeq = 0;
+
+  function refreshDashboard(skipCabangCardLoading) {
+    if (!document.getElementById("dashboardCabangSummary")) return;
+
+    dashboardRequestSeq += 1;
+    var mySeq = dashboardRequestSeq;
+
+    setDashboardAllLoading(skipCabangCardLoading);
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (mySeq !== dashboardRequestSeq) return;
+        if (res && res.ok) {
+          cabangListCache = res.data || [];
+          ensureDashboardOutletSelection_();
+        } else {
+          cabangListCache = [];
+        }
+        fetchDashboardFullSummary_(mySeq);
+      })
+      .withFailureHandler(function () {
+        if (mySeq !== dashboardRequestSeq) return;
+        fetchDashboardFullSummary_(mySeq);
+      })
+      .listCabang();
+  }
+
+  function fetchDashboardFullSummary_(mySeq) {
+    var cId = dashboardSelectedOutletId || null;
+    google.script.run
+      .withSuccessHandler(function (full) {
+        if (mySeq !== dashboardRequestSeq) return;
+        if (!full || !full.ok) {
+          var msg = full && full.error ? full.error : "Gagal memuat ringkasan dashboard.";
+          renderDashboardCabangCard({ ok: false, error: msg });
+          renderDashboardMasterBiayaCard({ ok: false, error: msg });
+          renderDashboardHPPCard({ ok: false, error: msg });
+          renderDashboardHargaLayananCard({ ok: false, error: msg });
+          renderDashboardFixedCostCard({ ok: false, error: msg });
+          renderDashboardBEPCard({ ok: false, error: msg });
+          return;
+        }
+        var d = full.data || {};
+        renderDashboardCabangCard(d.cabang);
+        renderDashboardMasterBiayaCard(d.masterBiaya);
+        renderDashboardHPPCard(d.hpp);
+        renderDashboardHargaLayananCard(d.hargaLayanan);
+        renderDashboardFixedCostCard(d.fixedCost);
+        renderDashboardBEPCard(d.bep);
+      })
+      .withFailureHandler(function (err) {
+        if (mySeq !== dashboardRequestSeq) return;
+        var msg = err && err.message ? err.message : String(err);
+        renderDashboardCabangCard({ ok: false, error: msg });
+        renderDashboardMasterBiayaCard({ ok: false, error: msg });
+        renderDashboardHPPCard({ ok: false, error: msg });
+        renderDashboardHargaLayananCard({ ok: false, error: msg });
+        renderDashboardFixedCostCard({ ok: false, error: msg });
+        renderDashboardBEPCard({ ok: false, error: msg });
+      })
+      .getDashboardFullSummary(cId);
+  }
+
+  function renderDashboardCabangCard(res) {
+        if (!res || !res.ok) {
+          setDashboardCardError("dashboardCabangSummary", res && res.error ? res.error : "Data cabang belum bisa dibaca.");
+          return;
+        }
+
+        var data = res.data || {};
+        var rows = Array.isArray(data.rows) ? data.rows : [];
+
+        if (!rows.length) {
+          setDashboardCardHtml("dashboardCabangSummary", '<div class="dashboard-empty">Belum ada outlet. Mulai dari Profil Outlet.</div>');
+          return;
+        }
+
+        var shown = rows.slice(0, 3);
+        var html = rows.slice(0, 1).map(function (row) {
+          var jamBuka = row.jamBukaMenit != null ? row.jamBukaMenit : 0;
+          var jamTutup = row.jamTutupMenit != null ? row.jamTutupMenit : 0;
+          var totalMenit = jamTutup > jamBuka ? jamTutup - jamBuka : (jamTutup + 1440 - jamBuka);
+          var jamOps = Math.floor(totalMenit / 60);
+          var jamBukaH = Math.floor(jamBuka/60); var jamBukaM = jamBuka%60;
+          var jamTutupH = Math.floor(jamTutup/60); var jamTutupM = jamTutup%60;
+          var jamBukaStr = (jamBukaH < 10 ? '0' : '') + jamBukaH + '.' + (jamBukaM < 10 ? '0' : '') + jamBukaM;
+          var jamTutupStr = (jamTutupH < 10 ? '0' : '') + jamTutupH + '.' + (jamTutupM < 10 ? '0' : '') + jamTutupM;
+          var kategoriLabel = row.kategoriLayanan === 'self_service' ? 'Self Service' : (row.kategoriLayanan === 'jasa_setrika' ? 'Jasa Setrika' : (row.kategoriLayanan === 'drop_off' ? 'Drop Off' : (row.kategoriLayanan === 'hybrid' ? 'Hybrid' : (row.kategoriLayanan || '-'))));
+          var isSetrikaOnlyKategori = row.kategoriLayanan === 'jasa_setrika';
+          var isKiloanKategori = row.kategoriLayanan === 'drop_off' || row.kategoriLayanan === 'hybrid';
+          var hasSetrika = (isKiloanKategori || isSetrikaOnlyKategori) && Number(row.totalUnitSetrika || 0) > 0;
+          var jenisSetrikaLabel = row.jenisSetrika === 'listrik' ? 'Setrika Listrik' : (row.jenisSetrika === 'uap' ? 'Setrika Uap' : 'Belum dipilih');
+
+          var setrikaKpiItemHtml =
+                '<div class="profil-kpi-item setrika">' +
+                  '<span class="profil-kpi-label">Kap. Setrika</span>' +
+                  '<div class="profil-kpi-value-row">' +
+                    '<span class="profil-kpi-value">' + escapeHtml(formatNum(row.kapasitasSetrikaKgPerJam || 0)) + '</span>' +
+                    '<span class="profil-kpi-unit">kg/jam</span>' +
+                  '</div>' +
+                  '<div class="profil-kpi-okupansi">Okupansi ' + escapeHtml(String(row.okupansiSetrika || 0)) + '%</div>' +
+                '</div>';
+          var setrikaKpiHtml = !hasSetrika ? '' : ('<div class="profil-kpi-divider"></div>' + setrikaKpiItemHtml);
+
+          var setrikaMesinItemHtml =
+                '<div class="profil-mesin-item volt">' +
+                  '<span class="profil-mesin-count">' + escapeHtml(String(row.totalUnitSetrika || 0)) + '</span>' +
+                  '<span class="profil-mesin-type">setrika</span>' +
+                  '<span class="profil-mesin-kategori">' + escapeHtml(jenisSetrikaLabel) + '</span>' +
+                  (row.kapasitasSetrikaKgPerJam > 0 ? '<span class="profil-mesin-durasi">' + formatNum(row.kapasitasSetrikaKgPerJam) + ' kg/jam</span>' : '') +
+                '</div>';
+          var setrikaMesinHtml = !hasSetrika ? '' : setrikaMesinItemHtml;
+
+          var setrikaFlatRowHtml =
+                '<div class="profil-outlet-kpi kpi-3col">' +
+                  '<div class="profil-kpi-item setrika">' +
+                    '<span class="profil-kpi-label">Unit Setrika</span>' +
+                    '<div class="profil-kpi-value-row">' +
+                      '<span class="profil-kpi-value">' + escapeHtml(String(row.totalUnitSetrika || 0)) + '</span>' +
+                      '<span class="profil-kpi-unit">unit</span>' +
+                    '</div>' +
+                    '<div class="profil-kpi-okupansi">' + escapeHtml(jenisSetrikaLabel) + '</div>' +
+                  '</div>' +
+                  '<div class="profil-kpi-divider"></div>' +
+                  '<div class="profil-kpi-item setrika">' +
+                    '<span class="profil-kpi-label">Kapasitas</span>' +
+                    '<div class="profil-kpi-value-row">' +
+                      '<span class="profil-kpi-value">' + escapeHtml(formatNum(row.kapasitasSetrikaKgPerJam || 0)) + '</span>' +
+                      '<span class="profil-kpi-unit">kg/jam</span>' +
+                    '</div>' +
+                  '</div>' +
+                  '<div class="profil-kpi-divider"></div>' +
+                  '<div class="profil-kpi-item setrika">' +
+                    '<span class="profil-kpi-label">Okupansi</span>' +
+                    '<div class="profil-kpi-value-row">' +
+                      '<span class="profil-kpi-value">' + escapeHtml(String(row.okupansiSetrika || 0)) + '</span>' +
+                      '<span class="profil-kpi-unit">%</span>' +
+                    '</div>' +
+                  '</div>' +
+                '</div>';
+
+          var kpiBlockHtml = isSetrikaOnlyKategori
+            ? setrikaFlatRowHtml
+            : (
+              '<div class="profil-outlet-kpi' + (hasSetrika ? ' kpi-3col' : '') + '">' +
+                '<div class="profil-kpi-item cuci">' +
+                  '<span class="profil-kpi-label">Kap. Cuci</span>' +
+                  '<div class="profil-kpi-value-row">' +
+                    '<span class="profil-kpi-value">' + escapeHtml(formatNum(row.loadCuciPerBulan || 0)) + '</span>' +
+                    '<span class="profil-kpi-unit">load</span>' +
+                  '</div>' +
+                  '<div class="profil-kpi-okupansi">Okupansi ' + escapeHtml(String(row.okupansiCuci || 0)) + '%</div>' +
+                '</div>' +
+                '<div class="profil-kpi-divider"></div>' +
+                '<div class="profil-kpi-item kering">' +
+                  '<span class="profil-kpi-label">Kap. Kering</span>' +
+                  '<div class="profil-kpi-value-row">' +
+                    '<span class="profil-kpi-value">' + escapeHtml(formatNum(row.loadKeringPerBulan || 0)) + '</span>' +
+                    '<span class="profil-kpi-unit">load</span>' +
+                  '</div>' +
+                  '<div class="profil-kpi-okupansi">Okupansi ' + escapeHtml(String(row.okupansiKering || 0)) + '%</div>' +
+                '</div>' +
+                setrikaKpiHtml +
+              '</div>'
+            );
+
+          var mesinBlockHtml = isSetrikaOnlyKategori
+            ? ''
+            : (
+              '<div class="profil-outlet-mesin">' +
+                '<div class="profil-mesin-item sage">' +
+                  '<span class="profil-mesin-count">' + escapeHtml(String(row.totalUnitCuci || 0)) + '</span>' +
+                  '<span class="profil-mesin-type">washer</span>' +
+                  '<span class="profil-mesin-kategori">' + escapeHtml(row.jenisCuci || 'home') + '</span>' +
+                  (row.durasiCuci > 0 ? '<span class="profil-mesin-durasi">' + row.durasiCuci + ' menit</span>' : '') +
+                '</div>' +
+                '<div class="profil-mesin-item brass">' +
+                  '<span class="profil-mesin-count">' + escapeHtml(String(row.totalUnitPengering || 0)) + '</span>' +
+                  '<span class="profil-mesin-type">dryer</span>' +
+                  '<span class="profil-mesin-kategori">' + escapeHtml(row.jenisKering || 'commercial') + '</span>' +
+                  (row.durasiKering > 0 ? '<span class="profil-mesin-durasi">' + row.durasiKering + ' menit</span>' : '') +
+                '</div>' +
+                setrikaMesinHtml +
+              '</div>'
+            );
+
+          return (
+            '<div class="profil-outlet-card">' +
+              '<div class="profil-outlet-meta">' +
+                '<span class="profil-outlet-kategori">' + escapeHtml(kategoriLabel) + '</span>' +
+                '<span class="profil-outlet-jam">' +
+                  jamBukaStr + ' \u2013 ' + jamTutupStr + ' \u00B7 ' + jamOps + ' jam' +
+                  '<span class="profil-kpi-okupansi profil-outlet-okupansi-info">' +
+                    '<button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this, event)" aria-label="Apa itu okupansi?">?</button>' +
+                    '<div class="okupansi-tooltip">Okupansi adalah perkiraan seberapa sering mesin dipakai. Okupansi 50% artinya mesin diperkirakan cuma terisi separuh waktu yang tersedia, bukan penuh terus-menerus.</div>' +
+                  '</span>' +
+                '</span>' +
+              '</div>' +
+              kpiBlockHtml +
+              mesinBlockHtml +
+            '</div>'
+          );
+        }).join('');
+        setDashboardCardHtml('dashboardCabangSummary', html);
+  }
+
+  function renderDashboardMasterBiayaCard(res) {
+        if (!res || !res.ok) {
+          setDashboardCardError("dashboardMasterBiayaSummary", res && res.error ? res.error : "Data master biaya belum bisa dibaca.");
+          return;
+        }
+
+        var data = res.data || {};
+        var rows = Array.isArray(data.rows) ? data.rows : [];
+
+        if (!rows.length) {
+          setDashboardCardHtml("dashboardMasterBiayaSummary", '<div class="dashboard-empty">Belum ada outlet untuk dicek.</div>');
+          return;
+        }
+        var shown = rows.slice(0, 1);
+        var html = shown.map(function (row) {
+          var komponen = Array.isArray(row.komponenBiaya) ? row.komponenBiaya : [];
+          komponen.sort(function(a,b){ return (b.persen||0)-(a.persen||0); });
+          var komponenHtml = komponen.map(function(k) {
+            var isZero = !k.biayaPerLoad || k.biayaPerLoad === 0;
+            var cls = isZero ? 'mb-komponen-row zero' : 'mb-komponen-row';
+            return '<div class="' + cls + '">' +
+              '<div class="mb-komponen-top">' +
+                '<span class="mb-komponen-label">' + escapeHtml(k.label) + '</span>' +
+                '<div class="mb-bar-wrap">' +
+                  '<div class="mb-progress-bar">' +
+                    '<div class="mb-progress-fill mb-' + escapeHtml(k.key) + '" style="width:' + String(Math.min(k.persen||0,100)) + '%"></div>' +
+                  '</div>' +
+                  '<span class="mb-komponen-persen">' + String(k.persen||0) + '%</span>' +
+                '</div>' +
+                '<span class="mb-komponen-value">' + (isZero ? '<span class="mb-zero-label">Rp 0 (tanpa biaya)</span>' : (money0(k.biayaPerLoad) + (k.unitSuffix ? ' <span class="mb-komponen-unit">' + escapeHtml(k.unitSuffix) + '</span>' : ''))) + '</span>' +
+              '</div>' +
+            '</div>';
+          }).join('');
+          return '<div class="mb-card">' +
+            (komponen.length > 0 ? '<div class="mb-komponen-list">' + komponenHtml + '</div>' : '') +
+          '</div>';
+        }).join('');
+        setDashboardCardHtml("dashboardMasterBiayaSummary", html);
+  }
+
+  function renderDashboardHPPCard(res) {
+        if (!res || !res.ok) {
+          setDashboardCardError("dashboardHppSummary", res && res.error ? res.error : "Data HPP belum bisa dibaca.");
+          return;
+        }
+        var data = res.data || {};
+        var rows = Array.isArray(data.rows) ? data.rows : [];
+        if (!rows.length) {
+          setDashboardCardHtml("dashboardHppSummary", '<div class="dashboard-empty">Belum ada outlet untuk dihitung HPP.</div>');
+          return;
+        }
+        var shown = rows.slice(0, 1);
+        var hppShortLabel = {
+          air: 'Air',
+          air_washer: 'Air Washer',
+          air_setrika: 'Air Setrika',
+          listrik_washer: 'Listrik Washer',
+          listrik_pompa: 'Listrik Pompa',
+          listrik_setrika: 'Listrik Setrika',
+          app_nota: 'Nota',
+          listrik_dryer: 'Listrik Dryer',
+          gas_lpg: 'Gas',
+          gas_dryer: 'Gas Dryer',
+          gas_setrika: 'Gas Setrika',
+          deterjen: 'Deterjen',
+          softener: 'Softener',
+          parfum: 'Parfum',
+          packing: 'Packing',
+          setrika: 'Setrika',
+          hpp_cuci: 'HPP Cuci',
+          hpp_kering: 'HPP Kering'
+        };
+        var html = shown.map(function (row) {
+          var layananList = Array.isArray(row.layananList) ? row.layananList : [];
+          var serviceToggles = Array.isArray(row.serviceToggles) ? row.serviceToggles : [];
+          var toggleByKey = {};
+          serviceToggles.forEach(function (t) { toggleByKey[t.key] = t; });
+          var miniHtml = layananList.map(function (svc) {
+            var components = Array.isArray(svc.components) ? svc.components : [];
+            var isTogglable = !!toggleByKey[svc.key];
+            var rowsHtml = components.map(function (c) {
+              var lbl = hppShortLabel[c.key] || c.label || '';
+              return '<div class="hpp-mini-row">' +
+                '<span class="hpp-mini-row-label">' + escapeHtml(lbl) + '</span>' +
+                '<span class="hpp-mini-row-percent">' + String(c.percent || 0) + '%</span>' +
+                '<span class="hpp-mini-row-amount">' + money0(c.amount) + '</span>' +
+              '</div>';
+            }).join('');
+            var toggleHtml = !isTogglable ? '' :
+              '<div class="hpp-bedcover-toggle-row">' +
+                '<span>Layanan aktif</span>' +
+                '<button type="button" class="hpp-bedcover-toggle-btn" onclick="toggleHPPLayananAktif(\'' + escapeJsAttr(row.cabangId) + '\', \'' + escapeJsAttr(svc.key) + '\', false, event)">Matikan</button>' +
+              '</div>';
+            return '<div class="hpp-mini-card">' +
+              '<div class="hpp-mini-head" onclick="toggleHppDetail(this, event)">' +
+                '<span class="hpp-mini-title">' + escapeHtml(svc.title || '') + '</span>' +
+                '<span class="hpp-mini-total">' + money0(svc.total) + '</span>' +
+                '<span class="hpp-mini-arrow">&#9662;</span>' +
+              '</div>' +
+              (rowsHtml || toggleHtml ? '<div class="hpp-mini-detail">' + rowsHtml + toggleHtml + '</div>' : '') +
+            '</div>';
+          }).join('');
+          var offHtml = serviceToggles.filter(function (t) { return t.aktif === false; }).map(function (t) {
+            return '<div class="hpp-bedcover-off-row">' +
+              '<span>Layanan ' + escapeHtml((t.title || '').replace(/^HPP /, '')) + ' nonaktif</span>' +
+              '<button type="button" class="hpp-bedcover-toggle-btn" onclick="toggleHPPLayananAktif(\'' + escapeJsAttr(row.cabangId) + '\', \'' + escapeJsAttr(t.key) + '\', true, event)">Aktifkan</button>' +
+            '</div>';
+          }).join('');
+          var emptyHtml = !layananList.length ? '<div class="dashboard-empty">HPP belum siap dihitung.</div>' : '';
+          return (layananList.length > 0 ? '<div class="hpp-mini-list">' + miniHtml + '</div>' : emptyHtml) + offHtml;
+        }).join('');
+        setDashboardCardHtml('dashboardHppSummary', html);
+  }
+  function renderDashboardHargaLayananCard(res) {
+        if (!res || !res.ok) {
+          setDashboardCardError("dashboardHargaLayananSummary", res && res.error ? res.error : "Data harga layanan belum bisa dibaca.");
+          return;
+        }
+        var data = res.data || {};
+        var rows = Array.isArray(data.rows) ? data.rows : [];
+        if (!rows.length) {
+          setDashboardCardHtml("dashboardHargaLayananSummary", '<div class="dashboard-empty">Belum ada outlet untuk dicek harga layanan.</div>');
+          return;
+        }
+        var d = rows[0];
+        var list = Array.isArray(d.layananList) ? d.layananList : [];
+        var html = '';
+        if (!list.length) {
+          html += '<div class="hl-empty">Belum ada harga yang diisi.</div>';
+        } else {
+          list.forEach(function (item) {
+            var pct = typeof item.marginPercent === 'number' ? item.marginPercent : 0;
+            var barW = Math.min(100, Math.max(0, pct));
+            var cls = item.status === 'rugi' ? 'rugi' : (item.status === 'tipis' || item.status === 'impas' ? 'tipis' : 'aman');
+            var pctTxt = typeof item.marginPercent === 'number' ? (Math.round(item.marginPercent * 10) / 10) + '%' : '-';
+
+            var detailRow = function (label, value) {
+              return '<div class="hl-detail-row"><span class="hl-detail-label">' + escapeHtml(label) + '</span><span class="hl-detail-value">' + value + '</span></div>';
+            };
+            var hargaJualCard = function () {
+              return '<div class="hl-detail-hargajual"><span class="hl-detail-hargajual-label">Harga Jual Per Kg</span><span class="hl-detail-hargajual-value">' + money0(item.hargaJualPerKg) + '</span></div>';
+            };
+            var detailHtml;
+            if (item.hppPerLoad !== undefined) {
+              // Kategori Drop Off/Kiloan & Hybrid: HPP sumbernya per load
+              // (biaya sekali jalan mesin), Harga Jual per Kg (yang dibayar
+              // pelanggan) - dipisah kotak warna beda + kartu Harga Jual
+              // tersendiri, plus simulasi order minimal = kapasitas 1x jalan
+              // mesin (bukan cuma 1 Kg), supaya HPP Per Load benar-benar
+              // tertutup - ini baru hitungan variable cost, belum fixed cost,
+              // jadi jangan ambil untung tipis dari order kecil.
+              var kapLoad = item.kapasitasKgPerLoad || 0;
+              var insightLoad = '';
+              if (kapLoad > 0 && item.hargaJualPerKg > 0) {
+                var hargaJual1Kg = item.hargaJualPerKg;
+                var margin1Kg = round2(hargaJual1Kg - item.hppPerLoad);
+                var hargaJualMin = round2(item.hargaJualPerKg * kapLoad);
+                insightLoad =
+                  '<div class="hl-detail-insight">' +
+                    'Kalau cuma order 1 Kg: ' + money0(hargaJual1Kg) + ' &minus; HPP Per Load ' + money0(item.hppPerLoad) + ' = ' + money0(margin1Kg) + ' (masih sangat tipis, mesin tetap dihitung 1x jalan penuh).<br>' +
+                    'Karena ini baru hitungan variable cost (belum fixed cost), disarankan order minimal <b>' + formatNum(kapLoad, 1) + ' Kg</b> (kapasitas 1x jalan mesin Anda): ' + money0(item.hargaJualPerKg) + ' &times; ' + formatNum(kapLoad, 1) + ' = ' + money0(hargaJualMin) + ' &minus; HPP Per Load ' + money0(item.hppPerLoad) + ' = <b>' + money0(item.marginPerLoad) + '</b>.' +
+                  '</div>';
+              }
+              detailHtml =
+                '<div class="hl-detail-group hl-detail-group-load">' +
+                  '<div class="hl-detail-group-title">Basis Per Load <span class="hl-detail-group-hint">&middot; biaya sekali jalan mesin</span></div>' +
+                  detailRow('HPP Per Load', money0(item.hppPerLoad)) +
+                  detailRow('Margin Per Load', money0(item.marginPerLoad)) +
+                  detailRow('% Margin Per Load', formatPercent(item.marginPercentPerLoad, 1)) +
+                '</div>' +
+                '<div class="hl-detail-group hl-detail-group-kg">' +
+                  '<div class="hl-detail-group-title">Basis Per Kg <span class="hl-detail-group-hint">&middot; hitungan per Kg cucian</span></div>' +
+                  detailRow('HPP Per Kg', money0(item.hppPerKg)) +
+                  detailRow('Margin Per Kg', money0(item.marginPerKg)) +
+                  detailRow('% Margin Per Kg', formatPercent(item.marginPercentPerKg, 1)) +
+                '</div>' +
+                hargaJualCard() +
+                insightLoad;
+            } else if (item.hppPerJam !== undefined) {
+              // Kategori Jasa Setrika: HPP sumbernya per Kg, "per Jam"
+              // dikonversi lewat kapasitas kg/jam mesin setrika.
+              var kapJam = item.setrikaKapasitasKgPerJam || 0;
+              var insightJam = '';
+              if (kapJam > 0 && item.hargaJualPerKg > 0) {
+                var hargaJual1KgJam = item.hargaJualPerKg;
+                var margin1KgJam = round2(hargaJual1KgJam - item.hppPerJam);
+                var hargaJualMinJam = round2(item.hargaJualPerKg * kapJam);
+                insightJam =
+                  '<div class="hl-detail-insight">' +
+                    'Kalau cuma 1 Kg dalam 1 jam: ' + money0(hargaJual1KgJam) + ' &minus; HPP Per Jam ' + money0(item.hppPerJam) + ' = ' + money0(margin1KgJam) + ' (masih sangat tipis, mesin tetap dihitung 1 jam penuh).<br>' +
+                    'Karena ini baru hitungan variable cost (belum fixed cost), disarankan minimal <b>' + formatNum(kapJam, 1) + ' Kg</b> disetrika per jam (kapasitas mesin Anda): ' + money0(item.hargaJualPerKg) + ' &times; ' + formatNum(kapJam, 1) + ' = ' + money0(hargaJualMinJam) + ' &minus; HPP Per Jam ' + money0(item.hppPerJam) + ' = <b>' + money0(item.marginPerJam) + '</b>.' +
+                  '</div>';
+              }
+              detailHtml =
+                '<div class="hl-detail-group hl-detail-group-load">' +
+                  '<div class="hl-detail-group-title">Basis Per Jam <span class="hl-detail-group-hint">&middot; biaya mesin setrika 1 jam</span></div>' +
+                  detailRow('HPP Per Jam', money0(item.hppPerJam)) +
+                  detailRow('Margin Per Jam', money0(item.marginPerJam)) +
+                  detailRow('% Margin Per Jam', formatPercent(item.marginPercentPerJam, 1)) +
+                '</div>' +
+                '<div class="hl-detail-group hl-detail-group-kg">' +
+                  '<div class="hl-detail-group-title">Basis Per Kg <span class="hl-detail-group-hint">&middot; hitungan per Kg setrika</span></div>' +
+                  detailRow('HPP Per Kg', money0(item.hppPerKg)) +
+                  detailRow('Margin Per Kg', money0(item.marginPerKg)) +
+                  detailRow('% Margin Per Kg', formatPercent(item.marginPercentPerKg, 1)) +
+                '</div>' +
+                hargaJualCard() +
+                insightJam;
+            } else {
+              detailHtml =
+                detailRow('HPP', money0(item.hpp)) +
+                detailRow('Harga Jual', money0(item.hargaJual)) +
+                detailRow('Margin', money0(item.margin));
+            }
+
+            html += '<div class="hl-item">' +
+              '<div class="hl-row" onclick="toggleHlDetail(this, event)">' +
+                '<span class="hl-name">' + escapeHtml(item.title || '') + '</span>' +
+                '<div class="hl-bar-wrap"><div class="hl-bar hl-' + cls + '" style="width:' + barW + '%"></div></div>' +
+                '<span class="hl-pct hl-pct-' + cls + '">' + escapeHtml(pctTxt) + '</span>' +
+                '<span class="hl-arrow">&#9662;</span>' +
+              '</div>' +
+              '<div class="hl-detail">' + detailHtml + '</div>' +
+            '</div>';
+          });
+          if ((d.hargaTerisiCount || 0) < (d.totalLayanan || 0)) {
+            html += '<div class="hl-note">' + ((d.totalLayanan || 0) - (d.hargaTerisiCount || 0)) + ' layanan belum diisi harga</div>';
+          }
+        }
+        setDashboardCardHtml('dashboardHargaLayananSummary', html);
+  }
+
+  function renderDashboardFixedCostCard(res) {
+        if (!res || !res.ok) {
+          setDashboardCardError("dashboardFixedCostSummary", res && res.error ? res.error : "Data fixed cost belum bisa dibaca.");
+          return;
+        }
+        var data = res.data || {};
+        var rows = Array.isArray(data.rows) ? data.rows : [];
+        if (!rows.length) {
+          setDashboardCardHtml("dashboardFixedCostSummary", '<div class="dashboard-empty">Belum ada outlet untuk fixed cost.</div>');
+          return;
+        }
+        var d = rows[0];
+        var components = Array.isArray(d.components) ? d.components : [];
+        var detailHtml = components.map(function (c) {
+          return '<div class="fc-detail-row">' +
+            '<span class="fc-detail-label">' + escapeHtml(c.label || '') + '</span>' +
+            '<span class="fc-detail-value">' + money0(c.amount) + '</span>' +
+          '</div>';
+        }).join('');
+        var html =
+          '<div class="fc-card">' +
+            '<div class="fc-main-row" onclick="toggleFcDetail(this, event)">' +
+              '<span class="fc-main">' + money0(d.totalPerBulan || 0) + '</span>' +
+              '<span class="fc-main-unit">per bulan</span>' +
+              '<span class="fc-arrow">&#9662;</span>' +
+            '</div>' +
+            '<div class="fc-divider"></div>' +
+            '<div class="fc-hari">' +
+              '<span class="fc-hari-label">Estimasi per hari</span>' +
+              '<span class="fc-hari-val">' + money0(d.totalPerHari || 0) + '</span>' +
+            '</div>' +
+            (detailHtml ? '<div class="fc-detail">' + detailHtml + '</div>' : '') +
+          '</div>';
+        setDashboardCardHtml('dashboardFixedCostSummary', html);
+  }
+  function renderDashboardBEPCard(res) {
+        if (!res || !res.ok) {
+          setDashboardCardError("dashboardBEPSummary", res && res.error ? res.error : "Data BEP belum bisa dihitung.");
+          return;
+        }
+        var d = res.data || {};
+        var warnings = Array.isArray(d.warnings) ? d.warnings : [];
+        var html = "";
+
+        if (d.bepLoadPerBulan <= 0) {
+          html = '<div class="bep-incomplete">' +
+            '<div class="bep-incomplete-title">Data belum lengkap</div>' +
+            '<div class="bep-incomplete-list">' +
+              warnings.map(function(w) { return '<span>' + escapeHtml(w) + '</span>'; }).join("") +
+            '</div>' +
+          '</div>';
+        } else {
+          var chartSvg = buildBepChartSvg(d);
+          html = '<div class="bep-card">' +
+            (chartSvg ? '<div class="bep-chart-wrap">' + chartSvg +
+              '<div class="bep-chart-legend">' +
+                '<span class="bep-legend-item"><span class="bep-legend-dot sage"></span>Omset</span>' +
+                '<span class="bep-legend-item"><span class="bep-legend-dot brass"></span>Total Biaya</span>' +
+              '</div>' +
+            '</div>' : '') +
+            '<div class="bep-section">' +
+              '<div class="bep-row">' +
+                '<div class="bep-item">' +
+                  '<span class="bep-label">Load / Bulan</span>' +
+                  '<span class="bep-value">' + escapeHtml(formatNum(d.bepLoadPerBulan, 0)) + '</span>' +
+                '</div>' +
+                '<div class="bep-item">' +
+                  '<span class="bep-label">Omset / Bulan</span>' +
+                  '<span class="bep-value bep-omset">' + money0(d.bepOmsetPerBulan) + '</span>' +
+                '</div>' +
+              '</div>' +
+              '<div class="bep-row">' +
+                '<div class="bep-item">' +
+                  '<span class="bep-label">Load / Minggu</span>' +
+                  '<span class="bep-value">' + escapeHtml(formatNum(d.bepLoadPerMinggu, 0)) + '</span>' +
+                '</div>' +
+                '<div class="bep-item">' +
+                  '<span class="bep-label">Omset / Minggu</span>' +
+                  '<span class="bep-value bep-omset">' + money0(d.bepOmsetPerMinggu) + '</span>' +
+                '</div>' +
+              '</div>' +
+              '<div class="bep-row">' +
+                '<div class="bep-item">' +
+                  '<span class="bep-label">Load / Hari</span>' +
+                  '<span class="bep-value">' + escapeHtml(formatNum(d.bepLoadPerHari, 0)) + '</span>' +
+                '</div>' +
+                '<div class="bep-item">' +
+                  '<span class="bep-label">Omset / Hari</span>' +
+                  '<span class="bep-value bep-omset">' + money0(d.bepOmsetPerHari) + '</span>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            (warnings.length > 0 ? '<div class="bep-warning">' + warnings.map(function(w) { return escapeHtml(w); }).join(" · ") + '</div>' : "") +
+          '</div>';
+        }
+        setDashboardCardHtml("dashboardBEPSummary", html);
+  }
+
+  window.openScreenCabangList = function () {
+    showScreen("list");
+    refreshList();
+  };
+
+  window.openScreenMasterBiaya = function () {
+    showScreen("masterBiaya");
+    refreshBiayaPickCabangList();
+  };
+
+  function renderFooter() {
+    var bar = document.getElementById("footerBar");
+    var content = document.getElementById("footerContent");
+    content.innerHTML = "";
+
+    if (
+      view.screen === "menu" ||
+      view.screen === "list" ||
+      view.screen === "masterBiaya" ||
+      view.screen === "gasList" ||
+      view.screen === "chemicalList" ||
+      view.screen === "packingList" ||
+      view.screen === "strukturHPPList" ||
+      view.screen === "strukturHPPDetail" ||
+      view.screen === "hargaLayananList" ||
+      view.screen === "biayaTetapList"
+    ) {
+      bar.style.display = "none";
+      return;
+    }
+
+    if (view.screen === "ringkasan") {
+      bar.style.display = "flex";
+      var delBtn = document.createElement("button");
+      delBtn.className = "btn-danger";
+      delBtn.setAttribute("aria-label", "Hapus cabang");
+      delBtn.innerHTML = "&#128465;";
+      delBtn.onclick = function () { openConfirmDelete(view.editingId); };
+
+      var editBtn = document.createElement("button");
+      editBtn.className = "btn-primary";
+      editBtn.style.flex = "1";
+      editBtn.textContent = "Edit data";
+      editBtn.onclick = function () { openFormEdit(view.editingId); };
+
+      content.appendChild(delBtn);
+      content.appendChild(editBtn);
+      return;
+    }
+
+    if (view.screen === "form") {
+      bar.style.display = "flex";
+      var cancelBtn = document.createElement("button");
+      cancelBtn.className = "btn-secondary";
+      cancelBtn.textContent = "Batal";
+      cancelBtn.onclick = function () {
+        if (view.isNew) { showScreen("list"); refreshList(); }
+        else { openRingkasan(view.editingId); }
+      };
+
+      var saveBtn = document.createElement("button");
+      saveBtn.className = "btn-primary";
+      saveBtn.id = "saveBtn";
+      saveBtn.textContent = view.isNew ? "Simpan cabang baru" : "Simpan perubahan";
+      saveBtn.onclick = saveForm;
+
+      content.appendChild(cancelBtn);
+      content.appendChild(saveBtn);
+      return;
+    }
+
+    if (view.screen === "gasForm") {
+      bar.style.display = "flex";
+
+      var gasCancelBtn = document.createElement("button");
+      gasCancelBtn.className = "btn-secondary";
+      gasCancelBtn.textContent = "Batal";
+      gasCancelBtn.onclick = function () { openGasList(view.gasCabangId); };
+
+      var gasSaveBtn = document.createElement("button");
+      gasSaveBtn.className = "btn-primary flame";
+      gasSaveBtn.id = "gasSaveBtn";
+      gasSaveBtn.textContent = view.gasIsNew ? "Simpan data gas" : "Simpan perubahan";
+      gasSaveBtn.onclick = saveGasForm;
+
+      content.appendChild(gasCancelBtn);
+      content.appendChild(gasSaveBtn);
+      return;
+    }
+
+    if (view.screen === "chemicalForm") {
+      bar.style.display = "flex";
+
+      var chemicalCancelBtn = document.createElement("button");
+      chemicalCancelBtn.className = "btn-secondary";
+      chemicalCancelBtn.textContent = "Batal";
+      chemicalCancelBtn.onclick = function () { openChemicalList(view.chemicalCabangId); };
+
+      var chemicalSaveBtn = document.createElement("button");
+      chemicalSaveBtn.className = "btn-primary flame";
+      chemicalSaveBtn.id = "chemicalSaveBtn";
+      chemicalSaveBtn.textContent = view.chemicalIsNew ? "Simpan item chemical" : "Simpan perubahan";
+      chemicalSaveBtn.onclick = saveChemicalForm;
+
+      content.appendChild(chemicalCancelBtn);
+      content.appendChild(chemicalSaveBtn);
+      return;
+    }
+
+    if (view.screen === "packingForm") {
+      bar.style.display = "flex";
+
+      var packingCancelBtn = document.createElement("button");
+      packingCancelBtn.className = "btn-secondary";
+      packingCancelBtn.textContent = "Batal";
+      packingCancelBtn.onclick = function () { openPackingList(view.packingCabangId); };
+
+      var packingSaveBtn = document.createElement("button");
+      packingSaveBtn.className = "btn-primary flame";
+      packingSaveBtn.id = "packingSaveBtn";
+      packingSaveBtn.textContent = view.packingIsNew ? "Simpan item packing" : "Simpan perubahan";
+      packingSaveBtn.onclick = savePackingForm;
+
+      content.appendChild(packingCancelBtn);
+      content.appendChild(packingSaveBtn);
+      return;
+    }
+
+    if (view.screen === "listrikForm") {
+      bar.style.display = "flex";
+
+      var listrikCancelBtn = document.createElement("button");
+      listrikCancelBtn.className = "btn-secondary";
+      listrikCancelBtn.textContent = "Batal";
+      listrikCancelBtn.onclick = function () {
+        showScreen("masterBiaya");
+        refreshBiayaPickCabangList();
+      };
+
+      var listrikSaveBtn = document.createElement("button");
+      listrikSaveBtn.className = "btn-primary volt";
+      listrikSaveBtn.id = "listrikSaveBtn";
+      listrikSaveBtn.textContent = "Simpan perubahan";
+      listrikSaveBtn.onclick = saveListrikFormManual;
+
+      content.appendChild(listrikCancelBtn);
+      content.appendChild(listrikSaveBtn);
+      return;
+    }
+
+    if (view.screen === "airForm") {
+      bar.style.display = "flex";
+
+      var airCancelBtn = document.createElement("button");
+      airCancelBtn.className = "btn-secondary";
+      airCancelBtn.textContent = "Batal";
+      airCancelBtn.onclick = function () {
+        showScreen("masterBiaya");
+        refreshBiayaPickCabangList();
+      };
+
+      var airSaveBtn = document.createElement("button");
+      airSaveBtn.className = "btn-primary sage";
+      airSaveBtn.id = "airSaveBtn";
+      airSaveBtn.textContent = "Simpan perubahan";
+      airSaveBtn.onclick = saveAirForm;
+
+      content.appendChild(airCancelBtn);
+      content.appendChild(airSaveBtn);
+      return;
+    }
+
+    if (view.screen === "notaKasirForm") {
+      bar.style.display = "flex";
+
+      var notaCancelBtn = document.createElement("button");
+      notaCancelBtn.className = "btn-secondary";
+      notaCancelBtn.textContent = "Batal";
+      notaCancelBtn.onclick = function () {
+        showScreen("masterBiaya");
+        refreshBiayaPickCabangList();
+      };
+
+      var notaSaveBtn = document.createElement("button");
+      notaSaveBtn.className = "btn-primary brass";
+      notaSaveBtn.id = "notaKasirSaveBtn";
+      notaSaveBtn.textContent = "Simpan perubahan";
+      notaSaveBtn.onclick = saveNotaKasirForm;
+
+      content.appendChild(notaCancelBtn);
+      content.appendChild(notaSaveBtn);
+      return;
+    }
+
+    if (view.screen === "hargaLayananDetail") {
+      bar.style.display = "flex";
+
+      var hargaResetBtn = document.createElement("button");
+      hargaResetBtn.className = "btn-danger";
+      hargaResetBtn.style.width = "72px";
+      hargaResetBtn.textContent = "Reset";
+      hargaResetBtn.onclick = resetHargaLayananCurrent;
+
+      var hargaCancelBtn = document.createElement("button");
+      hargaCancelBtn.className = "btn-secondary";
+      hargaCancelBtn.textContent = "Batal";
+      hargaCancelBtn.onclick = function () { openHargaLayananOutletList(); };
+
+      var hargaSaveBtn = document.createElement("button");
+      hargaSaveBtn.className = "btn-primary";
+      hargaSaveBtn.id = "hargaLayananSaveBtn";
+      hargaSaveBtn.textContent = "Simpan perubahan";
+      hargaSaveBtn.onclick = saveHargaLayananFromInputs;
+
+      content.appendChild(hargaResetBtn);
+      content.appendChild(hargaCancelBtn);
+      content.appendChild(hargaSaveBtn);
+      return;
+    }
+
+    if (view.screen === "biayaTetapForm") {
+      bar.style.display = "flex";
+
+      var fixedDeleteBtn = document.createElement("button");
+      fixedDeleteBtn.className = "btn-danger";
+      fixedDeleteBtn.style.width = "72px";
+      fixedDeleteBtn.textContent = "Reset";
+      fixedDeleteBtn.onclick = deleteBiayaTetapOutletCurrent;
+
+      var fixedCancelBtn = document.createElement("button");
+      fixedCancelBtn.className = "btn-secondary";
+      fixedCancelBtn.textContent = "Batal";
+      fixedCancelBtn.onclick = function () { openBiayaTetapOutletList(); };
+
+      var fixedSaveBtn = document.createElement("button");
+      fixedSaveBtn.className = "btn-primary";
+      fixedSaveBtn.id = "biayaTetapSaveBtn";
+      fixedSaveBtn.textContent = "Simpan perubahan";
+      fixedSaveBtn.onclick = saveBiayaTetapOutletCurrent;
+
+      content.appendChild(fixedDeleteBtn);
+      content.appendChild(fixedCancelBtn);
+      content.appendChild(fixedSaveBtn);
+      return;
+    }
+  }
+
+  window.goBackToList = function () {
+    showScreen("list");
+    refreshList();
+  };
+
+</script>

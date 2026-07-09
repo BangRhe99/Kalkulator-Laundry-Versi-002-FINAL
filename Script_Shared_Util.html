@@ -1,0 +1,522 @@
+<!--
+===============================================================================
+FILE: Script_Shared_Util.html
+PROJECT: Kalkulator Laundry Versi 002
+ISI: Helper murni & formatter
+
+FUNGSI:
+escapeHtml, toNumber, round2, pad2, safeArray, safeObject, findById, cloneObject, formatRp/formatRupiah/money0/formatNum/formatPercent, validator (isValidNumber/validateNumber/isValidId/validateId/validateRequired), localId, computeDurasiOperasional/computeGroupLoad/computeGroupSetrika/computeSummary (kalkulasi kapasitas dipakai lintas fitur), formatJam, machineDisplayName, buildBepChartSvg. TIDAK menyentuh DOM screen tertentu, TIDAK spesifik satu fitur.
+
+PENTING -- catat sebelum edit:
+Semua file Script_*.html berbagi SATU scope global yang sama (Apps Script
+include() cuma menggabungkan teks mentah jadi satu <script> demi <script>
+di halaman yang sama -- bukan module system). Karena itu file ini SENGAJA
+TIDAK dibungkus (function(){...})() -- kalau kamu bungkus lagi, fungsi di
+file ini jadi tidak kelihatan dari file lain dan app akan rusak.
+Urutan include TIDAK masalah untuk deklarasi function/var (hoisting),
+TAPI Script_Boot_Main.html WAJIB tetap paling terakhir karena dia yang
+menjalankan bootApp().
+===============================================================================
+-->
+<script>
+"use strict";
+
+
+  /*
+   * =========================================================================
+   * SHARED FUNCTIONS Ã¢â‚¬â€ digabung kembali ke Index.html
+   * Urutan: Helper -> Formatter -> UI -> Validator
+   * =========================================================================
+   */
+
+  function escapeHtml(value) {
+    var div = document.createElement("div");
+    div.textContent = (value == null) ? "" : String(value);
+    return div.innerHTML;
+  }
+
+  function toNumber(value, fallback) {
+    var num = Number(value);
+    if (isFinite(num)) return num;
+    return (fallback == null) ? 0 : fallback;
+  }
+
+  function round2(value) {
+    var num = Number(value);
+    if (!isFinite(num)) return 0;
+    return Math.round((num + Number.EPSILON) * 100) / 100;
+  }
+
+  function pad2(value) {
+    var num = Number(value) || 0;
+    return num < 10 ? "0" + num : String(num);
+  }
+
+  function safeArray(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
+  function safeObject(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
+
+  function findById(rows, id) {
+    return safeArray(rows).find(function (item) {
+      return item && item.id === id;
+    }) || null;
+  }
+
+  function cloneObject(value) {
+    return JSON.parse(JSON.stringify(value || {}));
+  }
+
+  function formatRp(value) {
+    var num = Number(value || 0);
+    if (!isFinite(num)) num = 0;
+
+    return "Rp " + num.toLocaleString("id-ID", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  function formatRupiah(value) {
+    return formatRp(value);
+  }
+
+  function money0(value) {
+    var num = Number(value || 0);
+    if (!isFinite(num)) num = 0;
+
+    return "Rp " + num.toLocaleString("id-ID", {
+      maximumFractionDigits: 0
+    });
+  }
+
+  function formatRupiahTanpaDesimal(value) {
+    return money0(value);
+  }
+
+  function formatNum(value, maxFractionDigits) {
+    var digit = (maxFractionDigits == null) ? 1 : Number(maxFractionDigits);
+    if (!isFinite(digit) || digit < 0) digit = 1;
+
+    return round2(value).toLocaleString("id-ID", {
+      maximumFractionDigits: digit
+    });
+  }
+
+  function formatPercent(value, maxFractionDigits) {
+    var digit = (maxFractionDigits == null) ? 2 : Number(maxFractionDigits);
+    if (!isFinite(digit) || digit < 0) digit = 2;
+
+    var num = Number(value || 0);
+    if (!isFinite(num)) num = 0;
+
+    return num.toLocaleString("id-ID", {
+      maximumFractionDigits: digit
+    }) + "%";
+  }
+
+  window.toggleOkupansiTooltip = function (btn, evt) {
+    if (evt) evt.stopPropagation();
+    var tip = btn.nextElementSibling;
+    var wasOpen = tip && tip.classList.contains("is-open");
+    document.querySelectorAll(".okupansi-tooltip.is-open").forEach(function (t) {
+      t.classList.remove("is-open");
+    });
+    if (tip && !wasOpen) tip.classList.add("is-open");
+  }
+
+  document.addEventListener("click", function (e) {
+    if (e.target.closest && e.target.closest(".profil-kpi-okupansi")) return;
+    document.querySelectorAll(".okupansi-tooltip.is-open").forEach(function (t) {
+      t.classList.remove("is-open");
+    });
+  });
+
+  window.toggleHppDetail = function (head, evt) {
+    if (evt) evt.stopPropagation();
+    var card = head.closest(".hpp-mini-card");
+    if (!card) return;
+    card.classList.toggle("is-open");
+  }
+
+  window.toggleHPPLayananAktif = function (cabangId, serviceKey, nextAktif, evt) {
+    if (evt) evt.stopPropagation();
+    if (!cabangId || !serviceKey) return;
+
+    google.script.run
+      .withSuccessHandler(function () { refreshDashboardFast(); })
+      .withFailureHandler(function (err) {
+        showToast(err && err.message ? err.message : "Gagal mengubah status layanan.", "err");
+      })
+      .setHPPLayananAktif(cabangId, serviceKey, nextAktif);
+  };
+
+  window.toggleHlDetail = function (row, evt) {
+    if (evt) evt.stopPropagation();
+    var item = row.closest(".hl-item");
+    if (!item) return;
+    item.classList.toggle("is-open");
+  }
+
+  window.toggleFcDetail = function (row, evt) {
+    if (evt) evt.stopPropagation();
+    var card = row.closest(".fc-card");
+    if (!card) return;
+    card.classList.toggle("is-open");
+  }
+
+  function buildBepChartSvg(d) {
+    var fixedCost = Number(d.fixedCostPerBulan) || 0;
+    var hpp = Number(d.rataHPP) || 0;
+    var harga = Number(d.rataHarga) || 0;
+    var bepX = Number(d.bepLoadPerBulan) || 0;
+    var bepY = Number(d.bepOmsetPerBulan) || 0;
+    if (bepX <= 0 || harga <= 0) return '';
+
+    var maxX = bepX * 1.8;
+    var costAtMaxX = fixedCost + hpp * maxX;
+    var revAtMaxX = harga * maxX;
+    var maxY = Math.max(costAtMaxX, revAtMaxX, fixedCost) * 1.05;
+    if (maxY <= 0) return '';
+
+    var w = 300, h = 150;
+    var plotL = 8, plotR = w - 8, plotT = 10, plotB = h - 18;
+    var plotW = plotR - plotL, plotH = plotB - plotT;
+
+    function svgX(x) { return plotL + (x / maxX) * plotW; }
+    function svgY(y) { return plotB - (y / maxY) * plotH; }
+
+    var x0 = svgX(0);
+    var xBep = svgX(bepX);
+    var xMax = svgX(maxX);
+    var yCost0 = svgY(fixedCost);
+    var yCostMax = svgY(costAtMaxX);
+    var yRev0 = svgY(0);
+    var yRevMax = svgY(revAtMaxX);
+    var yBep = svgY(bepY);
+
+    var lossPoly = x0 + ',' + yRev0 + ' ' + xBep + ',' + yBep + ' ' + x0 + ',' + yCost0;
+    var profitPoly = xBep + ',' + yBep + ' ' + xMax + ',' + yRevMax + ' ' + xMax + ',' + yCostMax;
+
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" class="bep-chart-svg" preserveAspectRatio="none">' +
+      '<polygon points="' + lossPoly + '" fill="var(--red)" opacity="0.08"></polygon>' +
+      '<polygon points="' + profitPoly + '" fill="var(--sage)" opacity="0.1"></polygon>' +
+      '<line x1="' + plotL + '" y1="' + plotB + '" x2="' + plotR + '" y2="' + plotB + '" stroke="var(--border)" stroke-width="1"></line>' +
+      '<line x1="' + xBep + '" y1="' + yBep + '" x2="' + xBep + '" y2="' + plotB + '" stroke="var(--border)" stroke-width="1" stroke-dasharray="3,3"></line>' +
+      '<line x1="' + x0 + '" y1="' + yCost0 + '" x2="' + xMax + '" y2="' + yCostMax + '" stroke="var(--brass)" stroke-width="2"></line>' +
+      '<line x1="' + x0 + '" y1="' + yRev0 + '" x2="' + xMax + '" y2="' + yRevMax + '" stroke="var(--sage)" stroke-width="2"></line>' +
+      '<circle cx="' + xBep + '" cy="' + yBep + '" r="3.5" fill="var(--text)"></circle>' +
+      '<text x="' + plotL + '" y="' + (plotT + 6) + '" font-size="9" fill="var(--text-faint)">' + escapeHtml(money0(maxY)) + '</text>' +
+      '<text x="' + plotR + '" y="' + (plotB + 13) + '" font-size="9" fill="var(--text-faint)" text-anchor="end">' + escapeHtml(formatNum(maxX, 0)) + ' load</text>' +
+    '</svg>';
+  }
+
+  function showToast(message, kind) {
+    var el = document.getElementById("toast");
+    if (!el) return;
+
+    el.textContent = message || "";
+    el.className = "toast show" + (kind ? " " + kind : "");
+
+    window.clearTimeout(showToast._t);
+    showToast._t = window.setTimeout(function () {
+      el.className = "toast";
+    }, 3200);
+  }
+
+  function toast(message, kind) {
+    showToast(message, kind);
+  }
+
+  function setSaveStatus(text, kind) {
+    var el = document.getElementById("saveStatus");
+    if (!el) return;
+
+    el.textContent = text || "";
+    el.className = "save-status" + (kind ? " " + kind : "");
+  }
+
+  function clearSaveStatus() {
+    setSaveStatus("", "");
+  }
+
+  function handleBackendError(res, actionLabel) {
+    var msg = (res && res.error) ? res.error : "Terjadi kesalahan tidak dikenal.";
+    var stage = (res && res.stage) ? res.stage : "unknown_stage";
+    var label = actionLabel || "memproses data";
+
+    console.error("[Kalkulator Laundry] Gagal " + label + " (stage: " + stage + "): " + msg);
+    showToast("Gagal " + label + ": " + msg, "err");
+    setSaveStatus("Gagal", "err");
+  }
+
+  function isValidNumber(value) {
+    return isFinite(Number(value));
+  }
+
+  function validateNumber(value, options) {
+    var opt = safeObject(options);
+    var num = Number(value);
+
+    if (!isFinite(num)) {
+      return { ok: false, value: 0, message: opt.message || "Input harus berupa angka." };
+    }
+
+    if (opt.min != null && num < Number(opt.min)) {
+      return { ok: false, value: num, message: opt.minMessage || "Input tidak boleh lebih kecil dari " + opt.min + "." };
+    }
+
+    if (opt.max != null && num > Number(opt.max)) {
+      return { ok: false, value: num, message: opt.maxMessage || "Input tidak boleh lebih besar dari " + opt.max + "." };
+    }
+
+    return { ok: true, value: num, message: "" };
+  }
+
+  function isValidId(value) {
+    return typeof value === "string" && value.trim().length > 0;
+  }
+
+  function validateId(value, label) {
+    if (isValidId(value)) {
+      return { ok: true, value: value.trim(), message: "" };
+    }
+
+    return {
+      ok: false,
+      value: "",
+      message: (label || "ID") + " belum valid."
+    };
+  }
+
+  function validateRequired(value, label) {
+    var text = (value == null) ? "" : String(value).trim();
+    if (text) return { ok: true, value: text, message: "" };
+
+    return {
+      ok: false,
+      value: "",
+      message: (label || "Input") + " wajib diisi."
+    };
+  }
+/**
+   * =========================================================================
+   * STATE NAVIGASI
+   * -------------------------------------------------------------------------
+   * "view" menyimpan SELURUH konteks navigasi saat ini. Ditambah field baru
+   * untuk Master Biaya (gasCabangId, gasEditingId, gasIsNew) tanpa mengubah
+   * field cabang yang sudah ada, supaya alur cabang tidak ikut berubah.
+   * =========================================================================
+   */
+  var view = {
+    screen: "menu",
+    editingId: null,
+    isNew: false,
+    kategoriBiayaAktif: "gas", // "gas" | "listrik" | "air" | "notaKasir" ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â menentukan tujuan saat pilih cabang di screenMasterBiaya
+    gasCabangId: null,
+    gasEditingId: null,
+    gasIsNew: false,
+    listrikCabangId: null,
+    airCabangId: null,
+    notaKasirCabangId: null,
+    biayaTetapCabangId: null,
+    chemicalCabangId: null,
+    chemicalEditingId: null,
+    chemicalIsNew: false,
+    packingCabangId: null,
+    packingEditingId: null,
+    packingIsNew: false
+  };
+  var cabangListCache = [];
+  var formState = null;
+
+  // Cache khusus Master Biaya Gas, diisi tiap kali masuk ke screenGasList.
+  var gasCabangCache = null;   // { id, namaLaundry, mesinPengering }
+  var gasItemsCache = [];      // [{ record, summary }]
+  var gasFormState = null;     // record biayaGas yang sedang diedit/dibuat
+
+  // Cache khusus Master Biaya Chemical, diisi tiap kali masuk ke screenChemicalList.
+  var chemicalCabangCache = null; // { id, namaLaundry }
+  var chemicalItemsCache = [];    // [{ record, summary }]
+  var chemicalTotalCache = 0;     // total biaya chemical per Kg (semua item dijumlah)
+  var chemicalFormState = null;   // record biayaChemical yang sedang diedit/dibuat
+
+  // Cache khusus Master Biaya Packing, diisi tiap kali masuk ke screenPackingList.
+  var packingCabangCache = null; // { id, namaLaundry }
+  var packingItemsCache = [];    // [{ record, summary }]
+  var packingTotalCache = 0;     // total biaya packing per Kg (semua item dijumlah)
+  var packingFormState = null;   // record biayaPacking yang sedang diedit/dibuat
+
+  // Cache khusus Master Biaya Listrik, diisi tiap kali masuk ke screenListrikForm.
+  var listrikCabangCache = null; // { id, namaLaundry, mesinCuci, mesinPengering }
+  var listrikFormState = null;   // record biayaListrik yang sedang diedit (selalu 1 per cabang)
+
+  // Cache khusus Master Biaya Air, diisi tiap kali masuk ke screenAirForm.
+  var airCabangCache = null;     // { id, namaLaundry }
+  var airFormState = null;       // record biayaAir yang sedang diedit (selalu 1 per cabang)
+
+  // Cache khusus Master Biaya Nota & Kasir, diisi tiap kali masuk ke screenNotaKasirForm.
+  var notaKasirCabangCache = null; // { id, namaLaundry }
+  var notaKasirFormState = null;   // record biayaNotaKasir yang sedang diedit (selalu 1 per cabang)
+
+  // Cache khusus Biaya Tetap Outlet.
+  var biayaTetapCabangCache = null;
+  var biayaTetapRecordCache = null;
+  var biayaTetapSummaryCache = null;
+
+  var localIdCounter = 0;
+  function localId() {
+    localIdCounter += 1;
+    return "local_" + Date.now() + "_" + localIdCounter;
+  }
+
+  /* Fungsi umum tahap 5 dipindahkan ke file Script_Shared_*.html. */
+
+  function computeDurasiOperasional(bukaMenit, tutupMenit) {
+    var total = (Number(tutupMenit) || 0) - (Number(bukaMenit) || 0);
+    if (total < 0) total += 24 * 60;
+    return total;
+  }
+
+  function computeGroupLoad(rows, totalMenitPerHari, okupansiPersen) {
+    var totalUnit = 0;
+    var maksimalLoadPerHari = 0;
+    for (var i = 0; i < rows.length; i++) {
+      var m = rows[i];
+      var unit = Number(m.jumlahUnit) || 0;
+      totalUnit += unit;
+      var durasi = Number(m.durasiMenit) || 0;
+      if (durasi > 0 && unit > 0 && totalMenitPerHari > 0) {
+        var loadPerUnitPerHari = totalMenitPerHari / durasi;
+        maksimalLoadPerHari += loadPerUnitPerHari * unit;
+      }
+    }
+    var fraksi = Math.min(Math.max(Number(okupansiPersen) || 0, 0), 100) / 100;
+    var loadPerHari = maksimalLoadPerHari * fraksi;
+    return {
+      totalUnit: totalUnit,
+      loadMaksimalPerHari: round2(maksimalLoadPerHari),
+      loadPerHari: round2(loadPerHari),
+      loadPerMinggu: round2(loadPerHari * 7),
+      loadPerBulan: round2(loadPerHari * 30)
+    };
+  }
+
+  function computeGroupSetrika(rows, okupansiPersen) {
+    var totalUnit = 0;
+    var kapasitasMaksimalKgPerJam = 0;
+    for (var i = 0; i < rows.length; i++) {
+      var m = rows[i];
+      var unit = Number(m.jumlahUnit) || 0;
+      totalUnit += unit;
+      kapasitasMaksimalKgPerJam += (Number(m.kapasitasKgPerJam) || 0) * unit;
+    }
+    var fraksi = Math.min(Math.max(Number(okupansiPersen) || 0, 0), 100) / 100;
+    return {
+      totalUnit: totalUnit,
+      kapasitasMaksimalKgPerJam: round2(kapasitasMaksimalKgPerJam),
+      kapasitasKgPerJam: round2(kapasitasMaksimalKgPerJam * fraksi)
+    };
+  }
+
+  function computeSummary(cabang) {
+    var totalMenit = computeDurasiOperasional(cabang.profil.jamBukaMenit, cabang.profil.jamTutupMenit);
+    return {
+      totalMenitPerHari: totalMenit,
+      totalJamPerHari: round2(totalMenit / 60),
+      cuci: computeGroupLoad(cabang.mesinCuci, totalMenit, cabang.okupansi.cuciPersen),
+      kering: computeGroupLoad(cabang.mesinPengering, totalMenit, cabang.okupansi.keringPersen),
+      setrika: computeGroupSetrika(cabang.mesinSetrika || [], cabang.okupansi.setrikaPersen)
+    };
+  }
+
+  /**
+   * Salinan rumus computeBiayaGasSummary_ dari Code.gs, untuk pratinjau
+   * instan di form (tanpa menunggu roundtrip ke server). Backend tetap
+   * sumber kebenaran tunggal saat data disimpan ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â lihat catatan di Code.gs.
+   */
+  function computeBiayaGasSummaryClient(record, dryer, setrika) {
+    var estimasiJam = Number(record.estimasiPemakaianJam) || 0;
+    var harga = Number(record.hargaPerTabung) || 0;
+
+    var konversiMenit = round2(estimasiJam * 60);
+    var biayaPerJam = (estimasiJam > 0) ? round2(harga / estimasiJam) : 0;
+    var biayaPerMenit = round2(biayaPerJam / 60);
+
+    // Satu tabung gas yang sama dipakai bareng untuk Dryer DAN Setrika Uap -
+    // bukan pilihan eksklusif, keduanya dihitung sekaligus.
+    var durasiLoadMenit = dryer ? (Number(dryer.durasiMenit) || 0) : 0;
+    var estimasiLoadPemakaian = (durasiLoadMenit > 0) ? round2(konversiMenit / durasiLoadMenit) : 0;
+    var biayaPerLoad = (estimasiLoadPemakaian > 0) ? round2(harga / estimasiLoadPemakaian) : 0;
+
+    var biayaGasSetrikaPerJam = setrika ? biayaPerJam : 0;
+
+    return {
+      konversiMenit: konversiMenit,
+      estimasiLoadPemakaian: estimasiLoadPemakaian,
+      biayaPerJam: biayaPerJam,
+      biayaPerMenit: biayaPerMenit,
+      biayaPerLoad: biayaPerLoad,
+      biayaGasSetrikaPerJam: biayaGasSetrikaPerJam,
+      statusValidDryer: !!dryer && biayaPerLoad > 0,
+      statusValidSetrika: !!setrika && biayaGasSetrikaPerJam > 0
+    };
+  }
+
+  function formatJam(menit) {
+    var h = Math.floor(menit / 60);
+    var m = menit % 60;
+    return pad2(h) + "." + pad2(m);
+  }
+
+  var KATEGORI_LABEL = { self_service: "Self Service", jasa_setrika: "Jasa Setrika", drop_off: "Drop off / kiloan", hybrid: "Hybrid" };
+  var JENIS_MESIN_LABEL = { rumah_tangga: "Rumah tangga", konversi: "Konversi", komersial: "Komersial" };
+
+  function machineDisplayName(m) {
+    var jenis = JENIS_MESIN_LABEL[m.jenis] || "Mesin";
+    return jenis + " · " + (m.durasiMenit || 0) + " mnt";
+  }
+
+  var BIAYA_GAS_PRESET = [
+    { kapasitasKg: 3, label: "3 Kg", estimasiJam: 8 },
+    { kapasitasKg: 5.5, label: "5,5 Kg", estimasiJam: 14.4 },
+    { kapasitasKg: 12, label: "12 Kg", estimasiJam: 32 },
+    { kapasitasKg: 50, label: "50 Kg", estimasiJam: 132 }
+  ];
+
+  /**
+   * =========================================================================
+   * NAVIGASI ANTAR LAYAR
+   * -------------------------------------------------------------------------
+   * SCREEN_STACK mendefinisikan "induk" tiap layar untuk tombol Kembali (ÃƒÂ¢Ã¢â‚¬Â Ã‚Â).
+   * Ditambah entri untuk layar Master Biaya tanpa mengubah entri yang sudah
+   * ada (list/ringkasan/form tetap balik ke "list" atau parent masing-masing).
+   * =========================================================================
+   */
+  var SCREEN_ELEMENT_ID = {
+    menu: "screenMenu",
+    list: "screenList",
+    ringkasan: "screenRingkasan",
+    form: "screenForm",
+    masterBiaya: "screenMasterBiaya",
+    gasList: "screenGasList",
+    gasForm: "screenGasForm",
+    chemicalList: "screenChemicalList",
+    chemicalForm: "screenChemicalForm",
+    packingList: "screenPackingList",
+    packingForm: "screenPackingForm",
+    listrikForm: "screenListrikForm",
+    airForm: "screenAirForm",
+    notaKasirForm: "screenNotaKasirForm",
+    strukturHPPList: "screenStrukturHPPList",
+    strukturHPPDetail: "screenStrukturHPPDetail",
+    hargaLayananList: "screenHargaLayananList",
+    hargaLayananDetail: "screenHargaLayananDetail",
+    biayaTetapList: "screenBiayaTetapList",
+    biayaTetapForm: "screenBiayaTetapForm"
+  };
+
+</script>

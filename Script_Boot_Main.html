@@ -1,0 +1,74 @@
+<!--
+===============================================================================
+FILE: Script_Boot_Main.html
+PROJECT: Kalkulator Laundry Versi 002
+ISI: Entry point aplikasi (bootApp)
+
+FUNGSI:
+bootApp(): inisialisasi time select, binding semua form input, sembunyikan loading, tampilkan layar menu. WAJIB tetap file JS terakhir yang di-include (lihat catatan wajib di atas).
+
+PENTING -- catat sebelum edit:
+Semua file Script_*.html berbagi SATU scope global yang sama (Apps Script
+include() cuma menggabungkan teks mentah jadi satu <script> demi <script>
+di halaman yang sama -- bukan module system). Karena itu file ini SENGAJA
+TIDAK dibungkus (function(){...})() -- kalau kamu bungkus lagi, fungsi di
+file ini jadi tidak kelihatan dari file lain dan app akan rusak.
+Urutan include TIDAK masalah untuk deklarasi function/var (hoisting),
+TAPI Script_Boot_Main.html WAJIB tetap paling terakhir karena dia yang
+menjalankan bootApp().
+===============================================================================
+-->
+<script>
+"use strict";
+  function bootApp() {
+    var loadingEl = document.getElementById("loadingState");
+    var appRootEl = document.getElementById("appRoot");
+
+    try {
+      initTimeSelects();
+      bindStaticFormInputs();
+      bindGasFormInputs();
+      bindChemicalFormInputs();
+      bindPackingFormInputs();
+      bindListrikFormInputs();
+
+      if (loadingEl) loadingEl.style.display = "none";
+      if (appRootEl) appRootEl.style.display = "block";
+
+      showScreen("menu");
+    } catch (err) {
+      var detail =
+        "Message: " + (err && err.message ? err.message : String(err)) +
+        "\nStack:\n" + (err && err.stack ? err.stack : "-");
+
+      try {
+        alert("BOOT ERROR\n\n" + detail);
+      } catch (alertErr) {
+        // Kalau alert diblokir, fallback HTML di bawah tetap jalan.
+      }
+
+      if (loadingEl) loadingEl.style.display = "none";
+
+      if (window.__showBootDiagnosticError) {
+        window.__showBootDiagnosticError("BOOT ERROR", detail);
+      } else if (appRootEl) {
+        appRootEl.style.display = "block";
+        appRootEl.innerHTML =
+          '<div class="panel" style="border:1px solid #ef4444; padding:16px; margin-top:16px;">' +
+            '<h2 style="margin:0 0 8px; color:#ef4444;">BOOT ERROR</h2>' +
+            '<pre style="white-space:pre-wrap; background:#111827; color:#fff; padding:12px; border-radius:10px; overflow:auto;">' +
+              String(detail).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") +
+            '</pre>' +
+          '</div>';
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootApp);
+  } else {
+    bootApp();
+  }
+</script>

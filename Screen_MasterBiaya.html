@@ -1,224 +1,39 @@
 <!--
 ===============================================================================
 FILE: Screen_MasterBiaya.html
-PROJECT: Kalkulator Laundry Versi 002
-TAHAP: 4 — Pecah HTML Screen
+PROJECK: Kalkulator Laundry Versi 002
+ISI: Layar Menu Master Biaya
 
 FUNGSI:
-Berisi pecahan tampilan screen dari Index.html.
+Gerbang pemilihan kategori biaya (Gas, Chemical, Packing, Listrik, Air, Nota Kasir).
 
-ATURAN:
-- ID elemen dipertahankan.
-- Nama screen dipertahankan.
-- Urutan screen mengikuti Index.html asli.
-- File ini hanya berisi markup screen.
-- Logic JavaScript tetap berada di Index.html.
-- Styling tetap mengikuti file style yang sudah ada.
+Di-include dari Index.html lewat include('Screen_MasterBiaya'). Jangan tambah
+tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
 ===============================================================================
 -->
-
-<section class="screen" id="screenMasterBiaya">
+    <section class="screen" id="screenMasterBiaya">
       <div class="list-header">
         <h1>Master Biaya</h1>
       </div>
       <div class="group-divider">Kategori biaya</div>
-      <div class="pill-group" id="kategoriBiayaPills" style="margin-bottom: 18px;">
+      <div class="pill-group" id="kategoriBiayaPills" style="margin-bottom: 8px;">
         <div class="pill active flame" data-val="gas" onclick="selectKategoriBiaya('gas')">Gas</div>
         <div class="pill volt" data-val="listrik" onclick="selectKategoriBiaya('listrik')">Listrik</div>
         <div class="pill sage" data-val="air" onclick="selectKategoriBiaya('air')">Air</div>
-        <div class="pill brass" data-val="notaKasir" onclick="selectKategoriBiaya('notaKasir')">Admin/Nota</div>
-        <div class="pill disabled" title="Segera hadir">Deterjen</div>
+        <div class="pill indigo" data-val="chemical" onclick="selectKategoriBiaya('chemical')">Chemical</div>
+        <div class="pill clay" data-val="packing" onclick="selectKategoriBiaya('packing')">Packing</div>
+        <div class="pill brass" data-val="notaKasir" onclick="selectKategoriBiaya('notaKasir')">Nota</div>
       </div>
+      <div class="field-hint" style="margin-bottom: 18px;">Kategori laundry Self Service cukup isi Gas, Listrik, Air, dan Nota. Chemical &amp; Packing tetap bisa diisi kalau memang dipakai.</div>
 
       <div class="group-divider">Pilih cabang</div>
       <div id="biayaPickCabangList"></div>
       <div id="biayaPickCabangEmpty" class="empty-state" style="display:none;">
         <div class="icon">&#127981;</div>
-        <p>Belum ada cabang. Tambahkan cabang dulu di menu "Cabang &amp; lokasi" sebelum mengisi Master Biaya.</p>
+        <p>Belum ada cabang. Tambahkan cabang dulu di menu "Profil Outlet" sebelum mengisi Master Biaya.</p>
       </div>
     </section>
 
-<section class="screen" id="screenGasList">
-      <div class="list-header">
-        <h1 id="gasListTitle">Analisa Biaya Gas</h1>
-        <span class="count" id="gasListCount">0 data</span>
-      </div>
-      <div id="gasListEmpty" class="empty-state" style="display:none;">
-        <div class="icon">&#128293;</div>
-        <p>Belum ada data biaya gas untuk cabang ini.<br>Tambahkan tabung pertama untuk mulai menghitung.</p>
-      </div>
-      <div class="gas-grid" id="gasList"></div>
-      <button class="add-cabang-btn flame" onclick="openGasFormNew()">+ Tambah data gas</button>
-    </section>
-
-<section class="screen" id="screenGasForm">
-      <section class="panel" data-panel="gas">
-        <div class="panel-head">
-          <h2 id="gasFormTitle">Analisa Biaya Gas</h2>
-        </div>
-        <div class="panel-body">
-
-          <div class="field">
-            <label>Kapasitas Gas LPG</label>
-            <div class="pill-group" id="gasKapasitasPills"></div>
-          </div>
-
-          <div class="field" id="gasKapasitasCustomField" style="display:none;">
-            <label for="gasKapasitasCustomKg">Kapasitas custom (Kg)</label>
-            <input type="number" inputmode="decimal" min="0" step="0.1" id="gasKapasitasCustomKg" placeholder="Contoh: 22">
-          </div>
-
-          <div class="field">
-            <label for="gasHarga">Harga per tabung (Rp)</label>
-            <input type="number" inputmode="decimal" min="0" step="0.01" id="gasHarga" placeholder="Contoh: 21000.50">
-          </div>
-
-          <div class="field">
-            <label for="gasEstimasiJam">Estimasi pemakaian (jam)</label>
-            <input type="number" inputmode="decimal" min="0" step="0.1" id="gasEstimasiJam" placeholder="Contoh: 32">
-            <div class="field-hint">Boleh diubah sesuai pengalaman pemakaian outlet ini. Nilai di atas hanya saran awal per kapasitas.</div>
-          </div>
-
-          <div class="field">
-            <label for="gasDryerRef">Acuan mesin pengering (untuk konversi load)</label>
-            <select id="gasDryerRef"></select>
-            <div class="field-hint">Durasi 1 load diambil dari mesin pengering ini, sesuai data profil cabang.</div>
-          </div>
-
-          <div class="group-divider">Hasil otomatis</div>
-          <div class="gas-card-result" style="border-top:none; padding-top:0; margin-top:0;">
-            <div class="gas-result-grid">
-              <div class="gas-result-cell">
-                <div class="label">Konversi waktu</div>
-                <div class="val" id="gfKonversiMenit">0<span class="unit">menit</span></div>
-              </div>
-              <div class="gas-result-cell">
-                <div class="label">Estimasi load pemakaian</div>
-                <div class="val" id="gfEstimasiLoad">0<span class="unit">load</span></div>
-              </div>
-            </div>
-            <div class="gas-result-grid">
-              <div class="gas-result-cell">
-                <div class="label">Biaya per jam</div>
-                <div class="val" id="gfBiayaJam">Rp 0</div>
-              </div>
-              <div class="gas-result-cell">
-                <div class="label">Biaya per menit</div>
-                <div class="val" id="gfBiayaMenit">Rp 0</div>
-              </div>
-            </div>
-            <div class="gas-result-grid" style="grid-template-columns: 1fr;">
-              <div class="gas-result-cell highlight">
-                <div class="label">Biaya per load (sesuai profil operasional)</div>
-                <div class="val" id="gfBiayaLoad">Rp 0</div>
-              </div>
-            </div>
-            <div class="gas-warning" id="gfWarning" style="display:none;"></div>
-          </div>
-
-        </div>
-      </section>
-    </section>
-
-<section class="screen" id="screenListrikForm">
-      <div class="list-header">
-        <h1 id="listrikTitle">Analisa Biaya Listrik</h1>
-      </div>
-
-      <div class="tdl-panel">
-        <label for="listrikTdl">Tarif Dasar Listrik (TDL) per kWh (Rp)</label>
-        <div class="tdl-input-row" style="margin-top:8px;">
-          <span class="prefix">Rp</span>
-          <input type="number" inputmode="decimal" min="0" step="0.01" id="listrikTdl" placeholder="1700">
-        </div>
-        <div class="field-hint">Bisa diubah menyesuaikan golongan daya listrik laundry Anda.</div>
-      </div>
-
-      <div class="listrik-kategori-grid">
-        <div class="listrik-kategori-card">
-          <div class="listrik-kategori-top">
-            <div class="title-group" style="display:flex;align-items:center;gap:8px;">
-              <span class="listrik-kategori-icon cuci">&#128167;</span>
-              <span class="name cuci">Mesin Cuci</span>
-            </div>
-          </div>
-          <label for="listrikWattCuci">Daya / mesin (Watt)</label>
-          <input type="number" inputmode="decimal" min="0" step="1" id="listrikWattCuci" placeholder="450">
-          <div class="listrik-rincian-list" id="listrikRincianCuci"></div>
-        </div>
-
-        <div class="listrik-kategori-card">
-          <div class="listrik-kategori-top">
-            <div class="title-group" style="display:flex;align-items:center;gap:8px;">
-              <span class="listrik-kategori-icon kering">&#128168;</span>
-              <span class="name kering">Mesin Pengering</span>
-            </div>
-          </div>
-          <label for="listrikWattKering">Daya / mesin (Watt)</label>
-          <input type="number" inputmode="decimal" min="0" step="1" id="listrikWattKering" placeholder="448">
-          <div class="listrik-rincian-list" id="listrikRincianKering"></div>
-        </div>
-
-        <div class="listrik-kategori-card full">
-          <div class="listrik-kategori-top">
-            <div class="title-group" style="display:flex;align-items:center;gap:8px;">
-              <span class="listrik-kategori-icon pompa">&#127754;</span>
-              <span class="name pompa">Pompa Air</span>
-            </div>
-          </div>
-          <label for="listrikWattPompa">Daya total pompa (Watt)</label>
-          <input type="number" inputmode="decimal" min="0" step="1" id="listrikWattPompa" placeholder="280">
-          <div class="field-hint" id="listrikPompaHint">Dialokasikan rata ke setiap mesin cuci yang ada di profil cabang ini.</div>
-        </div>
-      </div>
-    </section>
-
-<section class="screen" id="screenAirForm">
-      <div class="list-header">
-        <h1 id="airTitle">Analisa Biaya Air</h1>
-      </div>
-
-      <div class="air-sumber-panel">
-        <label>Sumber Air</label>
-        <div class="air-sumber-buttons" style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
-          <button type="button" class="air-sumber-btn" data-sumber="pdam" onclick="selectAirSumber('pdam')" style="padding: 12px; border: 2px solid var(--sage); background: transparent; color: var(--sage); border-radius: var(--radius); cursor: pointer; font-size: 14px; font-weight: 500;">Air PDAM / Meteran</button>
-          <button type="button" class="air-sumber-btn" data-sumber="tangki" onclick="selectAirSumber('tangki')" style="padding: 12px; border: 2px solid var(--border); background: transparent; color: var(--text); border-radius: var(--radius); cursor: pointer; font-size: 14px; font-weight: 500;">Air Tangki / Toren</button>
-          <button type="button" class="air-sumber-btn" data-sumber="sumur" onclick="selectAirSumber('sumur')" style="padding: 12px; border: 2px solid var(--border); background: transparent; color: var(--text); border-radius: var(--radius); cursor: pointer; font-size: 14px; font-weight: 500;">Air Sumur Bor</button>
-        </div>
-      </div>
-
-      <div id="airInputContainer" style="margin-top: 20px;">
-        <!-- Input dinamis akan dimuat di sini -->
-      </div>
-
-      <div class="group-divider">Hasil otomatis</div>
-      <div class="air-result-panel" style="background: var(--panel-2); border-radius: var(--radius); padding: 16px; margin-top: 10px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <span style="color: var(--text-dim);">Biaya per load</span>
-          <div style="font-size: 20px; font-weight: 600; color: var(--sage);" id="airBiayaPerLoad">Rp 0</div>
-        </div>
-        <div id="airInfoBox" style="background: var(--panel); border-left: 3px solid var(--sage); padding: 10px; border-radius: 4px; font-size: 12px; color: var(--text-faint); line-height: 1.5; display: none; margin-top: 10px;"></div>
-      </div>
-    </section>
-
-<section class="screen" id="screenNotaKasirForm">
-      <div class="list-header">
-        <h1 id="notaKasirTitle">Admin/Nota Kasir</h1>
-      </div>
-
-      <div class="group-divider">Sistem nota / kasir</div>
-      <div class="pill-group" id="notaKasirSistemPills">
-        <div class="pill brass active" data-val="aplikasi_kasir_thermal" onclick="selectNotaKasirSistem('aplikasi_kasir_thermal')">Aplikasi Kasir Thermal</div>
-        <div class="pill sage" data-val="nota_manual_ncr" onclick="selectNotaKasirSistem('nota_manual_ncr')">Nota Manual NCR</div>
-      </div>
-
-      <div id="notaKasirBody"></div>
-
-      <div class="group-divider">Ringkasan biaya</div>
-      <div class="panel">
-        <div class="meta-row"><span class="meta-label">Biaya aplikasi per load</span><span class="meta-val" id="notaAplikasiPerTransaksi">Rp 0</span></div>
-        <div class="meta-row"><span class="meta-label">Biaya nota per load</span><span class="meta-val" id="notaBiayaPerLoad">Rp 0</span></div>
-        <div class="meta-row"><span class="meta-label">Total biaya per load</span><span class="meta-val" id="notaTotalPerLoad">Rp 0</span></div>
-      </div>
-      <div class="field-hint" id="notaKasirWarning" style="display:none; margin-top: 8px;"></div>
-    </section>
+    <!-- ===================================================================
+         LAYAR: DAFTAR BIAYA GAS milik satu cabang
+    =================================================================== -->

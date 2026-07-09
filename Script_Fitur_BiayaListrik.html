@@ -1,0 +1,347 @@
+<!--
+===============================================================================
+FILE: Script_Fitur_BiayaListrik.html
+PROJECT: Kalkulator Laundry Versi 002
+ISI: Fitur Master Biaya > Listrik
+
+FUNGSI:
+Form konfigurasi biaya listrik per cabang, kalkulasi Rp/load per baris mesin + alokasi pompa air (computeBiayaListrikSummaryClient).
+
+PENTING -- catat sebelum edit:
+Semua file Script_*.html berbagi SATU scope global yang sama (Apps Script
+include() cuma menggabungkan teks mentah jadi satu <script> demi <script>
+di halaman yang sama -- bukan module system). Karena itu file ini SENGAJA
+TIDAK dibungkus (function(){...})() -- kalau kamu bungkus lagi, fungsi di
+file ini jadi tidak kelihatan dari file lain dan app akan rusak.
+Urutan include TIDAK masalah untuk deklarasi function/var (hoisting),
+TAPI Script_Boot_Main.html WAJIB tetap paling terakhir karena dia yang
+menjalankan bootApp().
+===============================================================================
+-->
+<script>
+"use strict";
+  function listrikMachineLabel(m, index) {
+    var jenis = JENIS_MESIN_LABEL_CLIENT[m.jenis] || "Mesin";
+    return "Unit #" + (index + 1) + " · " + jenis + " · " + (m.durasiMenit || 0) + " mnt";
+  }
+
+  /**
+   * Salinan rumus computeBiayaListrikSummary_ dari Code.gs, untuk pratinjau
+   * instan saat user mengetik (tanpa menunggu roundtrip ke server). Backend
+   * tetap sumber kebenaran tunggal saat data disimpan.
+   */
+  function computeBiayaListrikSummaryClient(record, cabang) {
+    var tdl = Number(record.tdlPerKwh) || 0;
+    var totalUnitCuci = 0;
+    (cabang.mesinCuci || []).forEach(function (m) { totalUnitCuci += Number(m.jumlahUnit) || 0; });
+
+    var wattPompaPerMesinCuci = (totalUnitCuci > 0) ? round2((Number(record.wattPompaAir) || 0) / totalUnitCuci) : 0;
+
+    function computeBaris(m, wattKategori, wattPompaPerMesin) {
+      var durasiMenit = Number(m.durasiMenit) || 0;
+      var kwhListrik = (wattKategori > 0 && durasiMenit > 0) ? (wattKategori * durasiMenit) / 1000 / 60 : 0;
+      var rpListrikPerLoad = round2(kwhListrik * tdl);
+      var kwhPompa = (wattPompaPerMesin > 0 && durasiMenit > 0) ? (wattPompaPerMesin * durasiMenit) / 1000 / 60 : 0;
+      var rpPompaPerLoad = round2(kwhPompa * tdl);
+      return {
+        machineId: m.id,
+        jenis: m.jenis,
+        durasiMenit: durasiMenit,
+        jumlahUnit: Number(m.jumlahUnit) || 0,
+        rpListrikPerLoad: rpListrikPerLoad,
+        rpPompaPerLoad: rpPompaPerLoad,
+        rpTotalPerLoad: round2(rpListrikPerLoad + rpPompaPerLoad),
+        statusValid: durasiMenit > 0
+      };
+    }
+
+    var cuciRincian = (cabang.mesinCuci || []).map(function (m) {
+      return computeBaris(m, Number(record.wattMesinCuci) || 0, wattPompaPerMesinCuci);
+    });
+    var pengeringRincian = (cabang.mesinPengering || []).map(function (m) {
+      return computeBaris(m, Number(record.wattMesinPengering) || 0, 0);
+    });
+
+    var wattSetrika = Number(record.wattSetrikaListrik) || 0;
+    var setrikaRincian = (cabang.mesinSetrika || [])
+      .filter(function (m) { return m.jenis === "listrik"; })
+      .map(function (m) {
+        var kwhPerJam = wattSetrika > 0 ? wattSetrika / 1000 : 0;
+        var rpListrikPerJam = round2(kwhPerJam * tdl);
+        return {
+          machineId: m.id,
+          jenis: m.jenis,
+          jumlahUnit: Number(m.jumlahUnit) || 0,
+          kapasitasKgPerJam: Number(m.kapasitasKgPerJam) || 0,
+          rpListrikPerJam: rpListrikPerJam,
+          statusValid: wattSetrika > 0
+        };
+      });
+
+    return {
+      totalUnitMesinCuci: totalUnitCuci,
+      wattPompaPerMesinCuci: wattPompaPerMesinCuci,
+      cuci: cuciRincian,
+      pengering: pengeringRincian,
+      setrika: setrikaRincian
+    };
+  }
+
+  /**
+   * openListrikForm: masuk ke layar konfigurasi listrik untuk satu cabang.
+   * getBiayaListrik(cabangId) mengembalikan default (TDL 1700, watt 0) jika
+   * cabang belum pernah mengisi ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â BUKAN error ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â sehingga layar tetap mulus
+   * dibuka pertama kali.
+   */
+  function openListrikForm(cabangId) {
+    view.listrikCabangId = cabangId;
+    showScreen("listrikForm");
+    document.getElementById("listrikTitle").textContent = "Analisa Biaya Listrik";
+    setSaveStatus("Memuat...", "busy");
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "memuat data biaya listrik");
+          showScreen("masterBiaya");
+          refreshBiayaPickCabangList();
+          return;
+        }
+        listrikCabangCache = res.data.cabang;
+        listrikFormState = res.data.record;
+        document.getElementById("listrikTitle").textContent = "Analisa Biaya Listrik · " + (listrikCabangCache.namaLaundry || "(Tanpa nama)");
+        renderListrikForm();
+        setSaveStatus("", "");
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaListrik" }, "memuat data biaya listrik");
+        showScreen("masterBiaya");
+        refreshBiayaPickCabangList();
+      })
+      .getBiayaListrik(cabangId);
+  }
+  window.openListrikForm = openListrikForm;
+
+  function syncListrikFieldsFromState() {
+    document.getElementById("listrikTdl").value = listrikFormState.tdlPerKwh ? Number(listrikFormState.tdlPerKwh).toLocaleString("id-ID") : "";
+    document.getElementById("listrikWattCuci").value = listrikFormState.wattMesinCuci || "";
+    document.getElementById("listrikWattKering").value = listrikFormState.wattMesinPengering || "";
+    document.getElementById("listrikWattPompa").value = listrikFormState.wattPompaAir || "";
+    document.getElementById("listrikWattSetrika").value = listrikFormState.wattSetrikaListrik || "";
+  }
+
+  function renderListrikForm() {
+    syncListrikFieldsFromState();
+    renderListrikPreview();
+  }
+
+  /**
+   * renderListrikRincian: merender daftar Rp/load per baris mesin untuk satu
+   * grup (cuci atau pengering). showPompa=true menambahkan baris kedua
+   * "+ Pompa air" di bawah tiap mesin cuci, supaya asal biaya tetap
+   * transparan (lihat dasar rumus di Code.gs computeListrikBarisMesin_).
+   */
+  function renderListrikRincian(containerId, rincianRows, machineRows, showPompa) {
+    var el = document.getElementById(containerId);
+    el.innerHTML = "";
+
+    if (rincianRows.length === 0) {
+      el.innerHTML = "<div class=\"listrik-rincian-empty\">Belum ada mesin di profil cabang ini.</div>";
+      return;
+    }
+
+    rincianRows.forEach(function (r, index) {
+      var label = listrikMachineLabel(machineRows[index], index);
+      var row = document.createElement("div");
+      row.className = "listrik-rincian-row";
+
+      if (!r.statusValid) {
+        row.innerHTML =
+          "<span class=\"k\">" + escapeHtml(label) + "</span>" +
+          "<span class=\"v muted\">durasi belum diisi</span>";
+        el.appendChild(row);
+        return;
+      }
+
+      row.innerHTML =
+        "<span class=\"k\">" + escapeHtml(label) + "</span>" +
+        "<span class=\"v\">" + money0(r.rpListrikPerLoad) + "</span>";
+      el.appendChild(row);
+    });
+  }
+
+  /**
+   * renderListrikPreview: pratinjau real-time berdasarkan listrikFormState
+   * SAAT INI (sebelum disimpan), supaya user lihat hasil sambil mengetik.
+   */
+  function renderListrikRincianSetrika(containerId, rincianRows) {
+    var el = document.getElementById(containerId);
+    el.innerHTML = "";
+
+    if (rincianRows.length === 0) {
+      el.innerHTML = "<div class=\"listrik-rincian-empty\">Belum ada mesin setrika listrik di profil cabang ini.</div>";
+      return;
+    }
+
+    rincianRows.forEach(function (r, index) {
+      var label = "Unit setrika #" + (index + 1) + " Â· " + (r.jumlahUnit || 0) + " unit";
+      var row = document.createElement("div");
+      row.className = "listrik-rincian-row";
+
+      if (!r.statusValid) {
+        row.innerHTML =
+          "<span class=\"k\">" + escapeHtml(label) + "</span>" +
+          "<span class=\"v muted\">watt belum diisi</span>";
+        el.appendChild(row);
+        return;
+      }
+
+      row.innerHTML =
+        "<span class=\"k\">" + escapeHtml(label) + "</span>" +
+        "<span class=\"v\">" + formatRupiah(r.rpListrikPerJam) + " / jam</span>";
+      el.appendChild(row);
+    });
+  }
+
+  function renderListrikPreview() {
+    if (!listrikCabangCache) return;
+    var summary = computeBiayaListrikSummaryClient(listrikFormState, listrikCabangCache);
+
+    renderListrikRincian("listrikRincianCuci", summary.cuci, listrikCabangCache.mesinCuci, true);
+    renderListrikRincian("listrikRincianKering", summary.pengering, listrikCabangCache.mesinPengering, false);
+
+    var hintEl = document.getElementById("listrikPompaHint");
+    if (summary.totalUnitMesinCuci > 0) {
+      hintEl.textContent = "Dialokasikan rata ke " + summary.totalUnitMesinCuci + " unit mesin cuci di profil cabang ini (\u2248 " + formatNum(summary.wattPompaPerMesinCuci) + " W / mesin).";
+    } else {
+      hintEl.textContent = "Belum ada mesin cuci di profil cabang ini \u2014 beban pompa belum bisa dialokasikan.";
+    }
+
+    var showSetrika = false;
+    var setrikaCard = document.getElementById("listrikSetrikaCard");
+    if (setrikaCard) {
+      var adaSetrikaListrik = (listrikCabangCache.mesinSetrika || []).some(function (m) { return m.jenis === "listrik"; });
+      var kategoriBolehSetrika = isKiloanKategori(listrikCabangCache.kategoriLayanan) || isSetrikaOnlyKategori(listrikCabangCache.kategoriLayanan);
+      showSetrika = kategoriBolehSetrika && adaSetrikaListrik;
+      setrikaCard.style.display = showSetrika ? "" : "none";
+      if (showSetrika) {
+        renderListrikRincianSetrika("listrikRincianSetrika", summary.setrika);
+      }
+    }
+
+    renderListrikTotal(summary, showSetrika);
+  }
+
+  /**
+   * renderListrikTotal: kartu akumulasi paling bawah \u2014 menjumlahkan biaya
+   * per load (cuci, pengering, pompa) dan biaya per jam setrika listrik
+   * (kalau kartu setrika sedang tampil) jadi satu ringkasan akhir.
+   */
+  function renderListrikTotal(summary, showSetrika) {
+    var el = document.getElementById("listrikTotalRincian");
+    el.innerHTML = "";
+
+    var totalCuci = 0, totalPompa = 0;
+    summary.cuci.forEach(function (r) {
+      totalCuci += r.rpListrikPerLoad;
+      totalPompa += r.rpPompaPerLoad;
+    });
+    var totalKering = 0;
+    summary.pengering.forEach(function (r) { totalKering += r.rpListrikPerLoad; });
+    var totalSetrika = 0;
+    summary.setrika.forEach(function (r) { totalSetrika += r.rpListrikPerJam; });
+
+    var rows = [
+      { label: "Biaya listrik per load mesin cuci", value: totalCuci },
+      { label: "Biaya listrik per load mesin pengering", value: totalKering },
+      { label: "Biaya listrik pompa per load", value: totalPompa }
+    ];
+    if (showSetrika) {
+      rows.push({ label: "Biaya listrik setrika per jam", value: totalSetrika });
+    }
+
+    rows.forEach(function (r) {
+      var row = document.createElement("div");
+      row.className = "listrik-rincian-row";
+      row.innerHTML =
+        "<span class=\"k\">" + escapeHtml(r.label) + "</span>" +
+        "<span class=\"v\">" + money0(r.value) + "</span>";
+      el.appendChild(row);
+    });
+
+    var totalAkhir = totalCuci + totalKering + totalPompa + (showSetrika ? totalSetrika : 0);
+    var totalRow = document.createElement("div");
+    totalRow.className = "listrik-total-bar";
+    totalRow.innerHTML =
+      "<span class=\"k\">Total</span>" +
+      "<span class=\"v\">" + money0(totalAkhir) + "</span>";
+    el.appendChild(totalRow);
+  }
+
+  /**
+   * saveListrikFormManual dipanggil HANYA lewat tombol "Simpan perubahan" di
+   * footer (lihat renderFooter -> blok listrikForm), bukan otomatis saat
+   * mengetik. Ini sengaja disamakan dengan pola Cabang & Gas: user kontrol
+   * penuh kapan data benar-benar dikirim ke server, dan bisa membatalkan
+   * (tombol Batal) tanpa perubahan yang belum disimpan ikut tersimpan.
+   */
+  function saveListrikFormManual() {
+    if (!view.listrikCabangId) return;
+
+    var btn = document.getElementById("listrikSaveBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "Menyimpan..."; }
+    setSaveStatus("Menyimpan...", "busy");
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (btn) { btn.disabled = false; btn.textContent = "Simpan perubahan"; }
+        if (!res || !res.ok) { handleBackendError(res, "menyimpan data biaya listrik"); return; }
+        listrikFormState = res.data.record;
+        showToast("Data biaya listrik tersimpan.", "ok");
+        setSaveStatus("Tersimpan", "ok");
+        showScreen("masterBiaya");
+        refreshBiayaPickCabangList();
+      })
+      .withFailureHandler(function (err) {
+        if (btn) { btn.disabled = false; btn.textContent = "Simpan perubahan"; }
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:saveBiayaListrik" }, "menyimpan data biaya listrik");
+      })
+      .saveBiayaListrik(view.listrikCabangId, listrikFormState);
+  }
+
+  /**
+   * Input hanya memperbarui listrikFormState di memori + pratinjau real-time.
+   * TIDAK mengirim apapun ke server di sini ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â pengiriman hanya terjadi saat
+   * tombol "Simpan perubahan" diklik (saveListrikFormManual).
+   */
+  function bindListrikFormInputs() {
+    document.getElementById("listrikTdl").addEventListener("input", function (e) {
+      var digitsOnly = e.target.value.replace(/[^0-9]/g, "");
+      var numVal = Number(digitsOnly) || 0;
+      listrikFormState.tdlPerKwh = numVal;
+      e.target.value = numVal > 0 ? numVal.toLocaleString("id-ID") : "";
+      renderListrikPreview();
+    });
+    document.getElementById("listrikWattCuci").addEventListener("input", function (e) {
+      listrikFormState.wattMesinCuci = Number(e.target.value) || 0;
+      renderListrikPreview();
+    });
+    document.getElementById("listrikWattKering").addEventListener("input", function (e) {
+      listrikFormState.wattMesinPengering = Number(e.target.value) || 0;
+      renderListrikPreview();
+    });
+    document.getElementById("listrikWattPompa").addEventListener("input", function (e) {
+      listrikFormState.wattPompaAir = Number(e.target.value) || 0;
+      renderListrikPreview();
+    });
+    document.getElementById("listrikWattSetrika").addEventListener("input", function (e) {
+      listrikFormState.wattSetrikaListrik = Number(e.target.value) || 0;
+      renderListrikPreview();
+    });
+  }
+
+  // =========================================================================
+  // SECTION: AIR FORM FUNCTIONS
+  // =========================================================================
+
+</script>

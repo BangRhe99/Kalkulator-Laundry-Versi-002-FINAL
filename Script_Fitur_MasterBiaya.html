@@ -1,0 +1,91 @@
+<!--
+===============================================================================
+FILE: Script_Fitur_MasterBiaya.html
+PROJECT: Kalkulator Laundry Versi 002
+ISI: Menu Master Biaya
+
+FUNGSI:
+Pilih cabang untuk kategori biaya, gerbang ke Gas/Chemical/Packing/Listrik/Air/NotaKasir.
+
+PENTING -- catat sebelum edit:
+Semua file Script_*.html berbagi SATU scope global yang sama (Apps Script
+include() cuma menggabungkan teks mentah jadi satu <script> demi <script>
+di halaman yang sama -- bukan module system). Karena itu file ini SENGAJA
+TIDAK dibungkus (function(){...})() -- kalau kamu bungkus lagi, fungsi di
+file ini jadi tidak kelihatan dari file lain dan app akan rusak.
+Urutan include TIDAK masalah untuk deklarasi function/var (hoisting),
+TAPI Script_Boot_Main.html WAJIB tetap paling terakhir karena dia yang
+menjalankan bootApp().
+===============================================================================
+-->
+<script>
+"use strict";
+  function refreshBiayaPickCabangList() {
+    var listEl = document.getElementById("biayaPickCabangList");
+    var emptyEl = document.getElementById("biayaPickCabangEmpty");
+    listEl.innerHTML = "<div class=\"empty-hint\">Memuat daftar cabang...</div>";
+    emptyEl.style.display = "none";
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) { handleBackendError(res, "memuat daftar cabang"); listEl.innerHTML = ""; return; }
+        cabangListCache = res.data;
+        renderBiayaPickCabangList();
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listCabang(masterBiaya)" }, "memuat daftar cabang");
+        listEl.innerHTML = "";
+      })
+      .listCabang();
+  }
+
+  function renderBiayaPickCabangList() {
+    var listEl = document.getElementById("biayaPickCabangList");
+    var emptyEl = document.getElementById("biayaPickCabangEmpty");
+    listEl.innerHTML = "";
+
+    if (cabangListCache.length === 0) {
+      emptyEl.style.display = "block";
+      return;
+    }
+    emptyEl.style.display = "none";
+
+    cabangListCache.forEach(function (item) {
+      var row = document.createElement("div");
+
+      // Outlet Jasa Setrika yang cuma pakai Setrika Uap tidak punya komponen
+      // listrik apa pun untuk dihitung (tidak ada mesin cuci/pengering, dan
+      // setrika uap tidak berbiaya listrik) - tombol Listrik dinonaktifkan
+      // KHUSUS untuk kombinasi ini. Kategori/mesin lain tidak terpengaruh.
+      var setrikaRows = Array.isArray(item.mesinSetrika) ? item.mesinSetrika : [];
+      var adaSetrikaListrik = setrikaRows.some(function (m) { return m.jenis === "listrik"; });
+      var disableForListrik = view.kategoriBiayaAktif === "listrik" &&
+        isSetrikaOnlyKategori(item.kategoriLayanan) && !adaSetrikaListrik;
+
+      row.className = "pick-cabang-row" + (disableForListrik ? " disabled" : "");
+      row.onclick = function () {
+        if (disableForListrik) {
+          showToast("Outlet ini kategori Jasa Setrika dengan Setrika Uap - tidak ada komponen listrik untuk dihitung.", "");
+          return;
+        }
+        if (view.kategoriBiayaAktif === "listrik") { openListrikForm(item.id); }
+        else if (view.kategoriBiayaAktif === "air") { openAirForm(item.id); }
+        else if (view.kategoriBiayaAktif === "notaKasir") { openNotaKasirForm(item.id); }
+        else if (view.kategoriBiayaAktif === "chemical") { openChemicalList(item.id); }
+        else if (view.kategoriBiayaAktif === "packing") { openPackingList(item.id); }
+        else { openGasList(item.id); }
+      };
+      row.innerHTML =
+        "<span class=\"name\">" + escapeHtml(item.namaLaundry || "(Tanpa nama)") + "</span>" +
+        "<span class=\"arrow\">&#8594;</span>";
+      listEl.appendChild(row);
+    });
+  }
+
+  /**
+   * openGasList: masuk ke daftar kartu "Analisa Biaya Gas" untuk satu cabang.
+   * Memanggil listBiayaGas(cabangId) yang mengembalikan SEKALIGUS profil
+   * cabang ringkas (untuk judul + dropdown dryer) dan seluruh record gas
+   * dengan summary masing-masing ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â jadi cukup satu roundtrip.
+   */
+</script>

@@ -1,0 +1,48 @@
+<!--
+===============================================================================
+FILE: Screen_BiayaAir.html
+PROJECK: Kalkulator Laundry Versi 002
+ISI: Layar Master Biaya > Air
+
+FUNGSI:
+Form konfigurasi biaya air per cabang (satu konfigurasi per cabang).
+
+Di-include dari Index.html lewat include('Screen_BiayaAir'). Jangan tambah
+tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
+===============================================================================
+-->
+    <section class="screen" id="screenAirForm">
+      <div class="list-header">
+        <h1 id="airTitle">Analisa Biaya Air</h1>
+      </div>
+
+      <div class="air-sumber-panel">
+        <label>Sumber Air</label>
+        <div class="air-sumber-buttons" style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+          <button type="button" class="air-sumber-btn" data-sumber="pdam" onclick="selectAirSumber('pdam')" style="padding: 12px; border: 2px solid var(--sage); background: transparent; color: var(--sage); border-radius: var(--radius); cursor: pointer; font-size: 14px; font-weight: 500;">Air PDAM / Meteran</button>
+          <button type="button" class="air-sumber-btn" data-sumber="tangki" onclick="selectAirSumber('tangki')" style="padding: 12px; border: 2px solid var(--border); background: transparent; color: var(--text); border-radius: var(--radius); cursor: pointer; font-size: 14px; font-weight: 500;">Air Tangki / Toren</button>
+          <button type="button" class="air-sumber-btn" data-sumber="sumur" onclick="selectAirSumber('sumur')" style="padding: 12px; border: 2px solid var(--border); background: transparent; color: var(--text); border-radius: var(--radius); cursor: pointer; font-size: 14px; font-weight: 500;">Air Sumur Bor</button>
+        </div>
+      </div>
+
+      <div id="airInputContainer" style="margin-top: 20px;">
+        <!-- Input dinamis akan dimuat di sini -->
+      </div>
+
+      <div class="group-divider">Hasil otomatis</div>
+      <div class="air-result-panel" style="background: var(--panel-2); border-radius: var(--radius); padding: 16px; margin-top: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <span style="color: var(--text-dim);">Biaya Air Washer Per Load</span>
+          <div style="font-size: 20px; font-weight: 600; color: var(--sage);" id="airBiayaPerLoad">Rp 0</div>
+        </div>
+        <div id="airBiayaSetrikaPerKapRow" style="display: none; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <span style="color: var(--text-dim);">Biaya Air Setrika Per Kap</span>
+          <div style="font-size: 20px; font-weight: 600; color: var(--sage);" id="airBiayaSetrikaPerKap">Rp 0</div>
+        </div>
+        <div id="airInfoBox" style="background: var(--panel); border-left: 3px solid var(--sage); padding: 10px; border-radius: 4px; font-size: 12px; color: var(--text-faint); line-height: 1.5; display: none; margin-top: 10px;"></div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         LAYAR: ADMIN/NOTA KASIR
+    =================================================================== -->

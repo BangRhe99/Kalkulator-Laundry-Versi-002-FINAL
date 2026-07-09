@@ -1,0 +1,139 @@
+<!--
+===============================================================================
+FILE: Screen_BiayaPacking.html
+PROJECK: Kalkulator Laundry Versi 002
+ISI: Layar Master Biaya > Packing
+
+FUNGSI:
+Daftar & form biaya packing per cabang (multi-record: plastik, isolasi, dll).
+
+Di-include dari Index.html lewat include('Screen_BiayaPacking'). Jangan tambah
+tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
+===============================================================================
+-->
+    <section class="screen" id="screenPackingList">
+      <div class="list-header">
+        <h1 id="packingListTitle">Analisa Biaya Packing</h1>
+        <span class="count" id="packingListCount">0 data</span>
+      </div>
+      <div id="packingListEmpty" class="empty-state" style="display:none;">
+        <div class="icon">&#128230;</div>
+        <p>Belum ada data packing untuk cabang ini.<br>Tambahkan item pertama (plastik, label, dus, dll) untuk mulai menghitung.</p>
+      </div>
+      <div class="gas-grid" id="packingList"></div>
+      <div class="gas-card-result" id="packingTotalBox" style="margin-top:4px; margin-bottom:14px;">
+        <div class="gas-result-grid" style="grid-template-columns: 1fr;">
+          <div class="gas-result-cell highlight"><div class="label">Total biaya packing / Kg</div><div class="val" id="packingTotalPerKg">Rp 0</div></div>
+        </div>
+      </div>
+      <button class="add-cabang-btn flame" onclick="openPackingFormNew()">+ Tambah item packing</button>
+    </section>
+
+    <!-- ===================================================================
+         LAYAR: FORM TAMBAH/EDIT BIAYA PACKING
+    =================================================================== -->
+    <section class="screen" id="screenPackingForm">
+      <section class="panel" data-panel="packing">
+        <div class="panel-head">
+          <h2 id="packingFormTitle">Analisa Biaya Packing</h2>
+        </div>
+        <div class="panel-body">
+
+          <div class="row2">
+            <div class="field">
+              <div id="packingNamaFixedWrap" style="display:none;">
+                <label>Nama item</label>
+                <div class="chemical-nama-fixed" id="packingNamaFixedLabel">-</div>
+              </div>
+              <div id="packingNamaField">
+                <label for="packingNama">Nama item</label>
+                <input type="text" id="packingNama" placeholder="Contoh: Plastik satuan, Label, Dus">
+                <div class="field-hint">Untuk item tambahan di luar 4 packing utama. Isi sesuai nama packing yang dipakai, misalnya Plastik satuan atau Label.</div>
+              </div>
+            </div>
+            <div class="field">
+              <label for="packingHargaBeli" id="packingHargaBeliLabel">Harga beli per kemasan (Rp)</label>
+              <input type="text" inputmode="numeric" pattern="[0-9]*" id="packingHargaBeli" placeholder="Contoh: 25.000">
+            </div>
+          </div>
+
+          <div class="field" id="packingLayananWrap" style="display:none;">
+            <label>Dipakai untuk layanan</label>
+            <div class="packing-layanan-row">
+              <label class="packing-layanan-check"><input type="checkbox" id="packingLayananKiloan" value="kiloan"> Kiloan (Cuci/Kering/Setrika)</label>
+              <label class="packing-layanan-check"><input type="checkbox" id="packingLayananBedCover" value="bed_cover"> Bed Cover</label>
+            </div>
+            <div class="field-hint">Kalau plastik ini cuma dipakai untuk salah satu layanan (mis. Bed Cover pakai Plastik Jinjing, kiloan pakai Plastik HD/PP), centang sesuai pemakaian supaya HPP tiap layanan tidak ikut kebebanan biaya plastik yang tidak dipakainya.</div>
+          </div>
+
+          <div class="row2" id="packingIsiSatuanWrap">
+            <div class="field">
+              <label for="packingIsiKemasan">Isi per kemasan</label>
+              <input type="number" inputmode="decimal" min="0" step="0.01" id="packingIsiKemasan" placeholder="Contoh: 1000">
+            </div>
+            <div class="field">
+              <label for="packingSatuanKemasan">Satuan</label>
+              <select id="packingSatuanKemasan">
+                <option value="">Pilih satuan</option>
+                <option value="pack">Pack</option>
+                <option value="kg">Kg</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Ukuran</label>
+            <div class="ukuran-row">
+              <input type="number" inputmode="decimal" min="0" step="0.1" id="packingUkuranPanjang" placeholder="mis. 50">
+              <span class="ukuran-x">X</span>
+              <input type="number" inputmode="decimal" min="0" step="0.1" id="packingUkuranLebar" placeholder="mis. 75">
+            </div>
+            <div class="field-hint" id="packingUkuranHint">Ukuran lembar dalam cm, contoh 50 x 75.</div>
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <div id="packingHargaPerLembarWrap">
+                <label>Harga Per Lembar</label>
+                <div class="chemical-nama-fixed" id="packingHargaPerLembar" style="font-weight:600;">Rp 0</div>
+              </div>
+              <div id="packingKapPerOrderanWrap" style="display:none;">
+                <div style="display:flex; align-items:center; gap:4px; margin-bottom:6px;">
+                  <label for="packingKapPerOrderan" style="margin-bottom:0;">Kap Per Orderan</label>
+                  <span class="profil-kpi-okupansi" style="margin-top:0;">
+                    <button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this, event)" aria-label="Info Kap Per Orderan">?</button>
+                    <div class="okupansi-tooltip">Per Orderan bisa diisi berapa Kg</div>
+                  </span>
+                </div>
+                <input type="number" inputmode="decimal" min="0" step="0.01" id="packingKapPerOrderan" placeholder="Contoh: 5">
+              </div>
+            </div>
+            <div class="field">
+              <div style="display:flex; align-items:center; gap:4px; margin-bottom:6px;">
+                <label for="packingKapKgPerLembar" id="packingKapKgPerLembarLabel" style="margin-bottom:0;">Kap Kg Per Lembar</label>
+                <span class="profil-kpi-okupansi" style="margin-top:0;">
+                  <button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this, event)" aria-label="Info Kap Kg Per Lembar">?</button>
+                  <div class="okupansi-tooltip" id="packingKapKgPerLembarTooltip">Per Lembar bisa diisi berapa Kg</div>
+                </span>
+              </div>
+              <input type="number" inputmode="decimal" min="0" step="0.01" id="packingKapKgPerLembar" placeholder="Contoh: 0.5">
+            </div>
+          </div>
+
+          <div class="group-divider">Hasil otomatis</div>
+          <div class="gas-card-result" style="border-top:none; padding-top:0; margin-top:0;">
+            <div class="gas-result-grid" style="grid-template-columns: 1fr 1fr;">
+              <div class="gas-result-cell"><div class="label">Biaya Packing Per Load</div><div class="val" id="pfBiayaPerLoad">Rp 0</div></div>
+              <div class="gas-result-cell highlight" id="pfBiayaPerKgCell"><div class="label">Biaya per Kg</div><div class="val" id="pfBiayaPerKg">Rp 0</div></div>
+            </div>
+            <div class="gas-warning" id="pfWarning" style="display:none;"></div>
+            <div class="field-hint" id="pfKapKgLockNote" style="display:none;">Plastik Jinjing untuk Bed Cover dihitung per lembar (1 lembar = 1 Bed Cover) — Kap Kg Per Lembar & Biaya per Kg tidak dipakai.</div>
+          </div>
+
+        </div>
+      </section>
+    </section>
+
+    <!-- ===================================================================
+         LAYAR: ANALISA BIAYA LISTRIK (satu konfigurasi per cabang)
+    =================================================================== -->

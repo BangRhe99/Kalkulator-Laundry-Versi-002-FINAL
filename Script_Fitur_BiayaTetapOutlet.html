@@ -1,0 +1,492 @@
+<!--
+===============================================================================
+FILE: Script_Fitur_BiayaTetapOutlet.html
+PROJECT: Kalkulator Laundry Versi 002
+ISI: Fitur Biaya Tetap Outlet
+
+FUNGSI:
+List & form biaya tetap outlet: baris gaji, depresiasi, biaya lain-lain (dinamis tambah/hapus baris), kalkulasi ringkasan client-side.
+
+PENTING -- catat sebelum edit:
+Semua file Script_*.html berbagi SATU scope global yang sama (Apps Script
+include() cuma menggabungkan teks mentah jadi satu <script> demi <script>
+di halaman yang sama -- bukan module system). Karena itu file ini SENGAJA
+TIDAK dibungkus (function(){...})() -- kalau kamu bungkus lagi, fungsi di
+file ini jadi tidak kelihatan dari file lain dan app akan rusak.
+Urutan include TIDAK masalah untuk deklarasi function/var (hoisting),
+TAPI Script_Boot_Main.html WAJIB tetap paling terakhir karena dia yang
+menjalankan bootApp().
+===============================================================================
+-->
+<script>
+"use strict";
+  window.openBiayaTetapOutletList = function () {
+    showScreen("biayaTetapList");
+
+    var listEl = document.getElementById("biayaTetapOutletList");
+    var countEl = document.getElementById("biayaTetapOutletCount");
+    if (!listEl) return;
+
+    listEl.innerHTML = '<div class="empty-hint">Memuat rangkuman fixed cost outlet...</div>';
+    if (countEl) countEl.textContent = "memuat...";
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "memuat rangkuman biaya tetap outlet");
+          listEl.innerHTML = "";
+          return;
+        }
+
+        cabangListCache = res.data || [];
+        renderBiayaTetapOutletList();
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listBiayaTetapOutletSummaries" }, "memuat rangkuman biaya tetap outlet");
+        listEl.innerHTML = "";
+      })
+      .listBiayaTetapOutletSummaries();
+  };
+
+  function renderBiayaTetapOutletList() {
+    var listEl = document.getElementById("biayaTetapOutletList");
+    var countEl = document.getElementById("biayaTetapOutletCount");
+    if (!listEl) return;
+
+    var rows = Array.isArray(cabangListCache) ? cabangListCache : [];
+    if (countEl) countEl.textContent = rows.length + " outlet";
+
+    if (!rows.length) {
+      listEl.innerHTML = '<div class="empty-state"><div class="icon">&#127981;</div><p>Belum ada outlet. Buat Profil Outlet terlebih dahulu.</p></div>';
+      return;
+    }
+
+    listEl.innerHTML = rows.map(function (item) {
+      var cabang = item.cabang || item || {};
+      var summary = item.summary || {};
+      var components = Array.isArray(summary.components) ? summary.components : [];
+      var total = Number(summary.totalPerBulan || 0);
+      var perHari = Number(summary.totalPerHari || 0);
+      var hasData = item.hasData || total > 0;
+      var breakdownHtml = components.map(function (component) {
+        return '<div class="fc-list-breakdown-row"><span class="k">' + escapeHtml(component.label || '-') + '</span><span class="v">' + money0(component.amount || 0) + '</span></div>';
+      }).join("");
+
+      var summaryHtml = hasData ? (
+        '<div class="fc-list-summary">' +
+          '<div class="fc-list-summary-top">' +
+            '<div class="fc-list-metric highlight"><div class="label">Total fixed cost / bulan</div><div class="value">' + money0(total) + '</div></div>' +
+            '<div class="fc-list-metric"><div class="label">Estimasi / hari</div><div class="value">' + money0(perHari) + '</div></div>' +
+          '</div>' +
+          '<div class="fc-list-breakdown">' + breakdownHtml + '</div>' +
+        '</div>'
+      ) : (
+        '<div class="fc-list-empty-note">Belum ada data fixed cost. Klik outlet ini untuk mulai mengisi sewa, gaji, internet, depresiasi, perawatan, dan biaya rutin lainnya.</div>'
+      );
+
+      return '' +
+        '<div class="menu-card tone-sage" onclick="openBiayaTetapOutletForm(\'' + escapeJsAttr(cabang.id) + '\')">' +
+          '<div class="menu-icon">&#128179;</div>' +
+          '<div class="menu-body">' +
+            '<div class="menu-title">' + escapeHtml(cabang.namaLaundry || "(Tanpa nama)") + '</div>' +
+            '<div class="menu-desc">Catat sewa, gaji, internet, depresiasi mesin, perawatan dan biaya rutin lainnya.</div>' +
+            summaryHtml +
+          '</div>' +
+          '<div class="menu-arrow">&#8594;</div>' +
+        '</div>';
+    }).join("");
+  }
+
+  window.openBiayaTetapOutletForm = function (cabangId) {
+    view.biayaTetapCabangId = cabangId;
+    showScreen("biayaTetapForm");
+
+    var contentEl = document.getElementById("biayaTetapContent");
+    contentEl.innerHTML = '<div class="hpp-loading">Memuat biaya tetap outlet...</div>';
+    setSaveStatus("Memuat...", "busy");
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "memuat biaya tetap outlet");
+          contentEl.innerHTML = '<div class="empty-state"><div class="icon">&#9888;</div><p>' + escapeHtml(res && res.error ? res.error : "Gagal memuat biaya tetap outlet.") + '</p></div>';
+          return;
+        }
+
+        biayaTetapCabangCache = res.data.cabang;
+        biayaTetapRecordCache = res.data.record;
+        biayaTetapSummaryCache = res.data.summary;
+        renderBiayaTetapOutletForm(res.data);
+        setSaveStatus("Tersimpan", "ok");
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaTetapOutlet" }, "memuat biaya tetap outlet");
+        contentEl.innerHTML = '<div class="empty-state"><div class="icon">&#9888;</div><p>Gagal memuat biaya tetap outlet.</p></div>';
+      })
+      .getBiayaTetapOutlet(cabangId);
+  };
+
+  function renderBiayaTetapOutletForm(data) {
+    var contentEl = document.getElementById("biayaTetapContent");
+    var cabang = data.cabang || {};
+    var record = data.record || {};
+    var warnings = Array.isArray(data.warnings) ? data.warnings : [];
+
+    var warningHtml = warnings.length ? (
+      '<div class="fc-warning-box">' +
+        '<div class="title">Catatan Data</div>' +
+        '<ul>' + warnings.map(function (w) { return '<li>' + escapeHtml(w) + '</li>'; }).join("") + '</ul>' +
+      '</div>'
+    ) : '';
+
+    contentEl.innerHTML = '' +
+      '<div class="summary-hero">' +
+        '<div class="summary-eyebrow">FIXED COST OUTLET</div>' +
+        '<div class="summary-title">' + escapeHtml(cabang.namaLaundry || "Outlet") + '</div>' +
+        '<div class="summary-meta"><span>Dasar hitung: <b>per bulan</b></span><span>Konversi harian: <b>30 hari</b></span></div>' +
+      '</div>' +
+      warningHtml +
+      '<div class="fc-section">' +
+        '<div class="fc-section-title">1. Sewa Outlet</div>' +
+        '<div class="fc-grid-2">' +
+          '<div class="field"><label for="fcSewaPerTahun">Sewa outlet per tahun (Rp)</label><input type="number" id="fcSewaPerTahun" min="0" step="1" value="' + Number(record.sewaPerTahun || 0) + '" oninput="refreshBiayaTetapPreview()"></div>' +
+          '<div class="fc-result-chip"><div class="label">Otomatis per bulan</div><div class="value" id="fcSewaPerBulan">Rp 0</div></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="fc-section">' +
+        '<div class="fc-section-title">2. Gaji Karyawan</div>' +
+        '<div class="fc-section-note">Isi gaji per orang. Cocok jika setiap karyawan memiliki gaji berbeda.</div>' +
+        '<div id="fcGajiRows" class="fc-dynamic-list">' + renderBiayaTetapGajiRows(record.gajiRows || []) + '</div>' +
+        '<button class="add-btn" type="button" onclick="addBiayaTetapGajiRow()">+ Tambah karyawan</button>' +
+      '</div>' +
+      '<div class="fc-section">' +
+        '<div class="fc-section-title">3. Internet</div>' +
+        '<div class="field"><label for="fcInternetPerBulan">Biaya internet per bulan (Rp)</label><input type="number" id="fcInternetPerBulan" min="0" step="1" value="' + Number(record.internetPerBulan || 0) + '" oninput="refreshBiayaTetapPreview()"></div>' +
+      '</div>' +
+      '<div class="fc-section">' +
+        '<div class="fc-section-title">4. Penyusutan Mesin (Depresiasi)</div>' +
+        '<div class="fc-section-note">Data mesin diambil dari Profil Outlet. Isi harga beli, nilai residu, dan masa aus. Jumlah unit otomatis mengikuti data outlet.</div>' +
+        '<div id="fcDepresiasiRows" class="fc-dynamic-list">' + renderBiayaTetapDepresiasiRows(record.depresiasiRows || []) + '</div>' +
+      '</div>' +
+      '<div class="fc-section">' +
+        '<div class="fc-section-title">5. Biaya Perawatan</div>' +
+        '<div class="fc-section-note">Bisa diisi biaya sekali kunjungan, contoh Rp150.000. Untuk awal buka boleh diisi Rp50.000 dulu.</div>' +
+        '<div class="field"><label for="fcPerawatanPerBulan">Biaya perawatan per bulan (Rp)</label><input type="number" id="fcPerawatanPerBulan" min="0" step="1" value="' + Number(record.perawatanPerBulan || 0) + '" oninput="refreshBiayaTetapPreview()"></div>' +
+      '</div>' +
+      '<div class="fc-section">' +
+        '<div class="fc-section-title">6. Biaya Operasional Lainnya</div>' +
+        '<div class="fc-section-note">Fleksibel. User bisa menambahkan biaya rutin lain seperti keamanan, sampah, transport, software, atau kebutuhan outlet lainnya.</div>' +
+        '<div id="fcOtherRows" class="fc-dynamic-list">' + renderBiayaTetapOtherRows(record.operasionalLainRows || []) + '</div>' +
+        '<button class="add-btn" type="button" onclick="addBiayaTetapOtherRow()">+ Tambah biaya lain</button>' +
+      '</div>' +
+      '<div class="fc-section" id="fcSummaryBox"></div>';
+
+    refreshBiayaTetapPreview();
+  }
+
+  function renderBiayaTetapGajiRows(rows) {
+    rows = Array.isArray(rows) ? rows : [];
+    if (!rows.length) rows = [{ id: localId(), nama: "Karyawan 1", jabatan: "", gajiPerBulan: 0 }];
+    return rows.map(createBiayaTetapGajiRowHtml).join("");
+  }
+
+  function createBiayaTetapGajiRowHtml(row) {
+    return '' +
+      '<div class="fc-dynamic-row fc-gaji-row" data-id="' + escapeJsAttr(row.id || localId()) + '">' +
+        '<div class="fc-row-top"><div><div class="fc-row-title">Karyawan</div><div class="fc-row-subtitle">Gaji tetap per bulan</div></div><button class="icon-btn" type="button" onclick="removeBiayaTetapRow(this)">&#215;</button></div>' +
+        '<div class="fc-input-grid three">' +
+          '<div class="field"><label>Nama</label><input type="text" class="fc-gaji-nama" value="' + escapeJsAttr(row.nama || "") + '" oninput="refreshBiayaTetapPreview()"></div>' +
+          '<div class="field"><label>Jabatan</label><input type="text" class="fc-gaji-jabatan" value="' + escapeJsAttr(row.jabatan || "") + '" oninput="refreshBiayaTetapPreview()"></div>' +
+          '<div class="field"><label>Gaji / bulan</label><input type="number" class="fc-gaji-nominal" min="0" step="1" value="' + Number(row.gajiPerBulan || 0) + '" oninput="refreshBiayaTetapPreview()"></div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function renderBiayaTetapDepresiasiRows(rows) {
+    rows = Array.isArray(rows) ? rows : [];
+    if (!rows.length) return '<div class="empty-hint">Belum ada data mesin di Profil Outlet.</div>';
+    return rows.map(createBiayaTetapDepresiasiRowHtml).join("");
+  }
+
+  function createBiayaTetapDepresiasiRowHtml(row) {
+    return '' +
+      '<div class="fc-dynamic-row fc-dep-row" data-key="' + escapeJsAttr(row.key || "") + '" data-group="' + escapeJsAttr(row.group || "") + '" data-machine-ref-id="' + escapeJsAttr(row.machineRefId || "") + '" data-nama-mesin="' + escapeJsAttr(row.namaMesin || "") + '" data-jenis-mesin="' + escapeJsAttr(row.jenisMesin || "") + '" data-jumlah-unit="' + Number(row.jumlahUnit || 0) + '">' +
+        '<div class="fc-row-top"><div><div class="fc-row-title">' + escapeHtml(row.namaMesin || "Mesin") + '</div><div class="fc-row-subtitle">Tipe: ' + escapeHtml(row.jenisMesin || "-") + ' · Unit: ' + Number(row.jumlahUnit || 0) + '</div></div></div>' +
+        '<div class="fc-input-grid three">' +
+          '<div class="field"><label>Harga beli / unit</label><input type="number" class="fc-dep-harga" min="0" step="1" value="' + Number(row.hargaBeliPerUnit || 0) + '" oninput="refreshBiayaTetapPreview()"></div>' +
+          '<div class="field"><label>Nilai residu / unit</label><input type="number" class="fc-dep-residu" min="0" step="1" value="' + Number(row.nilaiResiduPerUnit || 0) + '" oninput="refreshBiayaTetapPreview()"></div>' +
+          '<div class="field"><label>Masa aus (tahun)</label><input type="number" class="fc-dep-masa" min="0" step="0.1" value="' + Number(row.masaAusTahun || 0) + '" oninput="refreshBiayaTetapPreview()"></div>' +
+        '</div>' +
+        '<div class="fc-mini-total"><span class="k">Depresiasi / bulan</span><span class="v fc-dep-total">Rp 0</span></div>' +
+      '</div>';
+  }
+
+  function renderBiayaTetapOtherRows(rows) {
+    rows = Array.isArray(rows) ? rows : [];
+    if (!rows.length) rows = [];
+    return rows.map(createBiayaTetapOtherRowHtml).join("");
+  }
+
+  function createBiayaTetapOtherRowHtml(row) {
+    return '' +
+      '<div class="fc-dynamic-row fc-other-row" data-id="' + escapeJsAttr(row.id || localId()) + '">' +
+        '<div class="fc-row-top"><div><div class="fc-row-title">Biaya lain</div><div class="fc-row-subtitle">Biaya rutin fleksibel</div></div><button class="icon-btn" type="button" onclick="removeBiayaTetapRow(this)">&#215;</button></div>' +
+        '<div class="fc-input-grid three">' +
+          '<div class="field"><label>Nama biaya</label><input type="text" class="fc-other-nama" value="' + escapeJsAttr(row.nama || "") + '" oninput="refreshBiayaTetapPreview()"></div>' +
+          '<div class="field"><label>Nominal / bulan</label><input type="number" class="fc-other-nominal" min="0" step="1" value="' + Number(row.nominalPerBulan || 0) + '" oninput="refreshBiayaTetapPreview()"></div>' +
+          '<div class="field"><label>Catatan</label><input type="text" class="fc-other-catatan" value="' + escapeJsAttr(row.catatan || "") + '" oninput="refreshBiayaTetapPreview()"></div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  window.addBiayaTetapGajiRow = function () {
+    var list = document.getElementById("fcGajiRows");
+    if (!list) return;
+    list.insertAdjacentHTML("beforeend", createBiayaTetapGajiRowHtml({ id: localId(), nama: "", jabatan: "", gajiPerBulan: 0 }));
+    refreshBiayaTetapPreview();
+  };
+
+  window.addBiayaTetapOtherRow = function () {
+    var list = document.getElementById("fcOtherRows");
+    if (!list) return;
+    list.insertAdjacentHTML("beforeend", createBiayaTetapOtherRowHtml({ id: localId(), nama: "", nominalPerBulan: 0, catatan: "" }));
+    refreshBiayaTetapPreview();
+  };
+
+  window.removeBiayaTetapRow = function (btn) {
+    var row = btn && btn.closest ? btn.closest(".fc-dynamic-row") : null;
+    if (row) row.remove();
+    refreshBiayaTetapPreview();
+  };
+
+  function getInputNumber(id) {
+    var el = document.getElementById(id);
+    if (!el) return 0;
+    var n = Number(el.value || 0);
+    return isFinite(n) ? n : 0;
+  }
+
+  /* Fungsi umum tahap 5 dipindahkan ke file Script_Shared_*.html. */
+
+  window.refreshBiayaTetapPreview = function () {
+    var payload = collectBiayaTetapPayload();
+    var summary = calculateBiayaTetapSummaryClient(payload);
+
+    var sewaEl = document.getElementById("fcSewaPerBulan");
+    if (sewaEl) sewaEl.textContent = money0(summary.sewaPerBulan);
+
+    document.querySelectorAll(".fc-dep-row").forEach(function (row) {
+      var totalEl = row.querySelector(".fc-dep-total");
+      var harga = Number(row.querySelector(".fc-dep-harga").value || 0);
+      var residu = Number(row.querySelector(".fc-dep-residu").value || 0);
+      var masa = Number(row.querySelector(".fc-dep-masa").value || 0);
+      var unit = Number(row.getAttribute("data-jumlah-unit") || 0);
+      var dep = masa > 0 ? Math.max(0, harga - residu) / masa / 12 * unit : 0;
+      if (totalEl) totalEl.textContent = money0(dep);
+    });
+
+    var summaryBox = document.getElementById("fcSummaryBox");
+    if (!summaryBox) return;
+
+    summaryBox.innerHTML = '' +
+      '<div class="fc-section-title">Rangkuman Biaya Tetap</div>' +
+      '<div class="fc-summary-grid" style="margin-bottom: 12px;">' +
+        '<div class="fc-summary-item highlight"><div class="label">Total fixed cost / bulan</div><div class="value">' + money0(summary.totalPerBulan) + '</div></div>' +
+        '<div class="fc-summary-item"><div class="label">Estimasi / hari</div><div class="value">' + money0(summary.totalPerHari) + '</div></div>' +
+      '</div>' +
+      '<div>' + summary.components.map(function (item) {
+        return '<div class="fc-component-row"><span class="k">' + escapeHtml(item.label) + '</span><span class="v">' + money0(item.amount) + '<span class="pct">' + item.percent.toFixed(2) + '%</span></span></div>';
+      }).join("") + '</div>';
+  };
+
+  function collectBiayaTetapPayload() {
+    var payload = {
+      sewaPerTahun: getInputNumber("fcSewaPerTahun"),
+      internetPerBulan: getInputNumber("fcInternetPerBulan"),
+      perawatanPerBulan: getInputNumber("fcPerawatanPerBulan"),
+      gajiRows: [],
+      depresiasiRows: [],
+      operasionalLainRows: []
+    };
+
+    document.querySelectorAll(".fc-gaji-row").forEach(function (row) {
+      payload.gajiRows.push({
+        id: row.getAttribute("data-id") || localId(),
+        nama: row.querySelector(".fc-gaji-nama").value || "",
+        jabatan: row.querySelector(".fc-gaji-jabatan").value || "",
+        gajiPerBulan: Number(row.querySelector(".fc-gaji-nominal").value || 0)
+      });
+    });
+
+    document.querySelectorAll(".fc-dep-row").forEach(function (row) {
+      payload.depresiasiRows.push({
+        key: row.getAttribute("data-key") || "",
+        group: row.getAttribute("data-group") || "",
+        machineRefId: row.getAttribute("data-machine-ref-id") || "",
+        namaMesin: row.getAttribute("data-nama-mesin") || "",
+        jenisMesin: row.getAttribute("data-jenis-mesin") || "",
+        jumlahUnit: Number(row.getAttribute("data-jumlah-unit") || 0),
+        hargaBeliPerUnit: Number(row.querySelector(".fc-dep-harga").value || 0),
+        nilaiResiduPerUnit: Number(row.querySelector(".fc-dep-residu").value || 0),
+        masaAusTahun: Number(row.querySelector(".fc-dep-masa").value || 0),
+        isFromProfil: true
+      });
+    });
+
+    document.querySelectorAll(".fc-other-row").forEach(function (row) {
+      payload.operasionalLainRows.push({
+        id: row.getAttribute("data-id") || localId(),
+        nama: row.querySelector(".fc-other-nama").value || "",
+        nominalPerBulan: Number(row.querySelector(".fc-other-nominal").value || 0),
+        catatan: row.querySelector(".fc-other-catatan").value || ""
+      });
+    });
+
+    return payload;
+  }
+
+  function calculateBiayaTetapSummaryClient(payload) {
+    var sewaPerBulan = (Number(payload.sewaPerTahun) || 0) / 12;
+    var totalGaji = sumClient(payload.gajiRows, "gajiPerBulan");
+    var totalInternet = Number(payload.internetPerBulan) || 0;
+    var totalPerawatan = Number(payload.perawatanPerBulan) || 0;
+    var totalLain = sumClient(payload.operasionalLainRows, "nominalPerBulan");
+    var totalDep = 0;
+
+    (payload.depresiasiRows || []).forEach(function (row) {
+      var harga = Number(row.hargaBeliPerUnit || 0);
+      var residu = Number(row.nilaiResiduPerUnit || 0);
+      var masa = Number(row.masaAusTahun || 0);
+      var unit = Number(row.jumlahUnit || 0);
+      totalDep += masa > 0 ? Math.max(0, harga - residu) / masa / 12 * unit : 0;
+    });
+
+    var components = [
+      { key: "sewa", label: "Sewa Outlet", amount: sewaPerBulan },
+      { key: "gaji", label: "Gaji Karyawan", amount: totalGaji },
+      { key: "internet", label: "Internet", amount: totalInternet },
+      { key: "depresiasi", label: "Penyusutan Mesin", amount: totalDep },
+      { key: "perawatan", label: "Biaya Perawatan", amount: totalPerawatan },
+      { key: "lainnya", label: "Operasional Lainnya", amount: totalLain }
+    ];
+
+    var total = components.reduce(function (s, item) { return s + (Number(item.amount) || 0); }, 0);
+    var pctSum = 0;
+    var lastIdx = -1;
+    components.forEach(function (item, idx) {
+      item.percent = total > 0 && item.amount > 0 ? Math.round((item.amount / total * 100 + Number.EPSILON) * 100) / 100 : 0;
+      pctSum += item.percent;
+      if (item.amount > 0) lastIdx = idx;
+    });
+    if (lastIdx >= 0) components[lastIdx].percent = Math.round((components[lastIdx].percent + (100 - pctSum) + Number.EPSILON) * 100) / 100;
+
+    return {
+      sewaPerBulan: sewaPerBulan,
+      totalPerBulan: total,
+      totalPerHari: total / 30,
+      components: components
+    };
+  }
+
+  function sumClient(rows, key) {
+    rows = Array.isArray(rows) ? rows : [];
+    return rows.reduce(function (sum, row) { return sum + (Number(row && row[key]) || 0); }, 0);
+  }
+
+  function saveBiayaTetapOutletCurrent() {
+    if (!view.biayaTetapCabangId) return;
+
+    var btn = document.getElementById("biayaTetapSaveBtn");
+    if (btn) btn.disabled = true;
+    setSaveStatus("Menyimpan...", "busy");
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (btn) btn.disabled = false;
+        if (!res || !res.ok) {
+          handleBackendError(res, "menyimpan biaya tetap outlet");
+          return;
+        }
+        biayaTetapRecordCache = res.data.record;
+        biayaTetapSummaryCache = res.data.summary;
+        showToast("Biaya tetap outlet tersimpan.", "ok");
+        setSaveStatus("Tersimpan", "ok");
+        renderBiayaTetapOutletForm(res.data);
+      })
+      .withFailureHandler(function (err) {
+        if (btn) btn.disabled = false;
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:saveBiayaTetapOutlet" }, "menyimpan biaya tetap outlet");
+      })
+      .saveBiayaTetapOutlet(view.biayaTetapCabangId, collectBiayaTetapPayload());
+  }
+
+  function deleteBiayaTetapOutletCurrent() {
+    if (!view.biayaTetapCabangId) return;
+    if (!window.confirm("Reset semua data Biaya Tetap Outlet untuk outlet ini?")) return;
+
+    setSaveStatus("Menghapus...", "busy");
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "reset biaya tetap outlet");
+          return;
+        }
+        showToast("Data biaya tetap outlet di-reset.", "ok");
+        openBiayaTetapOutletForm(view.biayaTetapCabangId);
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:deleteBiayaTetapOutlet" }, "reset biaya tetap outlet");
+      })
+      .deleteBiayaTetapOutlet(view.biayaTetapCabangId);
+  }
+
+
+
+  /**
+   * =======================================================================
+   * HARGA LAYANAN
+   * -----------------------------------------------------------------------
+   * Frontend hanya menerima input harga jual dan meminta backend menghitung
+   * margin. Data HPP tetap dibaca backend dari Modul_StrukturBiayaHPP.
+   * =======================================================================
+   */
+  var hargaLayananCurrentCabangId = "";
+  var hargaLayananDebounceTimer = null;
+
+  window.openHargaLayananOutletList = function () {
+    showScreen("hargaLayananList");
+
+    var listEl = document.getElementById("hargaLayananOutletList");
+    var countEl = document.getElementById("hargaLayananOutletCount");
+
+    if (!listEl) return;
+
+    listEl.innerHTML = '<div class="hpp-loading">Memuat rangkuman harga layanan outlet...</div>';
+    if (countEl) countEl.textContent = "memuat...";
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "memuat daftar outlet Harga Layanan");
+          listEl.innerHTML = "";
+          return;
+        }
+
+        cabangListCache = res.data || [];
+        renderHargaLayananOutletList();
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError(
+          {
+            error: err && err.message ? err.message : String(err),
+            stage: "client:hargaLayanan:listCabang"
+          },
+          "memuat daftar outlet Harga Layanan"
+        );
+        listEl.innerHTML = "";
+      })
+      .listCabang();
+  };
+
+</script>

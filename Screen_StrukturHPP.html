@@ -1,23 +1,17 @@
 <!--
 ===============================================================================
-FILE: Screen_HPP.html
-PROJECT: Kalkulator Laundry Versi 002
-TAHAP: 4 — Pecah HTML Screen
+FILE: Screen_StrukturHPP.html
+PROJECK: Kalkulator Laundry Versi 002
+ISI: Layar Struktur Biaya HPP
 
 FUNGSI:
-Berisi pecahan tampilan screen dari Index.html.
+Daftar outlet + detail rincian komponen HPP per layanan.
 
-ATURAN:
-- ID elemen dipertahankan.
-- Nama screen dipertahankan.
-- Urutan screen mengikuti Index.html asli.
-- File ini hanya berisi markup screen.
-- Logic JavaScript tetap berada di Index.html.
-- Styling tetap mengikuti file style yang sudah ada.
+Di-include dari Index.html lewat include('Screen_StrukturHPP'). Jangan tambah
+tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
 ===============================================================================
 -->
-
-<section class="screen" id="screenStrukturHPPList">
+    <section class="screen" id="screenStrukturHPPList">
       <div class="list-header">
         <h1>Struktur Biaya HPP</h1>
         <span class="count" id="strukturHPPOutletCount">0 outlet</span>
@@ -30,7 +24,10 @@ ATURAN:
       <div id="strukturHPPOutletList" class="menu-grid"></div>
     </section>
 
-<section class="screen" id="screenStrukturHPPDetail">
+    <!-- ===================================================================
+         LAYAR: STRUKTUR BIAYA HPP ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â detail hasil
+    =================================================================== -->
+    <section class="screen" id="screenStrukturHPPDetail">
       <div class="hpp-structure-head">
         <div class="hpp-structure-title">Struktur Biaya HPP</div>
         <div class="hpp-structure-desc">
@@ -42,3 +39,8 @@ ATURAN:
         <div class="hpp-loading">Memuat struktur biaya HPP...</div>
       </div>
     </section>
+
+
+    <!-- ===================================================================
+         LAYAR: HARGA LAYANAN ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â pilih outlet
+    =================================================================== -->

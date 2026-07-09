@@ -1,0 +1,585 @@
+<!--
+===============================================================================
+FILE: Script_Fitur_Cabang.html
+PROJECT: Kalkulator Laundry Versi 002
+ISI: Fitur Cabang & Lokasi
+
+FUNGSI:
+List cabang, ringkasan kapasitas, form tambah/edit cabang + daftar mesin (cuci/pengering/setrika), validasi & simpan. Cari computeSummary di Script_Shared_Util.html untuk rumus kapasitas.
+
+PENTING -- catat sebelum edit:
+Semua file Script_*.html berbagi SATU scope global yang sama (Apps Script
+include() cuma menggabungkan teks mentah jadi satu <script> demi <script>
+di halaman yang sama -- bukan module system). Karena itu file ini SENGAJA
+TIDAK dibungkus (function(){...})() -- kalau kamu bungkus lagi, fungsi di
+file ini jadi tidak kelihatan dari file lain dan app akan rusak.
+Urutan include TIDAK masalah untuk deklarasi function/var (hoisting),
+TAPI Script_Boot_Main.html WAJIB tetap paling terakhir karena dia yang
+menjalankan bootApp().
+===============================================================================
+-->
+<script>
+"use strict";
+  function refreshList() {
+    document.getElementById("cabangCount").textContent = "memuat...";
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) { handleBackendError(res, "memuat daftar cabang"); return; }
+        cabangListCache = res.data;
+        renderList();
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listCabang" }, "memuat daftar cabang");
+      })
+      .listCabang();
+  }
+
+  function renderList() {
+    var listEl = document.getElementById("cabangList");
+    var emptyEl = document.getElementById("cabangListEmpty");
+    var countEl = document.getElementById("cabangCount");
+
+    countEl.textContent = cabangListCache.length + " cabang";
+    listEl.innerHTML = "";
+
+    if (cabangListCache.length === 0) { emptyEl.style.display = "block"; return; }
+    emptyEl.style.display = "none";
+
+    cabangListCache.forEach(function (item) {
+      var card = document.createElement("div");
+      card.className = "cabang-card";
+      card.onclick = function () { openRingkasan(item.id); };
+
+      var namaSafe = item.namaLaundry || "(Tanpa nama)";
+      var totalMenit = computeDurasiOperasional(item.jamBukaMenit, item.jamTutupMenit);
+      var jamText = formatJam(item.jamBukaMenit) + "-" + formatJam(item.jamTutupMenit) +
+        " (" + formatNum(totalMenit / 60) + " jam)";
+      var layananText = KATEGORI_LABEL[item.kategoriLayanan] || "-";
+
+      card.innerHTML =
+        "<div class=\"cabang-card-top\">" +
+          "<h3>" + escapeHtml(namaSafe) + "</h3>" +
+          "<span class=\"arrow\">&#8594;</span>" +
+        "</div>" +
+        "<div class=\"cabang-card-meta\">" +
+          "<div class=\"meta-row\"><span class=\"meta-label\">Jam operasional</span><span class=\"meta-val\">" + escapeHtml(jamText) + "</span></div>" +
+          "<div class=\"meta-row\"><span class=\"meta-label\">Layanan</span><span class=\"meta-val\">" + escapeHtml(layananText) + "</span></div>" +
+        "</div>" +
+        "<div class=\"cabang-card-stats\">" +
+          "<div class=\"mini-stat\"><div class=\"label\">Kap cuci / hari</div><div class=\"num\">" + formatNum(item.summary.cuci.loadPerHari) + "<span class=\"unit\"> load</span></div></div>" +
+          "<div class=\"mini-stat\"><div class=\"label\">Kering / hari</div><div class=\"num\">" + formatNum(item.summary.kering.loadPerHari) + "<span class=\"unit\"> load</span></div></div>" +
+        "</div>";
+      listEl.appendChild(card);
+    });
+  }
+
+  /* Fungsi umum tahap 5 dipindahkan ke file Script_Shared_*.html. */
+
+  function openRingkasan(id) {
+    showScreen("ringkasan");
+    view.editingId = id;
+    renderRingkasanLoading();
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "memuat ringkasan cabang");
+          showScreen("list");
+          refreshList();
+          return;
+        }
+        renderRingkasan(res.data.cabang, res.data.summary);
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getCabang" }, "memuat ringkasan cabang");
+        showScreen("list");
+        refreshList();
+      })
+      .getCabang(id);
+  }
+
+  function renderRingkasanLoading() {
+    document.getElementById("rNamaLaundry").textContent = "Memuat...";
+    document.getElementById("rJamOperasional").textContent = "-";
+    document.getElementById("rKategoriLayanan").textContent = "-";
+  }
+
+  function renderRingkasan(cabang, summary) {
+    document.getElementById("rNamaLaundry").textContent = cabang.profil.namaLaundry || "(Tanpa nama)";
+    document.getElementById("rJamOperasional").textContent =
+      formatJam(cabang.profil.jamBukaMenit) + " - " + formatJam(cabang.profil.jamTutupMenit) +
+      " (" + formatNum(summary.totalJamPerHari) + " jam)";
+    document.getElementById("rKategoriLayanan").textContent = KATEGORI_LABEL[cabang.kategoriLayanan] || "-";
+
+    var setrikaOnly = isSetrikaOnlyKategori(cabang.kategoriLayanan);
+    var rCuciWrap = document.getElementById("rCuciWrap");
+    var rKeringWrap = document.getElementById("rKeringWrap");
+    if (rCuciWrap) rCuciWrap.style.display = setrikaOnly ? "none" : "";
+    if (rKeringWrap) rKeringWrap.style.display = setrikaOnly ? "none" : "";
+
+    if (!setrikaOnly) {
+      document.getElementById("rCuciUnit").textContent = summary.cuci.totalUnit;
+      document.getElementById("rCuciMax").innerHTML = formatNum(summary.cuci.loadMaksimalPerHari) + "<span class=\"unit\">load</span>";
+      document.getElementById("rCuciHari").textContent = formatNum(summary.cuci.loadPerHari) + " load";
+      document.getElementById("rCuciMinggu").textContent = formatNum(summary.cuci.loadPerMinggu) + " load";
+      document.getElementById("rCuciBulan").textContent = formatNum(summary.cuci.loadPerBulan) + " load";
+      renderMachineSummaryDetail("rCuciDetail", cabang.mesinCuci, "rumah_tangga", "Rumah tangga", "komersial", "Komersial");
+
+      document.getElementById("rKeringUnit").textContent = summary.kering.totalUnit;
+      document.getElementById("rKeringMax").innerHTML = formatNum(summary.kering.loadMaksimalPerHari) + "<span class=\"unit\">load</span>";
+      document.getElementById("rKeringHari").textContent = formatNum(summary.kering.loadPerHari) + " load";
+      document.getElementById("rKeringMinggu").textContent = formatNum(summary.kering.loadPerMinggu) + " load";
+      document.getElementById("rKeringBulan").textContent = formatNum(summary.kering.loadPerBulan) + " load";
+      renderMachineSummaryDetail("rKeringDetail", cabang.mesinPengering, "konversi", "Konversi", "komersial", "Komersial");
+    }
+
+    var rSetrikaWrap = document.getElementById("rSetrikaWrap");
+    if (rSetrikaWrap) {
+      var showSetrika = isKiloanKategori(cabang.kategoriLayanan) || setrikaOnly;
+      rSetrikaWrap.style.display = showSetrika ? "" : "none";
+      rSetrikaWrap.classList.toggle("ringkasan-solo", setrikaOnly);
+      if (showSetrika) {
+        document.getElementById("rSetrikaUnit").textContent = summary.setrika.totalUnit;
+        document.getElementById("rSetrikaMax").innerHTML = formatNum(summary.setrika.kapasitasMaksimalKgPerJam) + "<span class=\"unit\">kg</span>";
+        document.getElementById("rSetrikaJam").textContent = formatNum(summary.setrika.kapasitasKgPerJam) + " kg";
+        renderSetrikaSummaryDetail("rSetrikaDetail", cabang.mesinSetrika || []);
+      }
+    }
+
+    renderFooter();
+  }
+
+  function renderMachineSummaryDetail(containerId, rows, val1, label1, val2, label2) {
+    var el = document.getElementById(containerId);
+    el.innerHTML = "";
+    if (rows.length === 0) {
+      el.innerHTML = "<div class=\"empty-hint\">Belum ada mesin ditambahkan.</div>";
+      return;
+    }
+    var jenisLabel = {};
+    jenisLabel[val1] = label1;
+    jenisLabel[val2] = label2;
+    rows.forEach(function (m) {
+      var row = document.createElement("div");
+      row.className = "machine-summary-row";
+      var jenisTxt = jenisLabel[m.jenis] || "Belum dipilih";
+      row.innerHTML =
+        "<span class=\"name\">" + jenisTxt + " &middot; " + (m.jumlahUnit || 0) + " unit</span>" +
+        "<span class=\"detail\">" + (m.kapasitasKg || 0) + " kg &middot; " + (m.durasiMenit || 0) + " mnt</span>";
+      el.appendChild(row);
+    });
+  }
+
+  function renderSetrikaSummaryDetail(containerId, rows) {
+    var el = document.getElementById(containerId);
+    el.innerHTML = "";
+    if (rows.length === 0) {
+      el.innerHTML = "<div class=\"empty-hint\">Belum ada mesin ditambahkan.</div>";
+      return;
+    }
+    var jenisLabel = { listrik: "Setrika Listrik", uap: "Setrika Uap" };
+    rows.forEach(function (m) {
+      var row = document.createElement("div");
+      row.className = "machine-summary-row";
+      var jenisTxt = jenisLabel[m.jenis] || "Belum dipilih";
+      row.innerHTML =
+        "<span class=\"name\">" + jenisTxt + " &middot; " + (m.jumlahUnit || 0) + " unit</span>" +
+        "<span class=\"detail\">" + (m.kapasitasKgPerJam || 0) + " kg/jam</span>";
+      el.appendChild(row);
+    });
+  }
+
+  function openConfirmDelete(id) {
+    var item = cabangListCache.find(function (x) { return x.id === id; }) ||
+      { namaLaundry: document.getElementById("rNamaLaundry").textContent };
+    document.getElementById("confirmTitle").textContent = "Hapus cabang ini?";
+    document.getElementById("confirmText").textContent =
+      "Data operasional \"" + (item.namaLaundry || "cabang ini") + "\" akan dihapus permanen dan tidak bisa dikembalikan. Semua data Master Biaya milik cabang ini ikut terhapus.";
+    document.getElementById("confirmOverlay").classList.add("show");
+
+    var btn = document.getElementById("confirmDeleteBtn");
+    btn.onclick = function () { confirmDelete(id); };
+  }
+  window.closeConfirm = function () {
+    document.getElementById("confirmOverlay").classList.remove("show");
+  };
+
+  function confirmDelete(id) {
+    var btn = document.getElementById("confirmDeleteBtn");
+    btn.disabled = true;
+    btn.textContent = "Menghapus...";
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = "Hapus";
+        closeConfirm();
+        if (!res || !res.ok) { handleBackendError(res, "menghapus cabang"); return; }
+        showToast("Cabang berhasil dihapus.", "ok");
+        showScreen("list");
+        refreshList();
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = "Hapus";
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:deleteCabang" }, "menghapus cabang");
+      })
+      .deleteCabang(id);
+  }
+
+  function defaultCabang() {
+    return {
+      id: null,
+      profil: { namaLaundry: "", jamBukaMenit: 8 * 60, jamTutupMenit: 21 * 60 },
+      mesinCuci: [],
+      mesinPengering: [],
+      mesinSetrika: [],
+      kategoriLayanan: "self_service",
+      okupansi: { cuciPersen: 70, keringPersen: 70, setrikaPersen: 70 },
+      createdAt: null,
+      updatedAt: null
+    };
+  }
+
+  window.openFormNew = function () {
+    view.isNew = true;
+    view.editingId = null;
+    formState = defaultCabang();
+    showScreen("form");
+    renderForm();
+    setSaveStatus("", "");
+  };
+
+  function openFormEdit(id) {
+    view.isNew = false;
+    view.editingId = id;
+    showScreen("form");
+    setSaveStatus("Memuat...", "busy");
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          handleBackendError(res, "memuat data untuk diedit");
+          openRingkasan(id);
+          return;
+        }
+        formState = res.data.cabang;
+        renderForm();
+        setSaveStatus("", "");
+      })
+      .withFailureHandler(function (err) {
+        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getCabang" }, "memuat data untuk diedit");
+        openRingkasan(id);
+      })
+      .getCabang(id);
+  }
+  window.openFormEdit = openFormEdit;
+
+  function buildTimeOptions(selectEl, max) {
+    selectEl.innerHTML = "";
+    for (var i = 0; i < max; i++) {
+      var opt = document.createElement("option");
+      opt.value = i;
+      opt.textContent = pad2(i);
+      selectEl.appendChild(opt);
+    }
+  }
+
+  function initTimeSelects() {
+    buildTimeOptions(document.getElementById("jamBukaJam"), 24);
+    buildTimeOptions(document.getElementById("jamBukaMenit"), 60);
+    buildTimeOptions(document.getElementById("jamTutupJam"), 24);
+    buildTimeOptions(document.getElementById("jamTutupMenit"), 60);
+  }
+
+  function renderDurasiReadout() {
+    var totalMenit = computeDurasiOperasional(formState.profil.jamBukaMenit, formState.profil.jamTutupMenit);
+    var el = document.getElementById("durasiReadout");
+    if (totalMenit <= 0) {
+      el.innerHTML = "<span>Jam operasional belum valid</span>";
+      return;
+    }
+    el.innerHTML =
+      "<span>" + formatNum(totalMenit / 60) + " jam operasional / hari</span>" +
+      "<span>" + formatNum(totalMenit) + " menit</span>";
+  }
+
+  function machineRowTemplate(group, row, index) {
+    var isSetrika = group === "mesinSetrika";
+    var jenisOptions = group === "mesinCuci"
+      ? [["", "Pilih jenis"], ["rumah_tangga", "Rumah tangga"], ["komersial", "Komersial"]]
+      : isSetrika
+        ? [["", "Pilih jenis"], ["listrik", "Setrika Listrik"], ["uap", "Setrika Uap"]]
+        : [["", "Pilih jenis"], ["konversi", "Konversi"], ["komersial", "Komersial"]];
+
+    var optsHtml = jenisOptions.map(function (o) {
+      var sel = (o[0] === row.jenis) ? "selected" : "";
+      return "<option value=\"" + o[0] + "\" " + sel + ">" + o[1] + "</option>";
+    }).join("");
+
+    var div = document.createElement("div");
+    div.className = "machine-row";
+    div.setAttribute("data-id", row.id);
+
+    var fieldsHtml = isSetrika
+      ? "<div class=\"field\"><label>Jenis</label><select data-field=\"jenis\">" + optsHtml + "</select></div>" +
+        "<div class=\"field\"><label>Kapasitas (kg/jam)</label><input type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"0.5\" data-field=\"kapasitasKgPerJam\" value=\"" + (row.kapasitasKgPerJam || "") + "\"></div>" +
+        "<div class=\"field\"><label>Jumlah unit</label><input type=\"number\" inputmode=\"numeric\" min=\"0\" step=\"1\" data-field=\"jumlahUnit\" value=\"" + (row.jumlahUnit != null ? row.jumlahUnit : 1) + "\"></div>"
+      : "<div class=\"field\"><label>Jenis</label><select data-field=\"jenis\">" + optsHtml + "</select></div>" +
+        "<div class=\"field\"><label>Kapasitas (kg)</label><input type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"0.5\" data-field=\"kapasitasKg\" value=\"" + (row.kapasitasKg || "") + "\"></div>" +
+        "<div class=\"field\"><label>Durasi (menit)</label><input type=\"number\" inputmode=\"numeric\" min=\"0\" step=\"1\" data-field=\"durasiMenit\" value=\"" + (row.durasiMenit || "") + "\"></div>" +
+        "<div class=\"field\"><label>Jumlah unit</label><input type=\"number\" inputmode=\"numeric\" min=\"0\" step=\"1\" data-field=\"jumlahUnit\" value=\"" + (row.jumlahUnit != null ? row.jumlahUnit : 1) + "\"></div>";
+
+    div.innerHTML =
+      "<div class=\"machine-row-top\">" +
+        "<span class=\"tag\">unit #" + (index + 1) + "</span>" +
+        "<button class=\"icon-btn\" type=\"button\" aria-label=\"Hapus baris ini\" onclick=\"removeMachine('" + group + "','" + row.id + "')\">&#10005;</button>" +
+      "</div>" +
+      "<div class=\"machine-grid\">" + fieldsHtml + "</div>";
+
+    div.querySelector("select[data-field='jenis']").addEventListener("change", function (e) {
+      updateMachineField(group, row.id, "jenis", e.target.value);
+    });
+    div.querySelectorAll("input[data-field]").forEach(function (input) {
+      input.addEventListener("input", function () {
+        var field = input.getAttribute("data-field");
+        updateMachineField(group, row.id, field, Number(input.value));
+      });
+    });
+    return div;
+  }
+
+  function renderMachineList(group) {
+    var ids = {
+      mesinCuci: ["mesinCuciList", "mesinCuciEmpty"],
+      mesinPengering: ["mesinPengeringList", "mesinPengeringEmpty"],
+      mesinSetrika: ["mesinSetrikaList", "mesinSetrikaEmpty"]
+    };
+    var listEl = document.getElementById(ids[group][0]);
+    var emptyEl = document.getElementById(ids[group][1]);
+    var rows = formState[group] || [];
+    listEl.innerHTML = "";
+    if (rows.length === 0) { emptyEl.style.display = "block"; return; }
+    emptyEl.style.display = "none";
+    rows.forEach(function (row, index) { listEl.appendChild(machineRowTemplate(group, row, index)); });
+  }
+
+  function isKiloanKategori(kategori) {
+    return kategori === "drop_off" || kategori === "hybrid";
+  }
+
+  function isSetrikaOnlyKategori(kategori) {
+    return kategori === "jasa_setrika";
+  }
+
+  function renderFormOutputs() {
+    var summary = computeSummary(formState);
+
+    document.getElementById("outCuciUnit").textContent = summary.cuci.totalUnit;
+    document.getElementById("outCuciMax").innerHTML = formatNum(summary.cuci.loadMaksimalPerHari) + "<span class=\"unit\">load</span>";
+    document.getElementById("outCuciHari").textContent = formatNum(summary.cuci.loadPerHari) + " load";
+    document.getElementById("outCuciMinggu").textContent = formatNum(summary.cuci.loadPerMinggu) + " load";
+    document.getElementById("outCuciBulan").textContent = formatNum(summary.cuci.loadPerBulan) + " load";
+
+    document.getElementById("outKeringUnit").textContent = summary.kering.totalUnit;
+    document.getElementById("outKeringMax").innerHTML = formatNum(summary.kering.loadMaksimalPerHari) + "<span class=\"unit\">load</span>";
+    document.getElementById("outKeringHari").textContent = formatNum(summary.kering.loadPerHari) + " load";
+    document.getElementById("outKeringMinggu").textContent = formatNum(summary.kering.loadPerMinggu) + " load";
+    document.getElementById("outKeringBulan").textContent = formatNum(summary.kering.loadPerBulan) + " load";
+
+    document.getElementById("outSetrikaUnit").textContent = summary.setrika.totalUnit;
+    document.getElementById("outSetrikaMax").innerHTML = formatNum(summary.setrika.kapasitasMaksimalKgPerJam) + "<span class=\"unit\">kg</span>";
+    document.getElementById("outSetrikaJam").textContent = formatNum(summary.setrika.kapasitasKgPerJam) + " kg";
+
+    renderDurasiReadout();
+  }
+
+  function renderOkupansiUI() {
+    document.getElementById("cuciPersen").value = formState.okupansi.cuciPersen;
+    document.getElementById("cuciPersenVal").textContent = formState.okupansi.cuciPersen + "%";
+    document.getElementById("keringPersen").value = formState.okupansi.keringPersen;
+    document.getElementById("keringPersenVal").textContent = formState.okupansi.keringPersen + "%";
+    document.getElementById("setrikaPersen").value = formState.okupansi.setrikaPersen;
+    document.getElementById("setrikaPersenVal").textContent = formState.okupansi.setrikaPersen + "%";
+  }
+
+  function renderKategoriUI() {
+    document.querySelectorAll("#kategoriPills .pill").forEach(function (p) {
+      p.classList.toggle("active", p.getAttribute("data-val") === formState.kategoriLayanan);
+    });
+    var setrikaOnly = isSetrikaOnlyKategori(formState.kategoriLayanan);
+    var showSetrika = isKiloanKategori(formState.kategoriLayanan) || setrikaOnly;
+    var panelSetrika = document.getElementById("panelSetrika");
+    var outSetrikaPanel = document.getElementById("outSetrikaPanel");
+    if (panelSetrika) panelSetrika.style.display = showSetrika ? "" : "none";
+    if (outSetrikaPanel) outSetrikaPanel.style.display = showSetrika ? "" : "none";
+
+    var panelCuci = document.getElementById("panelCuci");
+    var panelKering = document.getElementById("panelKering");
+    var outCuciPanel = document.getElementById("outCuciPanel");
+    var outKeringPanel = document.getElementById("outKeringPanel");
+    if (panelCuci) panelCuci.style.display = setrikaOnly ? "none" : "";
+    if (panelKering) panelKering.style.display = setrikaOnly ? "none" : "";
+    if (outCuciPanel) outCuciPanel.style.display = setrikaOnly ? "none" : "";
+    if (outKeringPanel) outKeringPanel.style.display = setrikaOnly ? "none" : "";
+  }
+
+  function renderForm() {
+    document.getElementById("namaLaundry").value = formState.profil.namaLaundry;
+    document.getElementById("jamBukaJam").value = Math.floor(formState.profil.jamBukaMenit / 60);
+    document.getElementById("jamBukaMenit").value = formState.profil.jamBukaMenit % 60;
+    document.getElementById("jamTutupJam").value = Math.floor(formState.profil.jamTutupMenit / 60);
+    document.getElementById("jamTutupMenit").value = formState.profil.jamTutupMenit % 60;
+    renderOkupansiUI();
+    renderKategoriUI();
+    renderMachineList("mesinCuci");
+    renderMachineList("mesinPengering");
+    renderMachineList("mesinSetrika");
+    renderFormOutputs();
+
+    document.querySelectorAll("#screenForm .panel").forEach(function (p) { p.classList.remove("collapsed"); });
+  }
+
+  function updateMachineField(group, id, field, value) {
+    var rows = formState[group];
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].id === id) { rows[i][field] = value; break; }
+    }
+    renderFormOutputs();
+  }
+
+  window.removeMachine = function (group, id) {
+    formState[group] = formState[group].filter(function (r) { return r.id !== id; });
+    renderMachineList(group);
+    renderFormOutputs();
+  };
+
+  window.addMachine = function (group) {
+    var defaultRow = group === "mesinSetrika"
+      ? { id: localId(), jenis: "", kapasitasKgPerJam: 0, jumlahUnit: 1 }
+      : { id: localId(), jenis: "", kapasitasKg: 0, durasiMenit: 0, jumlahUnit: 1 };
+    formState[group].push(defaultRow);
+    renderMachineList(group);
+    renderFormOutputs();
+    var ids = { mesinCuci: "mesinCuciList", mesinPengering: "mesinPengeringList", mesinSetrika: "mesinSetrikaList" };
+    var listEl = document.getElementById(ids[group]);
+    var lastRow = listEl.lastElementChild;
+    if (lastRow) {
+      var firstSelect = lastRow.querySelector("select");
+      if (firstSelect) firstSelect.focus();
+    }
+  };
+
+  window.togglePanel = function (headerEl) {
+    headerEl.closest(".panel").classList.toggle("collapsed");
+  };
+
+  function bindStaticFormInputs() {
+    document.getElementById("namaLaundry").addEventListener("input", function (e) {
+      formState.profil.namaLaundry = e.target.value;
+    });
+
+    function bindTime(idJam, idMenit, key) {
+      function update() {
+        var jam = Number(document.getElementById(idJam).value) || 0;
+        var menit = Number(document.getElementById(idMenit).value) || 0;
+        formState.profil[key] = jam * 60 + menit;
+        renderFormOutputs();
+      }
+      document.getElementById(idJam).addEventListener("change", update);
+      document.getElementById(idMenit).addEventListener("change", update);
+    }
+    bindTime("jamBukaJam", "jamBukaMenit", "jamBukaMenit");
+    bindTime("jamTutupJam", "jamTutupMenit", "jamTutupMenit");
+
+    document.getElementById("cuciPersen").addEventListener("input", function (e) {
+      formState.okupansi.cuciPersen = Number(e.target.value);
+      renderOkupansiUI();
+      renderFormOutputs();
+    });
+    document.getElementById("keringPersen").addEventListener("input", function (e) {
+      formState.okupansi.keringPersen = Number(e.target.value);
+      renderOkupansiUI();
+      renderFormOutputs();
+    });
+    document.getElementById("setrikaPersen").addEventListener("input", function (e) {
+      formState.okupansi.setrikaPersen = Number(e.target.value);
+      renderOkupansiUI();
+      renderFormOutputs();
+    });
+
+    document.getElementById("kategoriPills").querySelectorAll(".pill").forEach(function (pill) {
+      pill.addEventListener("click", function () {
+        if (pill.classList.contains("disabled")) {
+          showToast("Mode ini segera hadir. Saat ini fokus di Self Service.", "");
+          return;
+        }
+        formState.kategoriLayanan = pill.getAttribute("data-val");
+        renderKategoriUI();
+      });
+    });
+  }
+
+  function saveForm() {
+    var btn = document.getElementById("saveBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "Menyimpan..."; }
+    setSaveStatus("Menyimpan...", "busy");
+
+    function onDone(res, actionLabel) {
+      if (btn) { btn.disabled = false; btn.textContent = view.isNew ? "Simpan cabang baru" : "Simpan perubahan"; }
+      if (!res || !res.ok) { handleBackendError(res, actionLabel); return; }
+      showToast("Data operasional tersimpan.", "ok");
+      setSaveStatus("Tersimpan", "ok");
+      view.editingId = res.data.cabang.id;
+      view.isNew = false;
+      renderRingkasan(res.data.cabang, res.data.summary);
+      showScreen("ringkasan");
+    }
+
+    if (view.isNew) {
+      google.script.run
+        .withSuccessHandler(function (res) { onDone(res, "menyimpan cabang baru"); })
+        .withFailureHandler(function (err) {
+          if (btn) { btn.disabled = false; btn.textContent = "Simpan cabang baru"; }
+          handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:createCabang" }, "menyimpan cabang baru");
+        })
+        .createCabang(formState);
+    } else {
+      google.script.run
+        .withSuccessHandler(function (res) { onDone(res, "menyimpan perubahan"); })
+        .withFailureHandler(function (err) {
+          if (btn) { btn.disabled = false; btn.textContent = "Simpan perubahan"; }
+          handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:updateCabang" }, "menyimpan perubahan");
+        })
+        .updateCabang(view.editingId, formState);
+    }
+  }
+
+  /**
+   * ===========================================================================
+   * SECTION: MASTER BIAYA ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â GAS LPG
+   * ===========================================================================
+   * Semua fungsi di bawah ini diberi prefix "gas"/"Gas" secara konsisten,
+   * supaya kalau nanti dipecah ke file Index lain (mis. MasterBiaya.html
+   * yang di-include lewat syntax include MasterBiaya), batasnya jelas
+   * hanya dengan mencari prefix ini.
+   * ===========================================================================
+   */
+
+  /**
+   * selectKategoriBiaya: dipanggil saat user klik pill kategori di
+   * screenMasterBiaya. Hanya menukar view.kategoriBiayaAktif dan re-render
+   * tampilan pill aktif ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â TIDAK perlu reload daftar cabang, karena daftar
+   * cabang sama untuk semua kategori, hanya tujuan navigasinya yang beda
+   * (lihat renderBiayaPickCabangList -> openGasList vs openListrikForm).
+   */
+  window.selectKategoriBiaya = function (kategori) {
+    view.kategoriBiayaAktif = kategori;
+    document.querySelectorAll("#kategoriBiayaPills .pill").forEach(function (p) {
+      var val = p.getAttribute("data-val");
+      if (!val) return; // pill "disabled" tanpa data-val (Air, Deterjen) dilewati
+      p.classList.toggle("active", val === kategori);
+    });
+  };
+
+</script>

@@ -1,0 +1,39 @@
+<!--
+===============================================================================
+FILE: Screen_BiayaNotaKasir.html
+PROJECK: Kalkulator Laundry Versi 002
+ISI: Layar Master Biaya > Nota Kasir
+
+FUNGSI:
+Form konfigurasi biaya nota/kasir per cabang (satu konfigurasi per cabang).
+
+Di-include dari Index.html lewat include('Screen_BiayaNotaKasir'). Jangan tambah
+tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
+===============================================================================
+-->
+    <section class="screen" id="screenNotaKasirForm">
+      <div class="list-header">
+        <h1 id="notaKasirTitle">Nota</h1>
+      </div>
+
+      <div class="group-divider">Sistem nota / kasir</div>
+      <div class="pill-group" id="notaKasirSistemPills">
+        <div class="pill brass active" data-val="aplikasi_kasir_thermal" onclick="selectNotaKasirSistem('aplikasi_kasir_thermal')">Aplikasi Kasir Thermal</div>
+        <div class="pill sage" data-val="nota_manual_ncr" onclick="selectNotaKasirSistem('nota_manual_ncr')">Nota Manual NCR</div>
+      </div>
+
+      <div id="notaKasirBody"></div>
+
+      <div class="group-divider">Ringkasan biaya</div>
+      <div class="panel">
+        <div class="meta-row"><span class="meta-label">Biaya aplikasi per load</span><span class="meta-val" id="notaAplikasiPerTransaksi">Rp 0</span></div>
+        <div class="meta-row"><span class="meta-label">Biaya nota per load</span><span class="meta-val" id="notaBiayaPerLoad">Rp 0</span></div>
+        <div class="meta-row"><span class="meta-label">Total biaya per load</span><span class="meta-val" id="notaTotalPerLoad">Rp 0</span></div>
+      </div>
+      <div class="field-hint" id="notaKasirWarning" style="display:none; margin-top: 8px;"></div>
+    </section>
+
+
+    <!-- ===================================================================
+         LAYAR: STRUKTUR BIAYA HPP ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â pilih outlet
+    =================================================================== -->

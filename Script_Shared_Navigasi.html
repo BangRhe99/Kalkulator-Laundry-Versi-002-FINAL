@@ -1,0 +1,142 @@
+<!--
+===============================================================================
+FILE: Script_Shared_Navigasi.html
+PROJECT: Kalkulator Laundry Versi 002
+ISI: Navigasi antar layar
+
+FUNGSI:
+showScreen (pusat pindah layar), SCREEN_ELEMENT_ID, goBack, view (state layar aktif).
+
+PENTING -- catat sebelum edit:
+Semua file Script_*.html berbagi SATU scope global yang sama (Apps Script
+include() cuma menggabungkan teks mentah jadi satu <script> demi <script>
+di halaman yang sama -- bukan module system). Karena itu file ini SENGAJA
+TIDAK dibungkus (function(){...})() -- kalau kamu bungkus lagi, fungsi di
+file ini jadi tidak kelihatan dari file lain dan app akan rusak.
+Urutan include TIDAK masalah untuk deklarasi function/var (hoisting),
+TAPI Script_Boot_Main.html WAJIB tetap paling terakhir karena dia yang
+menjalankan bootApp().
+===============================================================================
+-->
+<script>
+"use strict";
+  function showScreen(name) {
+    view.screen = name;
+    Object.keys(SCREEN_ELEMENT_ID).forEach(function (key) {
+      document.getElementById(SCREEN_ELEMENT_ID[key]).classList.remove("active");
+    });
+    document.getElementById(SCREEN_ELEMENT_ID[name]).classList.add("active");
+    document.getElementById("backBtn").style.display = (name === "menu") ? "none" : "flex";
+    if (name === "menu" && typeof refreshDashboard === "function") {
+      refreshDashboard();
+    }
+    renderFooter();
+  }
+
+ window.goBack = function () {
+  switch (view.screen) {
+    case "list":
+    case "masterBiaya":
+      showScreen("menu");
+      break;
+
+    case "ringkasan":
+    case "form":
+      goBackToList();
+      break;
+
+    case "gasList":
+      showScreen("masterBiaya");
+      refreshBiayaPickCabangList();
+      break;
+
+    case "gasForm":
+      if (view.gasCabangId) {
+        openGasList(view.gasCabangId);
+      } else {
+        showScreen("masterBiaya");
+        refreshBiayaPickCabangList();
+      }
+      break;
+
+    case "chemicalList":
+      showScreen("masterBiaya");
+      refreshBiayaPickCabangList();
+      break;
+
+    case "chemicalForm":
+      if (view.chemicalCabangId) {
+        openChemicalList(view.chemicalCabangId);
+      } else {
+        showScreen("masterBiaya");
+        refreshBiayaPickCabangList();
+      }
+      break;
+
+    case "packingList":
+      showScreen("masterBiaya");
+      refreshBiayaPickCabangList();
+      break;
+
+    case "packingForm":
+      if (view.packingCabangId) {
+        openPackingList(view.packingCabangId);
+      } else {
+        showScreen("masterBiaya");
+        refreshBiayaPickCabangList();
+      }
+      break;
+
+    case "listrikForm":
+      showScreen("masterBiaya");
+      refreshBiayaPickCabangList();
+      break;
+
+    case "airForm":
+      showScreen("masterBiaya");
+      refreshBiayaPickCabangList();
+      break;
+
+    case "notaKasirForm":
+      showScreen("masterBiaya");
+      refreshBiayaPickCabangList();
+      break;
+
+    case "strukturHPPList":
+      showScreen("menu");
+      break;
+
+    case "strukturHPPDetail":
+      openStrukturHPPOutletList();
+      break;
+
+    case "hargaLayananList":
+      showScreen("menu");
+      break;
+
+    case "hargaLayananDetail":
+      openHargaLayananOutletList();
+      break;
+
+    case "biayaTetapList":
+      showScreen("menu");
+      break;
+
+    case "biayaTetapForm":
+      openBiayaTetapOutletList();
+      break;
+
+    default:
+      showScreen("menu");
+  }
+};
+
+  /**
+   * =========================================================================
+   * DASHBOARD MENU UTAMA
+   * -------------------------------------------------------------------------
+   * Setiap card memuat data sendiri-sendiri agar Menu Utama terasa responsif.
+   * Dashboard hanya membaca data; semua fitur detail lama tetap berjalan.
+   * =========================================================================
+   */
+</script>
