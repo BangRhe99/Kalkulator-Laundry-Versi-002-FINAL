@@ -676,9 +676,13 @@ menjalankan bootApp().
         }
         var d = rows[0];
         var components = Array.isArray(d.components) ? d.components : [];
+        var totalPerBulan = toNumber(d.totalPerBulan, 0);
         var detailHtml = components.map(function (c) {
+          var amount = toNumber(c.amount, 0);
+          var percent = (totalPerBulan > 0 && amount > 0) ? round2((amount / totalPerBulan) * 100) : 0;
           return '<div class="fc-detail-row">' +
             '<span class="fc-detail-label">' + escapeHtml(c.label || '') + '</span>' +
+            '<span class="fc-detail-percent">' + percent + '%</span>' +
             '<span class="fc-detail-value">' + money0(c.amount) + '</span>' +
           '</div>';
         }).join('');
