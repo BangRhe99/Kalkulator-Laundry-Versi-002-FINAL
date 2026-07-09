@@ -727,13 +727,23 @@ function saveBepServiceMix(cabangId, mixMap) {
   }
 }
 
-function bepEffectiveHarga_(item) {
-  // = omzetPerOrder (hargaJualPerKg x minimumOrderKg, sudah dikonversi di
-  // Modul_HargaLayanan.gs lewat kapasitasKgPerLoad) -- BUKAN harga per Kg
-  // mentah, supaya sebanding langsung dengan hpp per order.
-  if (item.hargaJualPerLoad !== undefined) return dashboardNumber_(item.hargaJualPerLoad, 0);
-  if (item.hargaJualPerJam !== undefined) return dashboardNumber_(item.hargaJualPerJam, 0);
-  return dashboardNumber_(item.hargaJual, 0);
+// bepEffectiveOmzetPerOrder_: omzetPerOrder yang benar-benar sebanding dengan
+// hpp per order (Load/Jam). Untuk layanan berbasis per Kg (kiloan non-Bed
+// Cover & Jasa Setrika), omzet per order = Harga Jual x Minimum Order (Kg)
+// -- field `omzetMinimumOrder` dari Modul_HargaLayanan.gs, HANYA ada kalau
+// user sudah mengisi Minimum Order. Kalau belum diisi, kembalikan null
+// (BUKAN 0 atau harga per Kg mentah) supaya jelas dianggap "belum lengkap",
+// bukan diam-diam salah unit (ini penyebab bug lama: harga per Kg dan HPP
+// per Load ketemu langsung tanpa dikonversi).
+function bepEffectiveOmzetPerOrder_(item) {
+  var isKgBased = item.hppPerLoad !== undefined || item.hppPerJam !== undefined;
+  if (!isKgBased) {
+    return dashboardNumber_(item.hargaJual, 0);
+  }
+  if (dashboardNumber_(item.minimumOrderKg, 0) > 0 && item.omzetMinimumOrder !== undefined) {
+    return dashboardNumber_(item.omzetMinimumOrder, 0);
+  }
+  return null;
 }
 
 function bepEffectiveHpp_(item) {
@@ -797,7 +807,7 @@ function getBepWeightedServiceData_(cabangId) {
     return {
       key: item.key,
       title: item.title || item.key,
-      harga: bepEffectiveHarga_(item),
+      harga: bepEffectiveOmzetPerOrder_(item), // null = belum lengkap (lihat catatan fungsinya)
       hpp: hppSvc ? dashboardNumber_(hppSvc.total, 0) : bepEffectiveHpp_(item),
       percent: dashboardRound2_(mix[item.key] || 0)
     };
@@ -810,11 +820,16 @@ function getBepWeightedServiceData_(cabangId) {
     warnings.push("Total kontribusi layanan harus 100%.");
   }
 
-  var incompleteNames = services
-    .filter(function (s) { return !(s.harga > 0 && s.hpp > 0); })
-    .map(function (s) { return s.title; });
+  var incompleteNames = [];
+  services.forEach(function (s) {
+    if (s.harga === null) {
+      incompleteNames.push(s.title + " (Minimum Order Kg belum diisi di Harga Layanan)");
+    } else if (!(s.harga > 0 && s.hpp > 0)) {
+      incompleteNames.push(s.title + " (harga jual/HPP belum lengkap)");
+    }
+  });
   if (incompleteNames.length) {
-    warnings.push("Lengkapi dulu harga jual & HPP untuk: " + incompleteNames.join(", ") + ".");
+    warnings.push("Lengkapi dulu: " + incompleteNames.join(", ") + ".");
   }
 
   if (!mixValid || incompleteNames.length) {
