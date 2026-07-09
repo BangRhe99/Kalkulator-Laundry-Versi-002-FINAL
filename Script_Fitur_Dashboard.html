@@ -266,6 +266,7 @@ menjalankan bootApp().
           renderDashboardHargaLayananCard({ ok: false, error: msg });
           renderDashboardFixedCostCard({ ok: false, error: msg });
           renderDashboardBEPCard({ ok: false, error: msg });
+          renderDashboardPotensiOmsetCard({ ok: false, error: msg });
           return;
         }
         var d = full.data || {};
@@ -275,6 +276,7 @@ menjalankan bootApp().
         renderDashboardHargaLayananCard(d.hargaLayanan);
         renderDashboardFixedCostCard(d.fixedCost);
         renderDashboardBEPCard(d.bep);
+        renderDashboardPotensiOmsetCard(d.potensiOmset);
       })
       .withFailureHandler(function (err) {
         if (mySeq !== dashboardRequestSeq) return;
@@ -285,6 +287,7 @@ menjalankan bootApp().
         renderDashboardHargaLayananCard({ ok: false, error: msg });
         renderDashboardFixedCostCard({ ok: false, error: msg });
         renderDashboardBEPCard({ ok: false, error: msg });
+        renderDashboardPotensiOmsetCard({ ok: false, error: msg });
       })
       .getDashboardFullSummary(cId);
   }
@@ -712,14 +715,8 @@ menjalankan bootApp().
         var warnings = Array.isArray(d.warnings) ? d.warnings : [];
         var html = "";
 
-        bepMixCurrentServices = Array.isArray(d.serviceMix) ? d.serviceMix : [];
-        var mixBtnHtml = bepMixCurrentServices.length > 1
-          ? '<button type="button" class="bep-mix-btn" onclick="openBepMix()">Atur %</button>'
-          : '';
-
         if (d.bepLoadPerBulan <= 0) {
           html = '<div class="bep-incomplete">' +
-            (mixBtnHtml ? '<div class="bep-incomplete-top">' + mixBtnHtml + '</div>' : '') +
             '<div class="bep-incomplete-title">Data belum lengkap</div>' +
             '<div class="bep-incomplete-list">' +
               warnings.map(function(w) { return '<span>' + escapeHtml(w) + '</span>'; }).join("") +
@@ -727,20 +724,9 @@ menjalankan bootApp().
           '</div>';
         } else {
           var chartSvg = buildBepChartSvg(d);
-          var estimateHtml = d.loadKapasitasPerBulan > 0
-            ? '<div class="bep-estimate">' +
-                '<div class="bep-estimate-title">Estimasi Potensi Bulanan <span class="bep-estimate-hint">&middot; kapasitas penuh</span></div>' +
-                '<div class="bep-estimate-row"><span class="bep-estimate-label">Estimasi Omset</span><span class="bep-estimate-value">' + money0(d.estimasiOmsetPerBulan) + '</span></div>' +
-                '<div class="bep-estimate-row"><span class="bep-estimate-label">Estimasi Biaya Produksi</span><span class="bep-estimate-value bep-estimate-cost">' + money0(d.estimasiBiayaProduksiPerBulan) + '</span></div>' +
-                '<div class="bep-estimate-row bep-estimate-row-profit"><span class="bep-estimate-label">Estimasi Profit</span><span class="bep-estimate-value ' + (d.estimasiProfitPerBulan >= 0 ? 'bep-estimate-profit-pos' : 'bep-estimate-profit-neg') + '">' + money0(d.estimasiProfitPerBulan) + '</span></div>' +
-              '</div>'
-            : '';
           html = '<div class="bep-card">' +
             '<div class="bep-hero">' +
-              '<div class="bep-hero-top">' +
-                '<span class="bep-hero-label">Target Break Even</span>' +
-                mixBtnHtml +
-              '</div>' +
+              '<span class="bep-hero-label">Target Break Even</span>' +
               '<div class="bep-hero-row">' +
                 '<span class="bep-hero-value">' + escapeHtml(formatNum(d.bepLoadPerBulan, 0)) + '</span>' +
                 '<span class="bep-hero-unit">load/bulan</span>' +
@@ -778,11 +764,60 @@ menjalankan bootApp().
                 '</div>' +
               '</div>' +
             '</div>' +
-            estimateHtml +
             (warnings.length > 0 ? '<div class="bep-warning">' + warnings.map(function(w) { return escapeHtml(w); }).join(" · ") + '</div>' : "") +
           '</div>';
         }
         setDashboardCardHtml("dashboardBEPSummary", html);
+  }
+
+  function renderDashboardPotensiOmsetCard(res) {
+        if (!res || !res.ok) {
+          setDashboardCardError("dashboardPotensiOmsetSummary", res && res.error ? res.error : "Potensi omset belum bisa dihitung.");
+          return;
+        }
+        var d = res.data || {};
+        var warnings = Array.isArray(d.warnings) ? d.warnings : [];
+
+        bepMixCurrentServices = Array.isArray(d.serviceMix) ? d.serviceMix : [];
+        var mixBtnHtml = bepMixCurrentServices.length > 1
+          ? '<button type="button" class="bep-mix-btn" onclick="openBepMix()">Atur %</button>'
+          : '';
+
+        var mixListHtml = bepMixCurrentServices.map(function (s) {
+          return '<div class="potensi-mix-row">' +
+            '<span class="potensi-mix-row-title">' + escapeHtml(s.title || s.key) + '</span>' +
+            '<span class="potensi-mix-row-percent">' + escapeHtml(formatNum(s.percent, 0)) + '%</span>' +
+          '</div>';
+        }).join('');
+
+        var html = "";
+        if (!d.maksimalTransaksiPerBulan || d.maksimalTransaksiPerBulan <= 0) {
+          html = '<div class="bep-incomplete">' +
+            (mixBtnHtml ? '<div class="bep-incomplete-top">' + mixBtnHtml + '</div>' : '') +
+            '<div class="bep-incomplete-title">Data belum lengkap</div>' +
+            '<div class="bep-incomplete-list">' +
+              warnings.map(function(w) { return '<span>' + escapeHtml(w) + '</span>'; }).join("") +
+            '</div>' +
+          '</div>';
+        } else {
+          html = '<div class="potensi-card">' +
+            '<div class="potensi-top">' +
+              '<span class="potensi-top-label">Estimasi di kapasitas penuh</span>' +
+              mixBtnHtml +
+            '</div>' +
+            '<div class="potensi-estimate">' +
+              '<div class="potensi-estimate-row"><span class="potensi-estimate-label">Estimasi Omset</span><span class="potensi-estimate-value">' + money0(d.estimasiOmsetPerBulan) + '</span></div>' +
+              '<div class="potensi-estimate-row"><span class="potensi-estimate-label">Estimasi Biaya Produksi</span><span class="potensi-estimate-value potensi-estimate-cost">' + money0(d.estimasiBiayaProduksiPerBulan) + '</span></div>' +
+              '<div class="potensi-estimate-row potensi-estimate-row-profit"><span class="potensi-estimate-label">Estimasi Profit</span><span class="potensi-estimate-value ' + (d.estimasiProfitPerBulan >= 0 ? 'potensi-profit-pos' : 'potensi-profit-neg') + '">' + money0(d.estimasiProfitPerBulan) + '</span></div>' +
+            '</div>' +
+            (mixListHtml ? '<div class="potensi-mix-list">' +
+              '<div class="potensi-mix-title">Kontribusi Omset per Layanan</div>' +
+              mixListHtml +
+            '</div>' : '') +
+            (warnings.length > 0 ? '<div class="bep-warning">' + warnings.map(function(w) { return escapeHtml(w); }).join(" · ") + '</div>' : "") +
+          '</div>';
+        }
+        setDashboardCardHtml("dashboardPotensiOmsetSummary", html);
   }
 
   window.openBepMix = function () {

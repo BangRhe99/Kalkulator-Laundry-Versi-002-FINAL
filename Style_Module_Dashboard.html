@@ -696,59 +696,6 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     color: var(--text-faint);
   }
 
-  .bep-estimate {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    background: var(--panel-2);
-    border-radius: var(--radius);
-    padding: 12px;
-    margin-top: 2px;
-  }
-
-  .bep-estimate-title {
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--text-faint);
-    margin-bottom: 2px;
-  }
-
-  .bep-estimate-hint {
-    font-weight: 400;
-    text-transform: none;
-    letter-spacing: normal;
-  }
-
-  .bep-estimate-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    font-size: 12.5px;
-  }
-
-  .bep-estimate-label { color: var(--text-dim); }
-
-  .bep-estimate-value {
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    color: var(--text);
-  }
-
-  .bep-estimate-cost { color: var(--brass); }
-
-  .bep-estimate-row-profit {
-    padding-top: 6px;
-    margin-top: 2px;
-    border-top: 1px dashed var(--border);
-  }
-
-  .bep-estimate-row-profit .bep-estimate-label { font-weight: 600; }
-
-  .bep-estimate-profit-pos { color: var(--sage); font-size: 14px; }
-  .bep-estimate-profit-neg { color: var(--red); font-size: 14px; }
-
   .bep-mix-box {
     max-width: 380px;
   }
@@ -815,6 +762,96 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
 
   .bep-mix-total.is-ok { color: var(--sage); }
   /* === END BEP CARD === */
+
+  /* === POTENSI OMSET CARD === */
+  .potensi-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .potensi-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .potensi-top-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-faint);
+  }
+
+  .potensi-estimate {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--panel-2);
+    border-radius: var(--radius);
+    padding: 12px;
+  }
+
+  .potensi-estimate-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 12.5px;
+  }
+
+  .potensi-estimate-label { color: var(--text-dim); }
+
+  .potensi-estimate-value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  .potensi-estimate-cost { color: var(--brass); }
+
+  .potensi-estimate-row-profit {
+    padding-top: 6px;
+    margin-top: 2px;
+    border-top: 1px dashed var(--border);
+  }
+
+  .potensi-estimate-row-profit .potensi-estimate-label { font-weight: 600; }
+
+  .potensi-profit-pos { color: var(--sage); font-size: 14px; }
+  .potensi-profit-neg { color: var(--red); font-size: 14px; }
+
+  .potensi-mix-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .potensi-mix-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+    margin-bottom: 2px;
+  }
+
+  .potensi-mix-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+  }
+
+  .potensi-mix-row-title { color: var(--text-dim); }
+
+  .potensi-mix-row-percent {
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  /* === END POTENSI OMSET CARD === */
 
   /* === MASTER BIAYA CARD === */
   .mb-card {

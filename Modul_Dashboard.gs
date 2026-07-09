@@ -139,7 +139,8 @@ function getDashboardFullSummary(cabangId) {
         hpp: getDashboardHPPSummary(cabangId),
         hargaLayanan: getDashboardHargaLayananSummary(cabangId),
         fixedCost: getDashboardFixedCostSummary(cabangId),
-        bep: getDashboardBEPSummary(cabangId)
+        bep: getDashboardBEPSummary(cabangId),
+        potensiOmset: getDashboardPotensiOmsetSummary(cabangId)
       }
     };
   } catch (err) {
@@ -735,23 +736,15 @@ function getDashboardBEPSummary(cabangId) {
     var fixedCostRes = getDashboardFixedCostSummary(cabangId);
     var hppRes = getDashboardHPPSummary(cabangId);
     var hargaRes = getDashboardHargaLayananSummary(cabangId);
-    var cabangRes = getDashboardCabangSummary(cabangId);
 
     var warnings = [];
     var fixedCostPerBulan = 0;
-    var loadKapasitasPerBulan = 0;
 
     // Ambil fixed cost
     if (fixedCostRes && fixedCostRes.ok && fixedCostRes.data) {
       fixedCostPerBulan = dashboardNumber_(fixedCostRes.data.totalFixedCostPerBulan, 0);
     } else {
       warnings.push("Fixed cost belum diisi.");
-    }
-
-    // Ambil kapasitas cuci/bulan (dari Profil Outlet) untuk basis estimasi
-    // potensi omset/profit di kapasitas penuh.
-    if (cabangRes && cabangRes.ok && cabangRes.data && cabangRes.data.rows && cabangRes.data.rows.length) {
-      loadKapasitasPerBulan = dashboardNumber_(cabangRes.data.rows[0].loadCuciPerBulan, 0);
     }
 
     // Ambil HPP per layanan (key -> total HPP)
@@ -820,13 +813,6 @@ function getDashboardBEPSummary(cabangId) {
       warnings.push("Margin per load negatif atau nol — harga jual lebih rendah dari HPP.");
     }
 
-    // Estimasi potensi bulanan di KAPASITAS PENUH outlet (bukan cuma titik
-    // impas) - pakai kapasitas cuci/bulan dari Profil Outlet x rataHarga/HPP
-    // hasil weighted mix yang sama.
-    var estimasiOmsetPerBulan = dashboardRound2_(rataHarga * loadKapasitasPerBulan);
-    var estimasiBiayaProduksiPerBulan = dashboardRound2_(rataHPP * loadKapasitasPerBulan);
-    var estimasiProfitPerBulan = dashboardRound2_(estimasiOmsetPerBulan - estimasiBiayaProduksiPerBulan - fixedCostPerBulan);
-
     return {
       ok: true,
       data: {
@@ -840,7 +826,167 @@ function getDashboardBEPSummary(cabangId) {
         bepOmsetPerMinggu: dashboardRound2_(bepOmsetPerBulan / 4),
         bepLoadPerHari: dashboardRound2_(bepLoadPerBulan / 30),
         bepOmsetPerHari: dashboardRound2_(bepOmsetPerBulan / 30),
-        loadKapasitasPerBulan: loadKapasitasPerBulan,
+        warnings: warnings,
+        isComplete: warnings.length === 0
+      }
+    };
+  } catch (err) {
+    return dashboardError_(err, "getDashboardBEPSummary");
+  }
+}
+
+// ----------------------------------------------------------------------------
+// POTENSI OMSET: estimasi omset/biaya produksi/profit di KAPASITAS PENUH
+// outlet, dengan basis load-equivalent yang sama seperti BEP (mix % kontribusi
+// per layanan). Kapasitas maksimum dibatasi oleh mesin yang jadi BOTTLENECK
+// (cuci/pengering/setrika) sesuai kombinasi layanan yang dipilih -- misalnya
+// "Cuci Kering Setrika" pakai 3 mesin sekaligus, "Cuci Saja" cuma pakai mesin
+// cuci. Kapasitas mentah mesin (loadMaksimalPerHari/loadPerBulan) SUMBER
+// KEBENARAN TUNGGAL-nya tetap computeGroupLoad_ di Modul_Cabang.gs, TIDAK
+// dihitung ulang dengan cara lain di sini.
+// ----------------------------------------------------------------------------
+
+function bepMachineUsageMap_(key) {
+  var map = {
+    cuci_saja: { washer: 1, dryer: 0, setrika: 0 },
+    kering_saja: { washer: 0, dryer: 1, setrika: 0 },
+    cuci_kering: { washer: 1, dryer: 1, setrika: 0 },
+    cuci_kering_lipat: { washer: 1, dryer: 1, setrika: 0 },
+    cuci_kering_setrika: { washer: 1, dryer: 1, setrika: 1 },
+    setrika_saja: { washer: 0, dryer: 0, setrika: 1 }
+  };
+  return map[key] || { washer: 0, dryer: 0, setrika: 0 };
+}
+
+function getDashboardPotensiOmsetSummary(cabangId) {
+  try {
+    var fixedCostRes = getDashboardFixedCostSummary(cabangId);
+    var hppRes = getDashboardHPPSummary(cabangId);
+    var hargaRes = getDashboardHargaLayananSummary(cabangId);
+    var cabangRes = getDashboardCabangSummary(cabangId);
+
+    var warnings = [];
+    var fixedCostPerBulan = 0;
+    if (fixedCostRes && fixedCostRes.ok && fixedCostRes.data) {
+      fixedCostPerBulan = dashboardNumber_(fixedCostRes.data.totalFixedCostPerBulan, 0);
+    } else {
+      warnings.push("Fixed cost belum diisi.");
+    }
+
+    var hppByKey = {};
+    if (hppRes && hppRes.ok && hppRes.data && hppRes.data.rows && hppRes.data.rows.length) {
+      dashboardArray_(hppRes.data.rows[0].layananList).forEach(function (svc) {
+        if (svc && svc.key) hppByKey[svc.key] = svc;
+      });
+    } else {
+      warnings.push("HPP belum tersedia.");
+    }
+
+    var hargaLayananItems = [];
+    if (hargaRes && hargaRes.ok && hargaRes.data && hargaRes.data.rows && hargaRes.data.rows.length) {
+      var hargaRow = hargaRes.data.rows[0];
+      if (hargaRow && typeof getHargaLayanan === "function") {
+        var detailRes = getHargaLayanan(hargaRow.cabangId);
+        if (detailRes && detailRes.ok && detailRes.data && detailRes.data.layanan) {
+          hargaLayananItems = detailRes.data.layanan;
+        }
+      }
+    }
+
+    // Bed Cover sengaja tidak masuk (basisnya per item, bukan per load -
+    // tidak sebanding dgn kalkulasi bottleneck load-equivalent di bawah).
+    var activeServices = [];
+    hargaLayananItems.forEach(function (item) {
+      if (!item || !item.key || item.key === "bed_cover") return;
+      var hppSvc = hppByKey[item.key];
+      var harga = bepEffectiveHarga_(item);
+      var hpp = hppSvc ? dashboardNumber_(hppSvc.total, 0) : bepEffectiveHpp_(item);
+      if (harga > 0 && hpp > 0) {
+        activeServices.push({ key: item.key, title: item.title || item.key, harga: harga, hpp: hpp });
+      }
+    });
+
+    var activeKeys = activeServices.map(function (s) { return s.key; });
+    var mix = getBepServiceMix_(cabangId, activeKeys);
+
+    var rataHPP = 0;
+    var rataHarga = 0;
+    activeServices.forEach(function (s) {
+      var pct = dashboardNumber_(mix[s.key], 0) / 100;
+      rataHPP += s.hpp * pct;
+      rataHarga += s.harga * pct;
+    });
+    rataHPP = dashboardRound2_(rataHPP);
+    rataHarga = dashboardRound2_(rataHarga);
+
+    if (rataHarga <= 0) warnings.push("Harga jual belum diisi.");
+    if (rataHPP <= 0) warnings.push("HPP belum bisa dihitung.");
+
+    // Kapasitas mentah mesin cuci & pengering (load/bulan, okupansi sudah
+    // termasuk) - persis field yang sama dipakai kartu Profil Outlet.
+    var cabangRow = (cabangRes && cabangRes.ok && cabangRes.data && cabangRes.data.rows && cabangRes.data.rows.length)
+      ? cabangRes.data.rows[0] : null;
+    var washerCapacityPerBulan = cabangRow ? dashboardNumber_(cabangRow.loadCuciPerBulan, 0) : 0;
+    var dryerCapacityPerBulan = cabangRow ? dashboardNumber_(cabangRow.loadKeringPerBulan, 0) : 0;
+
+    // Kapasitas setrika aslinya kg/jam (bukan "load") - dikonversi ke
+    // load-equivalent/bulan lewat kapasitasKgPerLoad, anchor yang sama dipakai
+    // semua konversi per-Kg <-> per-Load di Modul_StrukturBiayaHPP.gs.
+    var setrikaCapacityPerBulan = 0;
+    var kapasitasKgPerLoad = 0;
+    if (typeof getStrukturBiayaHPP === "function") {
+      var hppFullRes = getStrukturBiayaHPP(cabangId);
+      if (hppFullRes && hppFullRes.ok && hppFullRes.data && hppFullRes.data.konversi) {
+        kapasitasKgPerLoad = dashboardNumber_(hppFullRes.data.konversi.kapasitasKgPerLoad, 0);
+      }
+    }
+    if (cabangRow && kapasitasKgPerLoad > 0) {
+      var totalMenitPerHari = dashboardNumber_(cabangRow.jamTutupMenit, 0) - dashboardNumber_(cabangRow.jamBukaMenit, 0);
+      if (totalMenitPerHari < 0) totalMenitPerHari += 24 * 60;
+      var totalJamPerHari = totalMenitPerHari / 60;
+      var okupansiSetrikaFraksi = Math.max(0, Math.min(100, dashboardNumber_(cabangRow.okupansiSetrika, 0))) / 100;
+      var kapasitasSetrikaKgPerJam = dashboardNumber_(cabangRow.kapasitasSetrikaKgPerJam, 0);
+      var setrikaKgPerBulan = kapasitasSetrikaKgPerJam * okupansiSetrikaFraksi * totalJamPerHari * 30;
+      setrikaCapacityPerBulan = dashboardRound2_(setrikaKgPerBulan / kapasitasKgPerLoad);
+    }
+
+    var capacityByMachine = { washer: washerCapacityPerBulan, dryer: dryerCapacityPerBulan, setrika: setrikaCapacityPerBulan };
+
+    // usageShare = total mix% layanan aktif yang memakai mesin tsb.
+    var usageShare = { washer: 0, dryer: 0, setrika: 0 };
+    activeServices.forEach(function (s) {
+      var usage = bepMachineUsageMap_(s.key);
+      var pct = dashboardNumber_(mix[s.key], 0) / 100;
+      usageShare.washer += usage.washer * pct;
+      usageShare.dryer += usage.dryer * pct;
+      usageShare.setrika += usage.setrika * pct;
+    });
+
+    // Total transaksi maksimum = dibatasi mesin paling cepat "penuh"
+    // (bottleneck), bukan penjumlahan sederhana semua kapasitas mesin.
+    var candidateLoads = [];
+    ["washer", "dryer", "setrika"].forEach(function (m) {
+      if (usageShare[m] > 0 && capacityByMachine[m] > 0) {
+        candidateLoads.push(capacityByMachine[m] / usageShare[m]);
+      }
+    });
+
+    var maksimalTransaksiPerBulan = candidateLoads.length ? dashboardRound2_(Math.min.apply(null, candidateLoads)) : 0;
+    if (!maksimalTransaksiPerBulan) {
+      warnings.push("Kapasitas mesin belum bisa dihitung - cek Profil Outlet & konversi kapasitas kg per load.");
+    }
+
+    var estimasiOmsetPerBulan = dashboardRound2_(rataHarga * maksimalTransaksiPerBulan);
+    var estimasiBiayaProduksiPerBulan = dashboardRound2_(rataHPP * maksimalTransaksiPerBulan);
+    var estimasiProfitPerBulan = dashboardRound2_(estimasiOmsetPerBulan - estimasiBiayaProduksiPerBulan - fixedCostPerBulan);
+
+    return {
+      ok: true,
+      data: {
+        maksimalTransaksiPerBulan: maksimalTransaksiPerBulan,
+        rataHPP: rataHPP,
+        rataHarga: rataHarga,
+        fixedCostPerBulan: fixedCostPerBulan,
         estimasiOmsetPerBulan: estimasiOmsetPerBulan,
         estimasiBiayaProduksiPerBulan: estimasiBiayaProduksiPerBulan,
         estimasiProfitPerBulan: estimasiProfitPerBulan,
@@ -848,10 +994,10 @@ function getDashboardBEPSummary(cabangId) {
           return { key: s.key, title: s.title, percent: dashboardRound2_(mix[s.key] || 0) };
         }),
         warnings: warnings,
-        isComplete: warnings.length === 0
+        isComplete: warnings.length === 0 && maksimalTransaksiPerBulan > 0
       }
     };
   } catch (err) {
-    return dashboardError_(err, "getDashboardBEPSummary");
+    return dashboardError_(err, "getDashboardPotensiOmsetSummary");
   }
 }
