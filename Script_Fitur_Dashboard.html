@@ -126,6 +126,7 @@ menjalankan bootApp().
    */
   var DASHBOARD_OUTLET_STORAGE_KEY = "dashboardSelectedOutletId";
   var dashboardSelectedOutletId = null;
+  var bepMixCurrentServices = [];
 
   function getStoredOutletId_() {
     try {
@@ -711,8 +712,14 @@ menjalankan bootApp().
         var warnings = Array.isArray(d.warnings) ? d.warnings : [];
         var html = "";
 
+        bepMixCurrentServices = Array.isArray(d.serviceMix) ? d.serviceMix : [];
+        var mixBtnHtml = bepMixCurrentServices.length > 1
+          ? '<button type="button" class="bep-mix-btn" onclick="openBepMix()">Atur %</button>'
+          : '';
+
         if (d.bepLoadPerBulan <= 0) {
           html = '<div class="bep-incomplete">' +
+            (mixBtnHtml ? '<div class="bep-incomplete-top">' + mixBtnHtml + '</div>' : '') +
             '<div class="bep-incomplete-title">Data belum lengkap</div>' +
             '<div class="bep-incomplete-list">' +
               warnings.map(function(w) { return '<span>' + escapeHtml(w) + '</span>'; }).join("") +
@@ -720,9 +727,20 @@ menjalankan bootApp().
           '</div>';
         } else {
           var chartSvg = buildBepChartSvg(d);
+          var estimateHtml = d.loadKapasitasPerBulan > 0
+            ? '<div class="bep-estimate">' +
+                '<div class="bep-estimate-title">Estimasi Potensi Bulanan <span class="bep-estimate-hint">&middot; kapasitas penuh</span></div>' +
+                '<div class="bep-estimate-row"><span class="bep-estimate-label">Estimasi Omset</span><span class="bep-estimate-value">' + money0(d.estimasiOmsetPerBulan) + '</span></div>' +
+                '<div class="bep-estimate-row"><span class="bep-estimate-label">Estimasi Biaya Produksi</span><span class="bep-estimate-value bep-estimate-cost">' + money0(d.estimasiBiayaProduksiPerBulan) + '</span></div>' +
+                '<div class="bep-estimate-row bep-estimate-row-profit"><span class="bep-estimate-label">Estimasi Profit</span><span class="bep-estimate-value ' + (d.estimasiProfitPerBulan >= 0 ? 'bep-estimate-profit-pos' : 'bep-estimate-profit-neg') + '">' + money0(d.estimasiProfitPerBulan) + '</span></div>' +
+              '</div>'
+            : '';
           html = '<div class="bep-card">' +
             '<div class="bep-hero">' +
-              '<span class="bep-hero-label">Target Break Even</span>' +
+              '<div class="bep-hero-top">' +
+                '<span class="bep-hero-label">Target Break Even</span>' +
+                mixBtnHtml +
+              '</div>' +
               '<div class="bep-hero-row">' +
                 '<span class="bep-hero-value">' + escapeHtml(formatNum(d.bepLoadPerBulan, 0)) + '</span>' +
                 '<span class="bep-hero-unit">load/bulan</span>' +
@@ -760,11 +778,83 @@ menjalankan bootApp().
                 '</div>' +
               '</div>' +
             '</div>' +
+            estimateHtml +
             (warnings.length > 0 ? '<div class="bep-warning">' + warnings.map(function(w) { return escapeHtml(w); }).join(" · ") + '</div>' : "") +
           '</div>';
         }
         setDashboardCardHtml("dashboardBEPSummary", html);
   }
+
+  window.openBepMix = function () {
+    if (!dashboardSelectedOutletId || !bepMixCurrentServices.length) return;
+    renderBepMixList_();
+    var overlay = document.getElementById("bepMixOverlay");
+    if (overlay) overlay.classList.add("show");
+  };
+
+  window.closeBepMix = function () {
+    var overlay = document.getElementById("bepMixOverlay");
+    if (overlay) overlay.classList.remove("show");
+  };
+
+  function renderBepMixList_() {
+    var container = document.getElementById("bepMixList");
+    if (!container) return;
+    container.innerHTML = bepMixCurrentServices.map(function (s) {
+      return '<div class="bep-mix-row">' +
+        '<span class="bep-mix-row-title">' + escapeHtml(s.title || s.key) + '</span>' +
+        '<div class="bep-mix-row-input">' +
+          '<input type="number" min="0" max="100" step="1" value="' + escapeHtml(String(s.percent || 0)) + '" data-bep-mix-key="' + escapeJsAttr(s.key) + '" oninput="updateBepMixTotal()">' +
+          '<span class="bep-mix-row-percent-sign">%</span>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    updateBepMixTotal();
+  }
+
+  window.updateBepMixTotal = function () {
+    var inputs = document.querySelectorAll('#bepMixList input[data-bep-mix-key]');
+    var total = 0;
+    inputs.forEach(function (inp) { total += toNumber(inp.value, 0); });
+    var totalEl = document.getElementById("bepMixTotal");
+    if (!totalEl) return;
+    var rounded = round2(total);
+    var isOk = Math.round(total) === 100;
+    totalEl.textContent = "Total: " + formatNum(rounded, 0) + "%" + (isOk ? "" : " (akan dinormalisasi otomatis ke 100%)");
+    totalEl.className = "bep-mix-total" + (isOk ? " is-ok" : "");
+  };
+
+  window.saveBepMix = function () {
+    if (!dashboardSelectedOutletId) return;
+    var inputs = document.querySelectorAll('#bepMixList input[data-bep-mix-key]');
+    var mixMap = {};
+    inputs.forEach(function (inp) {
+      mixMap[inp.getAttribute("data-bep-mix-key")] = toNumber(inp.value, 0);
+    });
+
+    var saveBtn = document.getElementById("bepMixSaveBtn");
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Menyimpan..."; }
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Simpan"; }
+        if (!res || !res.ok) {
+          handleBackendError(res, "menyimpan mix kontribusi layanan BEP");
+          return;
+        }
+        showToast("Mix kontribusi layanan berhasil disimpan.", "ok");
+        closeBepMix();
+        refreshDashboard(true);
+      })
+      .withFailureHandler(function (err) {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Simpan"; }
+        handleBackendError(
+          { error: err && err.message ? err.message : String(err), stage: "client:saveBepServiceMix" },
+          "menyimpan mix kontribusi layanan BEP"
+        );
+      })
+      .saveBepServiceMix(dashboardSelectedOutletId, mixMap);
+  };
 
   window.openScreenCabangList = function () {
     showScreen("list");

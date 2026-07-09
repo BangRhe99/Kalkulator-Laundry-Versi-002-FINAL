@@ -221,6 +221,18 @@ RIWAYAT PEMECAHAN FILE INI:
     </div>
   </div>
 </div>
+<div class="confirm-overlay" id="bepMixOverlay">
+  <div class="confirm-box bep-mix-box">
+    <h3>Atur Kontribusi % Layanan</h3>
+    <p class="bep-mix-desc">Perkiraan porsi tiap layanan dari total transaksi bulanan Anda. Dipakai untuk menghitung rata-rata HPP &amp; harga jual pada Target Titik Impas (BEP).</p>
+    <div class="bep-mix-list" id="bepMixList"></div>
+    <div class="bep-mix-total" id="bepMixTotal"></div>
+    <div class="confirm-actions">
+      <button class="btn-secondary" onclick="closeBepMix()">Batal</button>
+      <button class="btn-primary" id="bepMixSaveBtn" onclick="saveBepMix()">Simpan</button>
+    </div>
+  </div>
+</div>
 
 <?!= include('Script_Boot_Diagnostics') ?>
 <?!= include('Script_Shared_Util') ?>

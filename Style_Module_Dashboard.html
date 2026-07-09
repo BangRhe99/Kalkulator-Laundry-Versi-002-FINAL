@@ -502,6 +502,31 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     padding-bottom: 2px;
   }
 
+  .bep-hero-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .bep-mix-btn {
+    flex-shrink: 0;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 11px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .bep-mix-btn:hover { border-color: var(--sage-dim); color: var(--sage); }
+
+  .bep-incomplete-top {
+    display: flex;
+    justify-content: flex-end;
+  }
+
   .bep-hero-label {
     font-size: 10px;
     font-weight: 600;
@@ -670,6 +695,125 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     font-size: 11px;
     color: var(--text-faint);
   }
+
+  .bep-estimate {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--panel-2);
+    border-radius: var(--radius);
+    padding: 12px;
+    margin-top: 2px;
+  }
+
+  .bep-estimate-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+    margin-bottom: 2px;
+  }
+
+  .bep-estimate-hint {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  .bep-estimate-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 12.5px;
+  }
+
+  .bep-estimate-label { color: var(--text-dim); }
+
+  .bep-estimate-value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  .bep-estimate-cost { color: var(--brass); }
+
+  .bep-estimate-row-profit {
+    padding-top: 6px;
+    margin-top: 2px;
+    border-top: 1px dashed var(--border);
+  }
+
+  .bep-estimate-row-profit .bep-estimate-label { font-weight: 600; }
+
+  .bep-estimate-profit-pos { color: var(--sage); font-size: 14px; }
+  .bep-estimate-profit-neg { color: var(--red); font-size: 14px; }
+
+  .bep-mix-box {
+    max-width: 380px;
+  }
+
+  .bep-mix-desc {
+    font-size: 12px;
+    color: var(--text-faint);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .bep-mix-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+
+  .bep-mix-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .bep-mix-row-title {
+    font-size: 13px;
+    color: var(--text-dim);
+    flex: 1;
+    min-width: 0;
+  }
+
+  .bep-mix-row-input {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .bep-mix-row-input input {
+    width: 56px;
+    text-align: right;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bep-mix-row-percent-sign {
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+
+  .bep-mix-total {
+    margin-top: 12px;
+    font-size: 11.5px;
+    color: var(--brass);
+    text-align: right;
+  }
+
+  .bep-mix-total.is-ok { color: var(--sage); }
   /* === END BEP CARD === */
 
   /* === MASTER BIAYA CARD === */

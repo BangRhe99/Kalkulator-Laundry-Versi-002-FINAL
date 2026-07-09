@@ -637,16 +637,109 @@ function getDashboardFixedCostSummary(cabangId) {
  * - Rata-rata HPP per load (semua layanan)
  * - Rata-rata harga jual per load (semua layanan)
  */
+// ----------------------------------------------------------------------------
+// BEP: mix kontribusi % per layanan aktif -- dipakai supaya rataHPP & rataHarga
+// dihitung dengan metode SAMA (weighted average), bukan lagi rataHPP pakai
+// midpoint min-max sedang rataHarga pakai rata-rata biasa (itu penyebab
+// margin bisa jadi negatif tiba-tiba cuma gara-gara 1 layanan di-toggle).
+// Default (belum pernah diatur user): rata sama besar antar layanan aktif.
+// ----------------------------------------------------------------------------
+
+function getBepMixKey_(cabangId) {
+  return "bepMix_" + cabangId;
+}
+
+function getBepServiceMix_(cabangId, activeKeys) {
+  var defaultMix = {};
+  var n = activeKeys.length;
+  activeKeys.forEach(function (key) {
+    defaultMix[key] = n > 0 ? dashboardRound2_(100 / n) : 0;
+  });
+
+  try {
+    var sheet = ensureDataSheet_();
+    var raw = readKey_(sheet, getBepMixKey_(cabangId));
+    if (!raw) return defaultMix;
+
+    var parsed = JSON.parse(raw);
+    var storedMix = parsed && parsed.mix ? parsed.mix : null;
+    if (!storedMix) return defaultMix;
+
+    // Kalau daftar layanan aktif berubah sejak mix terakhir disimpan (toggle
+    // di-nonaktifkan/aktifkan, kategori outlet berubah, dst), mix lama sudah
+    // tidak relevan lagi -> balik ke default rata sama besar.
+    var storedKeys = Object.keys(storedMix).sort().join(",");
+    var currentKeys = activeKeys.slice().sort().join(",");
+    if (storedKeys !== currentKeys) return defaultMix;
+
+    return storedMix;
+  } catch (err) {
+    return defaultMix;
+  }
+}
+
+function saveBepServiceMix(cabangId, mixMap) {
+  try {
+    var cleanId = typeof cabangId === "string" ? cabangId.trim() : "";
+    if (!cleanId) {
+      return { ok: false, error: "ID cabang tidak valid.", stage: "saveBepServiceMix:validate_cabang_id" };
+    }
+    if (!mixMap || typeof mixMap !== "object") {
+      return { ok: false, error: "Data mix tidak valid.", stage: "saveBepServiceMix:validate_mix" };
+    }
+
+    var cleanMix = {};
+    var total = 0;
+    Object.keys(mixMap).forEach(function (key) {
+      var val = Math.max(0, dashboardNumber_(mixMap[key], 0));
+      cleanMix[key] = val;
+      total += val;
+    });
+
+    if (total <= 0) {
+      return { ok: false, error: "Total persen mix harus lebih dari 0.", stage: "saveBepServiceMix:validate_total" };
+    }
+
+    // Sanitize: normalisasi otomatis ke total 100% (kalau user isi tidak
+    // pas 100, misal 98 atau 103), supaya tidak perlu tolak dengan error.
+    Object.keys(cleanMix).forEach(function (key) {
+      cleanMix[key] = dashboardRound2_((cleanMix[key] / total) * 100);
+    });
+
+    var sheet = ensureDataSheet_();
+    writeKey_(sheet, getBepMixKey_(cleanId), JSON.stringify({
+      mix: cleanMix,
+      updatedAt: new Date().toISOString()
+    }));
+
+    return { ok: true, data: { cabangId: cleanId, mix: cleanMix } };
+  } catch (err) {
+    return dashboardError_(err, "saveBepServiceMix");
+  }
+}
+
+function bepEffectiveHarga_(item) {
+  if (item.hargaJualPerLoad !== undefined) return dashboardNumber_(item.hargaJualPerLoad, 0);
+  if (item.hargaJualPerJam !== undefined) return dashboardNumber_(item.hargaJualPerJam, 0);
+  return dashboardNumber_(item.hargaJual, 0);
+}
+
+function bepEffectiveHpp_(item) {
+  if (item.hppPerLoad !== undefined) return dashboardNumber_(item.hppPerLoad, 0);
+  if (item.hppPerJam !== undefined) return dashboardNumber_(item.hppPerJam, 0);
+  return dashboardNumber_(item.hpp, 0);
+}
+
 function getDashboardBEPSummary(cabangId) {
   try {
     var fixedCostRes = getDashboardFixedCostSummary(cabangId);
     var hppRes = getDashboardHPPSummary(cabangId);
     var hargaRes = getDashboardHargaLayananSummary(cabangId);
+    var cabangRes = getDashboardCabangSummary(cabangId);
 
     var warnings = [];
     var fixedCostPerBulan = 0;
-    var rataHPP = 0;
-    var rataHarga = 0;
+    var loadKapasitasPerBulan = 0;
 
     // Ambil fixed cost
     if (fixedCostRes && fixedCostRes.ok && fixedCostRes.data) {
@@ -655,32 +748,62 @@ function getDashboardBEPSummary(cabangId) {
       warnings.push("Fixed cost belum diisi.");
     }
 
-    // Ambil rata-rata HPP dari semua layanan
+    // Ambil kapasitas cuci/bulan (dari Profil Outlet) untuk basis estimasi
+    // potensi omset/profit di kapasitas penuh.
+    if (cabangRes && cabangRes.ok && cabangRes.data && cabangRes.data.rows && cabangRes.data.rows.length) {
+      loadKapasitasPerBulan = dashboardNumber_(cabangRes.data.rows[0].loadCuciPerBulan, 0);
+    }
+
+    // Ambil HPP per layanan (key -> total HPP)
+    var hppByKey = {};
     if (hppRes && hppRes.ok && hppRes.data && hppRes.data.rows && hppRes.data.rows.length) {
       var hppRow = hppRes.data.rows[0];
-      if (hppRow.hppMin > 0 && hppRow.hppMax > 0) {
-        rataHPP = dashboardRound2_((hppRow.hppMin + hppRow.hppMax) / 2);
-      } else if (hppRow.hppCuciKering > 0) {
-        rataHPP = hppRow.hppCuciKering;
-      }
+      dashboardArray_(hppRow.layananList).forEach(function (svc) {
+        if (svc && svc.key) hppByKey[svc.key] = svc;
+      });
     } else {
       warnings.push("HPP belum tersedia.");
     }
 
-    // Ambil rata-rata harga jual dari semua layanan
+    // Ambil harga jual per layanan
+    var hargaLayananItems = [];
     if (hargaRes && hargaRes.ok && hargaRes.data && hargaRes.data.rows && hargaRes.data.rows.length) {
       var hargaRow = hargaRes.data.rows[0];
       if (hargaRow && typeof getHargaLayanan === "function") {
         var detailRes = getHargaLayanan(hargaRow.cabangId);
         if (detailRes && detailRes.ok && detailRes.data && detailRes.data.layanan) {
-          var layanan = detailRes.data.layanan.filter(function(l) { return l.hargaJual > 0; });
-          if (layanan.length > 0) {
-            var totalHarga = layanan.reduce(function(sum, l) { return sum + dashboardNumber_(l.hargaJual, 0); }, 0);
-            rataHarga = dashboardRound2_(totalHarga / layanan.length);
-          }
+          hargaLayananItems = detailRes.data.layanan;
         }
       }
     }
+
+    // Layanan aktif utk BEP = layanan yang punya HPP DAN harga jual > 0
+    var activeServices = [];
+    hargaLayananItems.forEach(function (item) {
+      if (!item || !item.key) return;
+      var hppSvc = hppByKey[item.key];
+      var harga = bepEffectiveHarga_(item);
+      var hpp = hppSvc ? dashboardNumber_(hppSvc.total, 0) : bepEffectiveHpp_(item);
+      if (harga > 0 && hpp > 0) {
+        activeServices.push({ key: item.key, title: item.title || item.key, harga: harga, hpp: hpp });
+      }
+    });
+
+    var activeKeys = activeServices.map(function (s) { return s.key; });
+    var mix = getBepServiceMix_(cabangId, activeKeys);
+
+    // rataHPP & rataHarga dihitung dengan METODE YANG SAMA: weighted average
+    // pakai persen mix kontribusi tiap layanan (bukan lagi midpoint min-max
+    // vs rata-rata biasa yang tidak konsisten).
+    var rataHPP = 0;
+    var rataHarga = 0;
+    activeServices.forEach(function (s) {
+      var pct = dashboardNumber_(mix[s.key], 0) / 100;
+      rataHPP += s.hpp * pct;
+      rataHarga += s.harga * pct;
+    });
+    rataHPP = dashboardRound2_(rataHPP);
+    rataHarga = dashboardRound2_(rataHarga);
 
     if (rataHarga <= 0) warnings.push("Harga jual belum diisi.");
     if (rataHPP <= 0) warnings.push("HPP belum bisa dihitung.");
@@ -697,6 +820,13 @@ function getDashboardBEPSummary(cabangId) {
       warnings.push("Margin per load negatif atau nol — harga jual lebih rendah dari HPP.");
     }
 
+    // Estimasi potensi bulanan di KAPASITAS PENUH outlet (bukan cuma titik
+    // impas) - pakai kapasitas cuci/bulan dari Profil Outlet x rataHarga/HPP
+    // hasil weighted mix yang sama.
+    var estimasiOmsetPerBulan = dashboardRound2_(rataHarga * loadKapasitasPerBulan);
+    var estimasiBiayaProduksiPerBulan = dashboardRound2_(rataHPP * loadKapasitasPerBulan);
+    var estimasiProfitPerBulan = dashboardRound2_(estimasiOmsetPerBulan - estimasiBiayaProduksiPerBulan - fixedCostPerBulan);
+
     return {
       ok: true,
       data: {
@@ -710,6 +840,13 @@ function getDashboardBEPSummary(cabangId) {
         bepOmsetPerMinggu: dashboardRound2_(bepOmsetPerBulan / 4),
         bepLoadPerHari: dashboardRound2_(bepLoadPerBulan / 30),
         bepOmsetPerHari: dashboardRound2_(bepOmsetPerBulan / 30),
+        loadKapasitasPerBulan: loadKapasitasPerBulan,
+        estimasiOmsetPerBulan: estimasiOmsetPerBulan,
+        estimasiBiayaProduksiPerBulan: estimasiBiayaProduksiPerBulan,
+        estimasiProfitPerBulan: estimasiProfitPerBulan,
+        serviceMix: activeServices.map(function (s) {
+          return { key: s.key, title: s.title, percent: dashboardRound2_(mix[s.key] || 0) };
+        }),
         warnings: warnings,
         isComplete: warnings.length === 0
       }
