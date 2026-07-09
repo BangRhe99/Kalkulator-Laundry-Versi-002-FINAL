@@ -495,18 +495,52 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     width: 100%;
   }
 
-  .bep-hero {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding-bottom: 2px;
+  .bep-hero-row-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
 
-  .bep-hero-top {
+  .bep-hero-item {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--panel-2);
+    border-radius: var(--radius);
+    padding: 12px;
+  }
+
+  .bep-hero-item-label {
+    font-size: 9.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+  }
+
+  .bep-hero-item-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+  }
+
+  .bep-hero-item-value-omset {
+    font-size: 17px;
+    color: var(--sage);
+  }
+
+  .bep-hero-item-unit {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-faint);
+    margin-left: 4px;
+  }
+
+  .bep-incomplete-top {
+    display: flex;
+    justify-content: flex-end;
   }
 
   .bep-mix-btn {
@@ -521,55 +555,6 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     cursor: pointer;
   }
   .bep-mix-btn:hover { border-color: var(--sage-dim); color: var(--sage); }
-
-  .bep-incomplete-top {
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  .bep-hero-label {
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-faint);
-  }
-
-  .bep-hero-row {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-  }
-
-  .bep-hero-value {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--text);
-    font-variant-numeric: tabular-nums;
-    line-height: 1.1;
-  }
-
-  .bep-hero-unit {
-    font-size: 12.5px;
-    font-weight: 500;
-    color: var(--text-faint);
-  }
-
-  .bep-hero-omset {
-    display: flex;
-    align-items: baseline;
-    gap: 5px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--sage);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .bep-hero-omset-label {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--text-faint);
-  }
 
   .bep-chart-wrap {
     background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);

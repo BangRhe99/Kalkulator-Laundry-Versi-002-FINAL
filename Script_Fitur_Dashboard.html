@@ -725,15 +725,14 @@ menjalankan bootApp().
         } else {
           var chartSvg = buildBepChartSvg(d);
           html = '<div class="bep-card">' +
-            '<div class="bep-hero">' +
-              '<span class="bep-hero-label">Target Break Even</span>' +
-              '<div class="bep-hero-row">' +
-                '<span class="bep-hero-value">' + escapeHtml(formatNum(d.bepLoadPerBulan, 0)) + '</span>' +
-                '<span class="bep-hero-unit">load/bulan</span>' +
+            '<div class="bep-hero-row-cards">' +
+              '<div class="bep-hero-item">' +
+                '<span class="bep-hero-item-label">Target BEP Load</span>' +
+                '<div class="bep-hero-item-value">' + escapeHtml(formatNum(d.bepLoadPerBulan, 0)) + '<span class="bep-hero-item-unit">load/bulan</span></div>' +
               '</div>' +
-              '<div class="bep-hero-omset">' +
-                '<span>' + money0(d.bepOmsetPerBulan) + '</span>' +
-                '<span class="bep-hero-omset-label">omset/bulan</span>' +
+              '<div class="bep-hero-item">' +
+                '<span class="bep-hero-item-label">Target BEP Omset</span>' +
+                '<div class="bep-hero-item-value bep-hero-item-value-omset">' + money0(d.bepOmsetPerBulan) + '</div>' +
               '</div>' +
             '</div>' +
             (chartSvg ? '<div class="bep-chart-wrap">' + chartSvg +
