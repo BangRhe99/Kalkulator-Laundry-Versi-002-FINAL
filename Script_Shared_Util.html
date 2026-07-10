@@ -175,6 +175,13 @@ menjalankan bootApp().
     item.classList.toggle("is-open");
   }
 
+  window.togglePotensiBasisNote = function (head, evt) {
+    if (evt) evt.stopPropagation();
+    var note = head.closest(".potensi-basis-note");
+    if (!note) return;
+    note.classList.toggle("is-open");
+  }
+
   function buildBepChartSvg(d) {
     var fixedCost = Number(d.fixedCostPerBulan) || 0;
     var hpp = Number(d.rataHPP) || 0;

@@ -895,20 +895,49 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     border: 1px solid var(--border);
   }
 
+  .potensi-basis-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    cursor: pointer;
+  }
+
   .potensi-basis-title {
     font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--text-faint);
-    margin-bottom: 4px;
   }
 
+  .potensi-basis-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+  }
+
+  .potensi-basis-note.is-open .potensi-basis-arrow { transform: rotate(180deg); }
+
   .potensi-basis-text {
+    display: none;
     font-size: 11px;
     line-height: 1.55;
     color: var(--text-dim);
+    margin-top: 8px;
   }
+
+  .potensi-basis-note.is-open .potensi-basis-text { display: block; }
 
   .potensi-basis-text b { color: var(--text); font-weight: 600; }
   /* === END POTENSI OMSET CARD === */

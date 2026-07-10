@@ -825,7 +825,10 @@ menjalankan bootApp().
             '</div>' : '') +
             (warnings.length > 0 ? '<div class="bep-warning">' + warnings.map(function(w) { return escapeHtml(w); }).join(" · ") + '</div>' : "") +
             '<div class="potensi-basis-note">' +
-              '<div class="potensi-basis-title">Dasar Perhitungan</div>' +
+              '<div class="potensi-basis-head" onclick="togglePotensiBasisNote(this, event)">' +
+                '<span class="potensi-basis-title">Dasar Perhitungan</span>' +
+                '<span class="potensi-basis-arrow">&#9662;</span>' +
+              '</div>' +
               '<div class="potensi-basis-text">' +
                 'Outlet ini diperkirakan sanggup melayani maksimal <b>' + formatNum(d.maksimalTransaksiPerBulan, 0) + ' transaksi/bulan</b>, dibatasi mesin (cuci/pengering/setrika) yang paling cepat penuh sesuai campuran Kontribusi % tiap layanan. Jumlah transaksi itu dibagi ke tiap layanan sesuai Kontribusi %-nya, dikonversi ke Kg pakai Minimum Order (utk layanan Kiloan), lalu dikalikan Harga Layanan (jadi Estimasi Omset) dan HPP (jadi Estimasi Biaya Produksi). Estimasi Profit = Omset &minus; Biaya Produksi &minus; Biaya Operasional.' +
               '</div>' +
