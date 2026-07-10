@@ -23,6 +23,7 @@ menjalankan bootApp().
   function bootApp() {
     var loadingEl = document.getElementById("loadingState");
     var appRootEl = document.getElementById("appRoot");
+    var authRootEl = document.getElementById("authRoot");
 
     try {
       initTimeSelects();
@@ -33,9 +34,17 @@ menjalankan bootApp().
       bindListrikFormInputs();
 
       if (loadingEl) loadingEl.style.display = "none";
-      if (appRootEl) appRootEl.style.display = "block";
 
-      showScreen("menu");
+      // Gerbang login: kalau belum pernah login sukses (localStorage kosong),
+      // tampilkan layar Masuk/Daftar dulu (#authRoot), BUKAN langsung
+      // Dashboard - lihat Script_Fitur_Auth.html (isAuthLoggedIn/authGoTo/
+      // authEnterApp_).
+      if (typeof isAuthLoggedIn === "function" && isAuthLoggedIn() && typeof authEnterApp_ === "function") {
+        authEnterApp_();
+      } else {
+        if (authRootEl) authRootEl.style.display = "flex";
+        if (typeof authGoTo === "function") authGoTo("login");
+      }
     } catch (err) {
       var detail =
         "Message: " + (err && err.message ? err.message : String(err)) +

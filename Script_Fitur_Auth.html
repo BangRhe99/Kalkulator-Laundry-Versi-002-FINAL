@@ -1,0 +1,220 @@
+<!--
+===============================================================================
+FILE: Script_Fitur_Auth.html
+PROJECT: Kalkulator Laundry Versi 002
+ISI: Fitur Masuk / Daftar / Verifikasi OTP (#authRoot)
+
+FUNGSI:
+Validasi form, panggil registerUser/verifyOtp/resendOtp/loginUser (Modul_Auth.gs),
+pindah antar 3 layar auth (authGoTo), simpan status login di localStorage
+(BUKAN keamanan sungguhan - browser bisa dimanipulasi user sendiri via
+DevTools, cuma penanda UI supaya tidak perlu login ulang tiap buka app).
+
+Include SEBELUM Script_Boot_Main.html (bootApp() manggil isAuthLoggedIn()
+dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
+===============================================================================
+-->
+<script>
+"use strict";
+  var AUTH_STORAGE_KEY_ = "klAuthUserEmail";
+  var authPendingEmail_ = "";
+
+  function isAuthLoggedIn() {
+    try {
+      return !!window.localStorage.getItem(AUTH_STORAGE_KEY_);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function authSetLoggedIn_(email) {
+    try {
+      window.localStorage.setItem(AUTH_STORAGE_KEY_, email);
+    } catch (e) {}
+  }
+
+  function authClearLoggedIn_() {
+    try {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY_);
+    } catch (e) {}
+  }
+
+  window.authGoTo = function (name) {
+    ["authScreenLogin", "authScreenRegister", "authScreenOtp"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.remove("active");
+    });
+    var target = document.getElementById("authScreen" + name.charAt(0).toUpperCase() + name.slice(1));
+    if (target) target.classList.add("active");
+    ["authLoginError", "authRegisterError", "authOtpError"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = "none";
+    });
+  };
+
+  window.toggleAuthPassword = function (inputId, btn) {
+    var input = document.getElementById(inputId);
+    if (!input) return;
+    input.type = input.type === "password" ? "text" : "password";
+  };
+
+  function authShowError_(elId, message) {
+    var el = document.getElementById(elId);
+    if (!el) return;
+    el.textContent = message;
+    el.style.display = "block";
+  }
+
+  function authIsValidGmailClient_(email) {
+    var e = String(email || "").trim().toLowerCase();
+    var basicEmailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!basicEmailRe.test(e)) return false;
+    return e.slice(-10) === "@gmail.com";
+  }
+
+  window.submitAuthLogin = function () {
+    var emailEl = document.getElementById("authLoginEmail");
+    var passwordEl = document.getElementById("authLoginPassword");
+    var btn = document.getElementById("authLoginBtn");
+    var email = emailEl ? emailEl.value.trim() : "";
+    var password = passwordEl ? passwordEl.value : "";
+
+    if (!email || !password) {
+      authShowError_("authLoginError", "Email dan password wajib diisi.");
+      return;
+    }
+
+    if (btn) { btn.disabled = true; btn.textContent = "Memeriksa..."; }
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (btn) { btn.disabled = false; btn.textContent = "Masuk"; }
+        if (!res || !res.ok) {
+          authShowError_("authLoginError", (res && res.error) || "Gagal masuk.");
+          return;
+        }
+        authSetLoggedIn_(res.data.email);
+        authEnterApp_();
+      })
+      .withFailureHandler(function (err) {
+        if (btn) { btn.disabled = false; btn.textContent = "Masuk"; }
+        authShowError_("authLoginError", err && err.message ? err.message : String(err));
+      })
+      .loginUser(email, password);
+  };
+
+  window.submitAuthRegister = function () {
+    var emailEl = document.getElementById("authRegisterEmail");
+    var passwordEl = document.getElementById("authRegisterPassword");
+    var btn = document.getElementById("authRegisterBtn");
+    var email = emailEl ? emailEl.value.trim() : "";
+    var password = passwordEl ? passwordEl.value : "";
+
+    if (!authIsValidGmailClient_(email)) {
+      authShowError_("authRegisterError", "Email harus alamat Gmail yang valid (contoh: nama@gmail.com).");
+      return;
+    }
+    if (password.length < 6) {
+      authShowError_("authRegisterError", "Password minimal 6 karakter.");
+      return;
+    }
+
+    if (btn) { btn.disabled = true; btn.textContent = "Mengirim OTP..."; }
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (btn) { btn.disabled = false; btn.textContent = "Daftar"; }
+        if (!res || !res.ok) {
+          authShowError_("authRegisterError", (res && res.error) || "Gagal mendaftar.");
+          return;
+        }
+        authPendingEmail_ = res.data.email;
+        var label = document.getElementById("authOtpEmailLabel");
+        if (label) label.textContent = res.data.email;
+        var otpInput = document.getElementById("authOtpCode");
+        if (otpInput) otpInput.value = "";
+        authGoTo("otp");
+      })
+      .withFailureHandler(function (err) {
+        if (btn) { btn.disabled = false; btn.textContent = "Daftar"; }
+        authShowError_("authRegisterError", err && err.message ? err.message : String(err));
+      })
+      .registerUser(email, password);
+  };
+
+  window.submitAuthOtp = function () {
+    var codeEl = document.getElementById("authOtpCode");
+    var btn = document.getElementById("authOtpBtn");
+    var code = codeEl ? codeEl.value.trim() : "";
+
+    if (!/^\d{4}$/.test(code)) {
+      authShowError_("authOtpError", "Kode OTP harus 4 angka.");
+      return;
+    }
+
+    if (btn) { btn.disabled = true; btn.textContent = "Memverifikasi..."; }
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (btn) { btn.disabled = false; btn.textContent = "Verifikasi"; }
+        if (!res || !res.ok) {
+          authShowError_("authOtpError", (res && res.error) || "Verifikasi gagal.");
+          return;
+        }
+        var loginEmailEl = document.getElementById("authLoginEmail");
+        if (loginEmailEl) loginEmailEl.value = res.data.email;
+        authPendingEmail_ = "";
+        authGoTo("login");
+        if (typeof showToast === "function") showToast("Akun berhasil diverifikasi. Silakan masuk.", "ok");
+      })
+      .withFailureHandler(function (err) {
+        if (btn) { btn.disabled = false; btn.textContent = "Verifikasi"; }
+        authShowError_("authOtpError", err && err.message ? err.message : String(err));
+      })
+      .verifyOtp(authPendingEmail_, code);
+  };
+
+  window.resendAuthOtp = function () {
+    if (!authPendingEmail_) return;
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          authShowError_("authOtpError", (res && res.error) || "Gagal mengirim ulang OTP.");
+          return;
+        }
+        if (typeof showToast === "function") showToast("Kode OTP baru sudah dikirim.", "ok");
+      })
+      .withFailureHandler(function (err) {
+        authShowError_("authOtpError", err && err.message ? err.message : String(err));
+      })
+      .resendOtp(authPendingEmail_);
+  };
+
+  window.authLogout = function () {
+    authClearLoggedIn_();
+    var appRootEl = document.getElementById("appRoot");
+    var authRootEl = document.getElementById("authRoot");
+    var appHeaderEl = document.getElementById("appHeader");
+    var logoutBtnEl = document.getElementById("authLogoutBtn");
+    if (appRootEl) appRootEl.style.display = "none";
+    if (authRootEl) authRootEl.style.display = "flex";
+    if (appHeaderEl) appHeaderEl.style.display = "none";
+    if (logoutBtnEl) logoutBtnEl.style.display = "none";
+    var footerEl = document.getElementById("footerBar");
+    if (footerEl) footerEl.style.display = "none";
+    authGoTo("login");
+  };
+
+  // authEnterApp_: dipanggil setelah login sukses ATAU saat bootApp()
+  // mendeteksi sesi login masih ada (localStorage) - tampilkan #appRoot +
+  // header app + tombol Keluar, sembunyikan #authRoot, lanjut ke alur
+  // showScreen("menu") spt biasa.
+  function authEnterApp_() {
+    var appRootEl = document.getElementById("appRoot");
+    var authRootEl = document.getElementById("authRoot");
+    var appHeaderEl = document.getElementById("appHeader");
+    var logoutBtnEl = document.getElementById("authLogoutBtn");
+    if (authRootEl) authRootEl.style.display = "none";
+    if (appRootEl) appRootEl.style.display = "block";
+    if (appHeaderEl) appHeaderEl.style.display = "flex";
+    if (logoutBtnEl) logoutBtnEl.style.display = "inline-flex";
+    showScreen("menu");
+  }
+</script>

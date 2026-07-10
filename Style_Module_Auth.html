@@ -1,0 +1,154 @@
+<!--
+===============================================================================
+FILE: Style_Module_Auth.html
+PROJECT: Kalkulator Laundry Versi 002
+FUNGSI: Style khusus layar Masuk/Daftar/Verifikasi OTP (#authRoot).
+BATAS TANGGUNG JAWAB: hanya CSS fitur Auth, pakai token dari Style_Tokens.html.
+===============================================================================
+-->
+<style>
+  #authRoot {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px var(--app-edge-x);
+    background: var(--bg);
+  }
+
+  .auth-shell { width: 100%; max-width: 400px; }
+
+  .auth-screen { display: none; }
+  .auth-screen.active { display: block; }
+
+  .auth-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 32px 28px;
+    box-shadow: 0 10px 40px rgba(17, 24, 39, 0.08);
+    text-align: center;
+  }
+
+  .auth-logo {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    background: var(--sage-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .auth-logo svg {
+    width: 30px;
+    height: 30px;
+    fill: none;
+    stroke: var(--sage);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .auth-title {
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .auth-subtitle {
+    font-size: 12.5px;
+    color: var(--text-faint);
+    margin-bottom: 22px;
+    line-height: 1.4;
+  }
+
+  .auth-card .field { text-align: left; }
+  .auth-card .field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .auth-card input[type="email"],
+  .auth-card input[type="password"],
+  .auth-card input[type="text"] {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-size: 15px;
+    font-family: var(--font-body);
+    box-sizing: border-box;
+  }
+  .auth-card input:focus { outline: none; border-color: var(--sage); }
+
+  .auth-password-wrap { position: relative; }
+  .auth-password-wrap input { padding-right: 42px; }
+  .auth-eye-btn {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 16px;
+    padding: 6px;
+    cursor: pointer;
+    opacity: 0.55;
+  }
+  .auth-eye-btn:hover { opacity: 0.9; }
+
+  .auth-otp-input {
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 24px;
+    letter-spacing: 0.5em;
+    font-weight: 700;
+  }
+
+  .auth-error {
+    font-size: 12px;
+    color: var(--red);
+    background: var(--red-dim);
+    border-radius: var(--radius);
+    padding: 9px 11px;
+    margin-top: 4px;
+    margin-bottom: 14px;
+    text-align: left;
+    line-height: 1.4;
+  }
+
+  .auth-submit-btn {
+    width: 100%;
+    display: block;
+    margin-top: 6px;
+  }
+  .auth-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .auth-switch {
+    font-size: 12.5px;
+    color: var(--text-faint);
+    margin-top: 18px;
+  }
+  .auth-switch a { color: var(--sage); font-weight: 600; text-decoration: none; }
+  .auth-switch a:hover { text-decoration: underline; }
+
+  .auth-logout-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .auth-logout-btn:hover { border-color: var(--red); color: var(--red); }
+</style>

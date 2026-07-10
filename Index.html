@@ -136,11 +136,12 @@ RIWAYAT PEMECAHAN FILE INI:
 <?!= include('Style_Module_HPP') ?>
 <?!= include('Style_Module_FixedCost') ?>
 <?!= include('Style_Module_HargaLayanan') ?>
+<?!= include('Style_Module_Auth') ?>
 </head>
 <body>
 
 <div class="wrap">
-  <header class="app-header">
+  <header class="app-header" id="appHeader" style="display:none;">
     <div class="header-left">
       <button class="back-btn" id="backBtn" style="display:none;" onclick="goBack()" aria-label="Kembali">&#8592;</button>
       <div class="brand" aria-label="Kalkulator Laundry">
@@ -155,8 +156,11 @@ RIWAYAT PEMECAHAN FILE INI:
         <span class="brand-word brand-word-accent">Laundry</span>
       </div>
     </div>
+    <button type="button" class="auth-logout-btn" id="authLogoutBtn" onclick="authLogout()" style="display:none;">Keluar</button>
     <div class="save-status" id="saveStatus"></div>
   </header>
+
+  <?!= include('Screen_Auth') ?>
 
   <div id="loadingState">
     <div class="panel">
@@ -249,6 +253,7 @@ RIWAYAT PEMECAHAN FILE INI:
 <?!= include('Script_Fitur_StrukturHPP') ?>
 <?!= include('Script_Fitur_BiayaTetapOutlet') ?>
 <?!= include('Script_Fitur_HargaLayanan') ?>
+<?!= include('Script_Fitur_Auth') ?>
 <?!= include('Script_Boot_Main') ?>
 </body>
 </html>
