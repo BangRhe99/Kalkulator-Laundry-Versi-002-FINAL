@@ -854,10 +854,19 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
   }
 
   .potensi-mix-arrow {
-    font-size: 9px;
-    color: var(--text-faint);
-    transition: transform 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-dim);
     flex-shrink: 0;
+    transition: transform 0.2s ease;
   }
 
   .potensi-mix-item.is-open .potensi-mix-arrow { transform: rotate(180deg); }
