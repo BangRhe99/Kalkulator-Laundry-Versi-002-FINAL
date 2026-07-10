@@ -63,4 +63,41 @@ Jika tampilan input harga jual, margin, status margin, atau ringkasan Harga Laya
 .hl-note { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
 .hl-note b { color: var(--brass); font-weight: 700; }
 @media (max-width: 520px) { .hl-metric-grid { grid-template-columns: 1fr; } }
+
+/* Rincian per layanan di kartu ringkasan outlet (screenHargaLayananList) -
+   default (HP, TIDAK diubah): sel dipisah tanda titik " · " via ::before,
+   hasilnya identik dgn teks gabungan "Rp X · Margin Rp Y · % Margin Z%"
+   yang lama. Class hl-table-* ini TAMBAHAN, bukan pengganti fc-list-*
+   (yang juga dipakai kartu Fixed Cost - scoped :has(.hl-table-row) di
+   bawah supaya Fixed Cost tidak ikut kena). */
+.hl-table-cell + .hl-table-cell::before { content: " \00b7 "; color: var(--text-faint); }
+
+/* === DESKTOP LAYOUT (>=1100px) === */
+body:has(#screenHargaLayananList.active) .wrap,
+body:has(#screenHargaLayananDetail.active) .wrap { width: min(100%, 1080px); }
+
+@media (min-width: 1100px) {
+  /* Rincian per layanan jadi tabel sejajar (nama layanan | harga jual |
+     margin | % margin) - pakai display:contents supaya baris-baris .hl-table-row
+     "menyatu" ke grid kolom milik container .fc-list-breakdown-nya. */
+  .fc-list-breakdown:has(.hl-table-row) {
+    display: grid;
+    grid-template-columns: minmax(110px, auto) 100px 140px 110px;
+    column-gap: 14px;
+    row-gap: 6px;
+    align-items: baseline;
+  }
+  .hl-table-row { display: contents; }
+  .hl-table-cells { display: contents; }
+  .hl-table-cell { white-space: nowrap; }
+  .hl-table-cell + .hl-table-cell::before { content: none; }
+
+  /* Card per layanan di layar detail (screenHargaLayananDetail) jadi
+     masonry 2 kolom, bukan ditumpuk 1 kolom panjang ke bawah. */
+  #hargaLayananServiceList {
+    columns: 2;
+    column-gap: 16px;
+  }
+  #hargaLayananServiceList .hl-service-card { break-inside: avoid; }
+}
 </style>

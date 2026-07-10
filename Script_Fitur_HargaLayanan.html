@@ -126,11 +126,21 @@ menjalankan bootApp().
       return sum + (Number(item.margin || 0));
     }, 0) / jumlahTerisi;
 
+    // hl-table-row/hl-table-cells/hl-table-cell: class TAMBAHAN (bukan
+    // pengganti fc-list-breakdown-row/.k/.v yang lama) - di HP tetap
+    // tampil sebagai teks mengalir "Rp X · Margin Rp Y · % Margin Z%"
+    // persis spt sebelumnya (lihat CSS ::before di Style_Module_HargaLayanan.html),
+    // tapi di desktop 3 sel ini dijadikan kolom tabel yang rapi sejajar.
     var breakdownHtml = layanan.map(function (item) {
       var harga = Number(item.hargaJual || 0);
       var margin = Number(item.margin || 0);
-      var label = harga > 0 ? money0(harga) + ' · Margin ' + money0(margin) + ' · % Margin ' + formatNum(Number(item.marginPercent || 0)) + '%' : 'Belum diisi';
-      return '<div class="fc-list-breakdown-row"><span class="k">' + escapeHtml(item.title || '-') + '</span><span class="v">' + escapeHtml(label) + '</span></div>';
+      var pct = Number(item.marginPercent || 0);
+      var cellsHtml = harga > 0
+        ? '<span class="hl-table-cell">' + money0(harga) + '</span>' +
+          '<span class="hl-table-cell">Margin ' + money0(margin) + '</span>' +
+          '<span class="hl-table-cell">% Margin ' + formatNum(pct) + '%</span>'
+        : '<span class="hl-table-cell">Belum diisi</span>';
+      return '<div class="fc-list-breakdown-row hl-table-row"><span class="k">' + escapeHtml(item.title || '-') + '</span><span class="v hl-table-cells">' + cellsHtml + '</span></div>';
     }).join("");
 
     return (
