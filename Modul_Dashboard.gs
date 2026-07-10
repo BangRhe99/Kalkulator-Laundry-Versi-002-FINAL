@@ -551,6 +551,9 @@ function getDashboardHargaLayananSummary(cabangId) {
           if (svc.marginPercentPerJam !== undefined) row.marginPercentPerJam = dashboardRound2_(dashboardNumber_(svc.marginPercentPerJam, 0));
           if (svc.kapasitasKgPerLoad !== undefined) row.kapasitasKgPerLoad = dashboardRound2_(dashboardNumber_(svc.kapasitasKgPerLoad, 0));
           if (svc.setrikaKapasitasKgPerJam !== undefined) row.setrikaKapasitasKgPerJam = dashboardRound2_(dashboardNumber_(svc.setrikaKapasitasKgPerJam, 0));
+          if (svc.unitLabel !== undefined) row.unitLabel = String(svc.unitLabel || "");
+          if (svc.minimumOrderKg !== undefined) row.minimumOrderKg = dashboardRound2_(dashboardNumber_(svc.minimumOrderKg, 0));
+          if (svc.omzetMinimumOrder !== undefined) row.omzetMinimumOrder = dashboardRound2_(dashboardNumber_(svc.omzetMinimumOrder, 0));
           return row;
         });
       const totalLayanan = layanan.length;

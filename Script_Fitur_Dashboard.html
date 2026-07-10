@@ -636,22 +636,29 @@ menjalankan bootApp().
             var hppSiklusLabel = isKiloanLoad ? 'HPP Per Load' : (isSetrikaJam ? 'HPP Per Jam' : ('HPP Per ' + (headlineUnit || 'Unit')));
             var hppSiklusValue = isKiloanLoad ? item.hppPerLoad : (isSetrikaJam ? item.hppPerJam : item.hpp);
 
-            // Detail Perhitungan disederhanakan jadi 1 grup saja (Per Load/
-            // Per Jam/Per Unit): HPP, Margin, Margin % - "Pendapatan Minimum"
-            // & grup "Per Kg" (info tambahan) dihapus dari tampilan supaya
-            // tidak terlalu penuh.
+            // Detail Perhitungan: grup "Per Load/Jam" (HPP, Margin, Margin %)
+            // - inilah dasar rekomendasi sistem. Grup "Per Kg" tetap
+            // ditampilkan sebagai INFO TAMBAHAN saja (bukan dasar keputusan).
             var siklusLabel = isKiloanLoad ? 'Load' : (isSetrikaJam ? 'Jam' : (headlineUnit || 'Unit'));
             var marginRows = (isKgBased && !minOrderFilled)
               ? '<div class="hl-detail-empty">Isi Minimum Order dulu untuk melihat Margin Per ' + escapeHtml(siklusLabel) + '.</div>'
               : detailRow('Margin Per ' + siklusLabel, money0(item.margin)) +
                 detailRow('Margin %', formatPercent(item.marginPercent, 1));
+            var perKgGroup = !isKgBased ? '' :
+              '<div class="hl-detail-group hl-detail-group-kg">' +
+                '<div class="hl-detail-group-title">Perhitungan Per Kg <span class="hl-detail-group-hint">&middot; info tambahan</span></div>' +
+                detailRow('HPP Per Kg', money0(item.hppPerKg)) +
+                detailRow('Margin Per Kg', money0(item.marginPerKg)) +
+                detailRow('Margin %', formatPercent(item.marginPercentPerKg, 1)) +
+              '</div>';
             var detailHtml =
               '<div class="hl-detail-title">Detail Perhitungan</div>' +
               '<div class="hl-detail-group hl-detail-group-load">' +
                 '<div class="hl-detail-group-title">Perhitungan Per ' + escapeHtml(siklusLabel) + '</div>' +
                 detailRow(hppSiklusLabel, money0(hppSiklusValue)) +
                 marginRows +
-              '</div>';
+              '</div>' +
+              perKgGroup;
 
             // Kolom ke-3 ringkasan atas: Minimum Order (layanan berbasis Kg,
             // dasar strategi penjualan) - kalau tidak ada konsep ini (Self

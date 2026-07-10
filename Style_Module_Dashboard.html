@@ -1466,9 +1466,14 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
   .hl-note { font-size: 11px; color: var(--text-faint); margin-top: 6px; text-align: center; }
 
   .hl-detail-group { border-radius: 8px; padding: 8px 10px; }
+  .hl-detail-group + .hl-detail-group { margin-top: 8px; }
   .hl-detail-group-load {
     background: rgba(183, 121, 31, 0.08);
     border: 1px solid rgba(183, 121, 31, 0.2);
+  }
+  .hl-detail-group-kg {
+    background: rgba(15, 118, 110, 0.08);
+    border: 1px solid rgba(15, 118, 110, 0.2);
   }
   .hl-detail-group-title {
     font-size: 10px;
@@ -1476,8 +1481,10 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     text-transform: uppercase;
     letter-spacing: 0.04em;
     margin-bottom: 4px;
-    color: var(--brass);
   }
+  .hl-detail-group-load .hl-detail-group-title { color: var(--brass); }
+  .hl-detail-group-kg .hl-detail-group-title { color: var(--sage); }
+  .hl-detail-group-hint { font-weight: 400; text-transform: none; color: var(--text-faint); letter-spacing: normal; }
   .hl-empty { font-size: 12px; color: var(--text-faint); text-align: center; padding: 8px 0; }
 
   .fc-main-row { display: flex; align-items: baseline; gap: 6px; cursor: pointer; margin-bottom: 14px; }
