@@ -82,14 +82,33 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     .desktop-kpi-value.pos { color: var(--sage); }
     .desktop-kpi-value.neg { color: var(--red); }
 
-    .desktop-summary-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+    /* Grafik BEP dilebarkan (1.8fr), Master Biaya dikecilkan (1fr) - SVG
+       grafiknya (.bep-chart-svg) sudah width:100% + preserveAspectRatio="none"
+       di Script_Shared_Util.html, jadi otomatis presisi mengisi penuh
+       berapa pun lebar barunya, tidak perlu diubah lagi. */
+    .desktop-summary-row { display: grid; grid-template-columns: 1.8fr 1fr; gap: 16px; align-items: start; }
     .desktop-summary-panel {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       padding: 18px;
+      min-width: 0;
     }
     .desktop-summary-full { width: 100%; }
+
+    /* Harga Layanan di panel ringkasan desktop: kartu per layanan sejajar
+       ke samping (grid), bukan ditumpuk ke bawah spt versi kartu ringkas
+       HP - DIBATASI ke #desktopHargaLayanan saja (id spesifik), .hl-item
+       di card ringkas HP (#dashboardHargaLayananSummary) TIDAK ikut berubah. */
+    #desktopHargaLayanan {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+    #desktopHargaLayanan .hl-item { margin-bottom: 0; }
+    #desktopHargaLayanan .hl-note { grid-column: 1 / -1; }
+
     .desktop-panel-title {
       font-family: var(--font-display);
       font-weight: 700;

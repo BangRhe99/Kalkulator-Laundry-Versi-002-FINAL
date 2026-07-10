@@ -114,4 +114,13 @@ sebelumnya).
     .app-sidebar { display: none !important; }
     body:has(.app-sidebar) { padding-left: clamp(12px, 4vw, 16px) !important; }
   }
+
+  /* Tombol Keluar di header kanan atas: sekarang sudah ada juga di sidebar
+     (sidebar-logout-item), jadi di desktop disembunyikan supaya tidak
+     dobel. HP TIDAK disentuh - #authLogoutBtn di sana tetap tampil persis
+     spt sebelumnya (rule ini cuma berlaku >=1100px). !important perlu
+     krn Script_Fitur_Auth.html set inline style display saat login/logout. */
+  @media (min-width: 1100px) {
+    #authLogoutBtn { display: none !important; }
+  }
 </style>
