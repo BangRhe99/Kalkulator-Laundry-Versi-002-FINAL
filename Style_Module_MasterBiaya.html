@@ -321,17 +321,17 @@ Jika tampilan gas, listrik, air, atau admin/nota bermasalah, mulai cek dari file
        sambil isi form kiri) - #screenAirForm cuma py 5 anak langsung dgn
        urutan tetap, jadi aman ditarget lewat grid-column/row eksplisit
        tanpa perlu ubah HTML sama sekali. */
-    #screenAirForm {
+    #screenAirForm.active {
       display: grid;
       grid-template-columns: 1fr 340px;
       column-gap: 24px;
       align-items: start;
     }
-    #screenAirForm > .list-header { grid-column: 1 / -1; }
-    #screenAirForm > .air-sumber-panel { grid-column: 1; grid-row: 2; }
-    #screenAirForm > #airInputContainer { grid-column: 1; grid-row: 3; }
-    #screenAirForm > .group-divider { grid-column: 2; grid-row: 2; margin-top: 0; }
-    #screenAirForm > .air-result-panel { grid-column: 2; grid-row: 3; position: sticky; top: 24px; }
+    #screenAirForm.active > .list-header { grid-column: 1 / -1; }
+    #screenAirForm.active > .air-sumber-panel { grid-column: 1; grid-row: 2; }
+    #screenAirForm.active > #airInputContainer { grid-column: 1; grid-row: 3; }
+    #screenAirForm.active > .group-divider { grid-column: 2; grid-row: 2; margin-top: 0; }
+    #screenAirForm.active > .air-result-panel { grid-column: 2; grid-row: 3; position: sticky; top: 24px; }
   }
 
   @media (min-width: 760px) {
