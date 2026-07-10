@@ -98,6 +98,17 @@ Semua sudah digabung jadi satu definisi final per elemen di bawah ini.
     gap: 10px;
   }
 
+  /* header-left | header-right: cuma 2 grup flex (bukan 3 item lepas)
+     supaya tombol Keluar benar-benar mepet ke tepi kanan .wrap - sejajar
+     presisi dgn pill "Pilih Outlet" di header Dashboard di bawahnya
+     (yang juga cuma 2 grup flex kiri/kanan). */
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
   .header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
 
   .back-btn {
