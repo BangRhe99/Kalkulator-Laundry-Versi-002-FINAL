@@ -814,7 +814,8 @@ menjalankan bootApp().
             '</div>' +
             '<div class="potensi-estimate">' +
               '<div class="potensi-estimate-row"><span class="potensi-estimate-label">Estimasi Omset</span><span class="potensi-estimate-value">' + money0(d.estimasiOmsetPerBulan) + '</span></div>' +
-              '<div class="potensi-estimate-row"><span class="potensi-estimate-label">Estimasi Biaya Produksi</span><span class="potensi-estimate-value potensi-estimate-cost">' + money0(d.estimasiBiayaProduksiPerBulan) + '</span></div>' +
+              '<div class="potensi-estimate-row"><span class="potensi-estimate-label">Biaya Produksi (Variable Cost)</span><span class="potensi-estimate-value potensi-estimate-minus">&minus; ' + money0(d.estimasiBiayaProduksiPerBulan) + '</span></div>' +
+              '<div class="potensi-estimate-row"><span class="potensi-estimate-label">Biaya Operasional (Fixed Cost)</span><span class="potensi-estimate-value potensi-estimate-minus">&minus; ' + money0(d.fixedCostPerBulan) + '</span></div>' +
               '<div class="potensi-estimate-row potensi-estimate-row-profit"><span class="potensi-estimate-label">Estimasi Profit</span><span class="potensi-estimate-value ' + (d.estimasiProfitPerBulan >= 0 ? 'potensi-profit-pos' : 'potensi-profit-neg') + '">' + money0(d.estimasiProfitPerBulan) + '</span></div>' +
             '</div>' +
             (mixListHtml ? '<div class="potensi-mix-list">' +
