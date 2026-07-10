@@ -569,6 +569,28 @@ menjalankan bootApp().
         }).join('');
         setDashboardCardHtml('dashboardHppSummary', html);
   }
+  // hlMarginTier_: bucketing 5-tingkat MURNI presentasi (emoji + label +
+  // kelas warna) dari margin/marginPercent yang SUDAH dihitung backend -
+  // tidak mengubah rumus margin sama sekali, cuma mengelompokkan angka yang
+  // sama jadi label lebih granular utk Financial Decision Card (dulu cuma
+  // 3 status: rugi/tipis/aman).
+  function hlMarginTier_(margin, marginPercent) {
+    var pct = typeof marginPercent === 'number' ? marginPercent : 0;
+    if (Number(margin) < 0) return { key: 'berisiko', emoji: '🔴', label: 'Margin Berisiko' };
+    if (pct < 15) return { key: 'tipis', emoji: '🟠', label: 'Margin Tipis' };
+    if (pct < 30) return { key: 'cukup', emoji: '🟡', label: 'Margin Cukup' };
+    if (pct < 50) return { key: 'sehat', emoji: '🟢', label: 'Margin Sehat' };
+    return { key: 'sangat-sehat', emoji: '🟢', label: 'Margin Sangat Sehat' };
+  }
+
+  // hlUnitLabel_: ubah "per load"/"per item"/"per kg" (field unitLabel yang
+  // sudah ada) jadi label singkat "Load"/"Item"/"Kg" utk ditempel di angka.
+  function hlUnitLabel_(unitLabel) {
+    var u = String(unitLabel || '').replace(/^per\s+/i, '').trim();
+    if (!u) return '';
+    return u.charAt(0).toUpperCase() + u.slice(1);
+  }
+
   function renderDashboardHargaLayananCard(res) {
         if (!res || !res.ok) {
           setDashboardCardError("dashboardHargaLayananSummary", res && res.error ? res.error : "Data harga layanan belum bisa dibaca.");
@@ -589,93 +611,96 @@ menjalankan bootApp().
           list.forEach(function (item) {
             var pct = typeof item.marginPercent === 'number' ? item.marginPercent : 0;
             var barW = Math.min(100, Math.max(0, pct));
-            var cls = item.status === 'rugi' ? 'rugi' : (item.status === 'tipis' || item.status === 'impas' ? 'tipis' : 'aman');
+            var tier = hlMarginTier_(item.margin, pct);
             var pctTxt = typeof item.marginPercent === 'number' ? (Math.round(item.marginPercent * 10) / 10) + '%' : '-';
 
             var detailRow = function (label, value) {
               return '<div class="hl-detail-row"><span class="hl-detail-label">' + escapeHtml(label) + '</span><span class="hl-detail-value">' + value + '</span></div>';
             };
-            var hargaJualCard = function () {
-              return '<div class="hl-detail-hargajual"><span class="hl-detail-hargajual-label">Harga Jual Per Kg</span><span class="hl-detail-hargajual-value">' + money0(item.hargaJualPerKg) + '</span></div>';
-            };
+
+            var isKiloanLoad = item.hppPerLoad !== undefined;
+            var isSetrikaJam = item.hppPerJam !== undefined;
+            var isKgBased = isKiloanLoad || isSetrikaJam;
+
+            var headlineUnit = isKgBased ? 'Kg' : hlUnitLabel_(item.unitLabel);
+            var headlineHarga = isKgBased ? item.hargaJualPerKg : item.hargaJual;
+            var headlineHpp = isKgBased ? item.hppPerKg : item.hpp;
+            var headlineMargin = isKgBased ? item.marginPerKg : item.margin;
+
             var detailHtml;
-            if (item.hppPerLoad !== undefined) {
+            if (isKiloanLoad) {
               // Kategori Drop Off/Kiloan & Hybrid: HPP sumbernya per load
               // (biaya sekali jalan mesin), Harga Jual per Kg (yang dibayar
-              // pelanggan) - dipisah kotak warna beda + kartu Harga Jual
-              // tersendiri, plus simulasi order minimal = kapasitas 1x jalan
-              // mesin (bukan cuma 1 Kg), supaya HPP Per Load benar-benar
-              // tertutup - ini baru hitungan variable cost, belum fixed cost,
-              // jadi jangan ambil untung tipis dari order kecil.
-              var kapLoad = item.kapasitasKgPerLoad || 0;
-              var insightLoad = '';
-              if (kapLoad > 0 && item.hargaJualPerKg > 0) {
-                var hargaJual1Kg = item.hargaJualPerKg;
-                var margin1Kg = round2(hargaJual1Kg - item.hppPerLoad);
-                var hargaJualMin = round2(item.hargaJualPerKg * kapLoad);
-                insightLoad =
-                  '<div class="hl-detail-insight">' +
-                    'Kalau cuma order 1 Kg: ' + money0(hargaJual1Kg) + ' &minus; HPP Per Load ' + money0(item.hppPerLoad) + ' = ' + money0(margin1Kg) + ' (masih sangat tipis, mesin tetap dihitung 1x jalan penuh).<br>' +
-                    'Karena ini baru hitungan variable cost (belum fixed cost), disarankan order minimal <b>' + formatNum(kapLoad, 1) + ' Kg</b> (kapasitas 1x jalan mesin Anda): ' + money0(item.hargaJualPerKg) + ' &times; ' + formatNum(kapLoad, 1) + ' = ' + money0(hargaJualMin) + ' &minus; HPP Per Load ' + money0(item.hppPerLoad) + ' = <b>' + money0(item.marginPerLoad) + '</b>.' +
-                  '</div>';
-              }
+              // pelanggan) - dua basis perhitungan ditampilkan terpisah.
+              var pendapatanPerLoad = round2((item.hppPerLoad || 0) + (item.marginPerLoad || 0));
               detailHtml =
                 '<div class="hl-detail-group hl-detail-group-load">' +
-                  '<div class="hl-detail-group-title">Basis Per Load <span class="hl-detail-group-hint">&middot; biaya sekali jalan mesin</span></div>' +
+                  '<div class="hl-detail-group-title">Perhitungan Per Load</div>' +
                   detailRow('HPP Per Load', money0(item.hppPerLoad)) +
+                  detailRow('Pendapatan Per Load', money0(pendapatanPerLoad)) +
                   detailRow('Margin Per Load', money0(item.marginPerLoad)) +
-                  detailRow('% Margin Per Load', formatPercent(item.marginPercentPerLoad, 1)) +
+                  detailRow('Margin %', formatPercent(item.marginPercentPerLoad, 1)) +
                 '</div>' +
                 '<div class="hl-detail-group hl-detail-group-kg">' +
-                  '<div class="hl-detail-group-title">Basis Per Kg <span class="hl-detail-group-hint">&middot; hitungan per Kg cucian</span></div>' +
+                  '<div class="hl-detail-group-title">Perhitungan Per Kg</div>' +
                   detailRow('HPP Per Kg', money0(item.hppPerKg)) +
                   detailRow('Margin Per Kg', money0(item.marginPerKg)) +
-                  detailRow('% Margin Per Kg', formatPercent(item.marginPercentPerKg, 1)) +
-                '</div>' +
-                hargaJualCard() +
-                insightLoad;
-            } else if (item.hppPerJam !== undefined) {
+                  detailRow('Margin %', formatPercent(item.marginPercentPerKg, 1)) +
+                '</div>';
+            } else if (isSetrikaJam) {
               // Kategori Jasa Setrika: HPP sumbernya per Kg, "per Jam"
               // dikonversi lewat kapasitas kg/jam mesin setrika.
-              var kapJam = item.setrikaKapasitasKgPerJam || 0;
-              var insightJam = '';
-              if (kapJam > 0 && item.hargaJualPerKg > 0) {
-                var hargaJual1KgJam = item.hargaJualPerKg;
-                var margin1KgJam = round2(hargaJual1KgJam - item.hppPerJam);
-                var hargaJualMinJam = round2(item.hargaJualPerKg * kapJam);
-                insightJam =
-                  '<div class="hl-detail-insight">' +
-                    'Kalau cuma 1 Kg dalam 1 jam: ' + money0(hargaJual1KgJam) + ' &minus; HPP Per Jam ' + money0(item.hppPerJam) + ' = ' + money0(margin1KgJam) + ' (masih sangat tipis, mesin tetap dihitung 1 jam penuh).<br>' +
-                    'Karena ini baru hitungan variable cost (belum fixed cost), disarankan minimal <b>' + formatNum(kapJam, 1) + ' Kg</b> disetrika per jam (kapasitas mesin Anda): ' + money0(item.hargaJualPerKg) + ' &times; ' + formatNum(kapJam, 1) + ' = ' + money0(hargaJualMinJam) + ' &minus; HPP Per Jam ' + money0(item.hppPerJam) + ' = <b>' + money0(item.marginPerJam) + '</b>.' +
-                  '</div>';
-              }
+              var pendapatanPerJam = round2((item.hppPerJam || 0) + (item.marginPerJam || 0));
               detailHtml =
                 '<div class="hl-detail-group hl-detail-group-load">' +
-                  '<div class="hl-detail-group-title">Basis Per Jam <span class="hl-detail-group-hint">&middot; biaya mesin setrika 1 jam</span></div>' +
+                  '<div class="hl-detail-group-title">Perhitungan Per Jam</div>' +
                   detailRow('HPP Per Jam', money0(item.hppPerJam)) +
+                  detailRow('Pendapatan Per Jam', money0(pendapatanPerJam)) +
                   detailRow('Margin Per Jam', money0(item.marginPerJam)) +
-                  detailRow('% Margin Per Jam', formatPercent(item.marginPercentPerJam, 1)) +
+                  detailRow('Margin %', formatPercent(item.marginPercentPerJam, 1)) +
                 '</div>' +
                 '<div class="hl-detail-group hl-detail-group-kg">' +
-                  '<div class="hl-detail-group-title">Basis Per Kg <span class="hl-detail-group-hint">&middot; hitungan per Kg setrika</span></div>' +
+                  '<div class="hl-detail-group-title">Perhitungan Per Kg</div>' +
                   detailRow('HPP Per Kg', money0(item.hppPerKg)) +
                   detailRow('Margin Per Kg', money0(item.marginPerKg)) +
-                  detailRow('% Margin Per Kg', formatPercent(item.marginPercentPerKg, 1)) +
-                '</div>' +
-                hargaJualCard() +
-                insightJam;
+                  detailRow('Margin %', formatPercent(item.marginPercentPerKg, 1)) +
+                '</div>';
             } else {
+              // Self Service & Bed Cover: satu basis saja (per Load/per Item).
               detailHtml =
-                detailRow('HPP', money0(item.hpp)) +
-                detailRow('Harga Jual', money0(item.hargaJual)) +
-                detailRow('Margin', money0(item.margin));
+                '<div class="hl-detail-group hl-detail-group-kg">' +
+                  '<div class="hl-detail-group-title">Perhitungan Per ' + escapeHtml(headlineUnit || 'Unit') + '</div>' +
+                  detailRow('HPP', money0(item.hpp)) +
+                  detailRow('Pendapatan', money0(item.hargaJual)) +
+                  detailRow('Margin', money0(item.margin)) +
+                  detailRow('Margin %', formatPercent(item.marginPercent, 1)) +
+                '</div>';
             }
 
+            var hasMinOrder = item.minimumOrderKg !== undefined;
+            var minOrderBlock = !hasMinOrder ? '' :
+              '<div class="hl-divider"></div>' +
+              '<div class="hl-mini-row"><span class="hl-mini-label">Minimum Order</span><span class="hl-mini-value">' + (item.minimumOrderKg > 0 ? formatNum(item.minimumOrderKg, 1) + ' Kg' : 'Belum diisi') + '</span></div>' +
+              '<div class="hl-mini-row"><span class="hl-mini-label">Pendapatan Minimum</span><span class="hl-mini-value hl-mini-value-highlight">' + (item.minimumOrderKg > 0 ? money0(item.omzetMinimumOrder) : '&ndash;') + '</span></div>';
+
             html += '<div class="hl-item">' +
-              '<div class="hl-row" onclick="toggleHlDetail(this, event)">' +
+              '<div class="hl-top">' +
                 '<span class="hl-name">' + escapeHtml(item.title || '') + '</span>' +
-                '<div class="hl-bar-wrap"><div class="hl-bar hl-' + cls + '" style="width:' + barW + '%"></div></div>' +
-                '<span class="hl-pct hl-pct-' + cls + '">' + escapeHtml(pctTxt) + '</span>' +
+                '<span class="hl-status-badge hl-status-' + tier.key + '">' + tier.emoji + ' ' + escapeHtml(tier.label) + '</span>' +
+              '</div>' +
+              '<div class="hl-bar-row">' +
+                '<div class="hl-bar-wrap"><div class="hl-bar hl-tier-' + tier.key + '" style="width:' + barW + '%"></div></div>' +
+                '<span class="hl-bar-pct">' + escapeHtml(pctTxt) + '</span>' +
+              '</div>' +
+              '<div class="hl-stat-grid">' +
+                '<div class="hl-stat"><span class="hl-stat-label">Harga Jual</span><span class="hl-stat-value">' + money0(headlineHarga) + '<span class="hl-stat-unit"> /' + escapeHtml(headlineUnit) + '</span></span></div>' +
+                '<div class="hl-stat"><span class="hl-stat-label">HPP Produksi</span><span class="hl-stat-value hl-stat-hpp">' + money0(headlineHpp) + '<span class="hl-stat-unit"> /' + escapeHtml(headlineUnit) + '</span></span></div>' +
+                '<div class="hl-stat"><span class="hl-stat-label">Laba Bersih</span><span class="hl-stat-value hl-stat-profit">' + money0(headlineMargin) + '<span class="hl-stat-unit"> /' + escapeHtml(headlineUnit) + '</span></span></div>' +
+              '</div>' +
+              minOrderBlock +
+              '<div class="hl-divider"></div>' +
+              '<div class="hl-toggle" onclick="toggleHlDetail(this, event)">' +
+                '<span>Detail Perhitungan</span>' +
                 '<span class="hl-arrow">&#9662;</span>' +
               '</div>' +
               '<div class="hl-detail">' + detailHtml + '</div>' +

@@ -1371,19 +1371,77 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     }
   }
   /* === MOBILE_DASHBOARD_OVERFLOW_FIX_END === */
-  .hl-item { margin-bottom: 8px; }
+  /* === CARD HARGA LAYANAN — Financial Decision Card === */
+  .hl-item {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    margin-bottom: 10px;
+  }
   .hl-item:last-of-type { margin-bottom: 0; }
-  .hl-row { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 2px 0; }
-  .hl-name { font-size: 12px; color: var(--text-dim); width: 90px; flex-shrink: 0; }
-  .hl-bar-wrap { flex: 1; height: 5px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
-  .hl-bar { height: 100%; border-radius: 3px; }
-  .hl-bar.hl-aman { background: var(--sage); }
-  .hl-bar.hl-tipis { background: var(--volt); }
-  .hl-bar.hl-rugi { background: var(--red); }
-  .hl-pct { font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; min-width: 38px; text-align: right; }
-  .hl-pct-aman { color: var(--sage); }
-  .hl-pct-tipis { color: var(--volt); }
-  .hl-pct-rugi { color: var(--red); }
+
+  .hl-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .hl-name { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.3; }
+
+  .hl-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .hl-status-berisiko { background: rgba(220, 38, 38, 0.12); color: var(--red); }
+  .hl-status-tipis { background: rgba(183, 121, 31, 0.12); color: var(--brass); }
+  .hl-status-cukup { background: rgba(217, 194, 75, 0.16); color: var(--volt); }
+  .hl-status-sehat,
+  .hl-status-sangat-sehat { background: rgba(15, 118, 110, 0.12); color: var(--sage); }
+
+  .hl-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .hl-bar-wrap { flex: 1; height: 6px; background: var(--panel); border-radius: 3px; overflow: hidden; }
+  .hl-bar { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+  .hl-bar.hl-tier-berisiko { background: var(--red); }
+  .hl-bar.hl-tier-tipis { background: var(--brass); }
+  .hl-bar.hl-tier-cukup { background: var(--volt); }
+  .hl-bar.hl-tier-sehat,
+  .hl-bar.hl-tier-sangat-sehat { background: var(--sage); }
+  .hl-bar-pct { font-size: 12px; font-weight: 700; color: var(--text-dim); font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; flex-shrink: 0; }
+
+  .hl-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .hl-stat { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .hl-stat-label { font-size: 9.5px; font-weight: 600; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em; }
+  .hl-stat-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hl-stat-hpp { color: var(--brass); }
+  .hl-stat-profit { color: var(--sage); }
+  .hl-stat-unit { font-size: 9.5px; font-weight: 500; color: var(--text-faint); }
+
+  .hl-divider { height: 1px; background: var(--border); margin: 10px 0; }
+
+  .hl-mini-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 11.5px; padding: 2px 0; }
+  .hl-mini-label { color: var(--text-dim); }
+  .hl-mini-value { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+  .hl-mini-value-highlight { color: var(--sage); font-weight: 700; }
+
+  .hl-toggle { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; font-size: 11px; font-weight: 600; color: var(--text-dim); }
+
   .hl-arrow {
     display: inline-flex;
     align-items: center;
@@ -1400,25 +1458,25 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     flex-shrink: 0;
   }
   .hl-item.is-open .hl-arrow { transform: rotate(180deg); }
-  .hl-detail { display: none; flex-direction: column; gap: 8px; padding: 10px 0 6px 0; }
+  .hl-detail { display: none; flex-direction: column; gap: 8px; padding: 10px 0 0 0; }
   .hl-item.is-open .hl-detail { display: flex; }
   .hl-detail-row { display: flex; justify-content: space-between; font-size: 10.5px; padding: 1px 0; }
   .hl-detail-label { color: var(--text-faint); }
   .hl-detail-value { color: var(--text-dim); font-weight: 600; font-variant-numeric: tabular-nums; }
   .hl-note { font-size: 11px; color: var(--text-faint); margin-top: 6px; text-align: center; }
 
-  /* Rincian Harga Layanan dikelompokkan 2 kotak warna beda: basis mesin
-     (Per Load/Per Jam - brass) vs basis jual ke pelanggan (Per Kg - sage),
-     supaya pemilik laundry awam langsung kelihatan bedanya, bukan angka
-     polos berderet. */
+  /* Rincian Detail Perhitungan dikelompokkan 2 kotak warna beda: basis
+     mesin (Per Load/Per Jam - brass) vs basis jual ke pelanggan (Per Kg -
+     sage), supaya pemilik laundry awam langsung kelihatan bedanya, bukan
+     angka polos berderet. */
   .hl-detail-group { border-radius: 8px; padding: 8px 10px; }
   .hl-detail-group-load {
-    background: rgba(var(--brass-rgb, 180, 130, 60), 0.08);
-    border: 1px solid rgba(var(--brass-rgb, 180, 130, 60), 0.2);
+    background: rgba(183, 121, 31, 0.08);
+    border: 1px solid rgba(183, 121, 31, 0.2);
   }
   .hl-detail-group-kg {
-    background: rgba(var(--sage-rgb, 80, 160, 140), 0.08);
-    border: 1px solid rgba(var(--sage-rgb, 80, 160, 140), 0.2);
+    background: rgba(15, 118, 110, 0.08);
+    border: 1px solid rgba(15, 118, 110, 0.2);
   }
   .hl-detail-group-title {
     font-size: 10px;
@@ -1429,34 +1487,6 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
   }
   .hl-detail-group-load .hl-detail-group-title { color: var(--brass); }
   .hl-detail-group-kg .hl-detail-group-title { color: var(--sage); }
-  .hl-detail-group-hint { font-weight: 400; text-transform: none; color: var(--text-faint); letter-spacing: normal; }
-  .hl-detail-value-highlight { color: var(--sage); font-weight: 700; }
-
-  /* Kartu tersendiri utk Harga Jual Per Kg - warna beda lagi (volt) dari
-     kotak Per Load (brass) & Per Kg (sage), supaya jelas ini angka yang
-     pemilik laundry ATUR sendiri, bukan hasil hitungan otomatis. */
-  .hl-detail-hargajual {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-radius: 8px;
-    padding: 8px 10px;
-    background: rgba(var(--volt-rgb, 217, 194, 75), 0.12);
-    border: 1px solid rgba(var(--volt-rgb, 217, 194, 75), 0.3);
-  }
-  .hl-detail-hargajual-label { font-size: 10.5px; font-weight: 700; color: var(--text); }
-  .hl-detail-hargajual-value { font-size: 15px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
-
-  .hl-detail-insight {
-    font-size: 10.5px;
-    line-height: 1.5;
-    color: var(--text-dim);
-    background: var(--panel);
-    border: 1px dashed var(--border);
-    border-radius: 8px;
-    padding: 7px 9px;
-  }
-  .hl-detail-insight b { color: var(--brass); }
   .hl-empty { font-size: 12px; color: var(--text-faint); text-align: center; padding: 8px 0; }
 
   .fc-main-row { display: flex; align-items: baseline; gap: 6px; cursor: pointer; margin-bottom: 14px; }
