@@ -31,17 +31,22 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
 
   /* Dashboard di layar lebar (tablet lanskap/laptop/PC, >=1100px sama
      dengan breakpoint 2-kolom form Profil Outlet): 7 card ringkasan jadi
-     grid 2 kolom, bukan 1 kolom sempit terus ke bawah dgn ruang kosong
-     besar kiri-kanan. HP/tablet portrait (<1100px) TIDAK berubah sama
-     sekali - cuma nambah rule baru, tidak mengubah struktur/class lama. */
+     2 kolom MASONRY (pakai CSS columns, bukan CSS grid) - tiap kolom
+     mengalir sendiri-sendiri sesuai tinggi kontennya, supaya card pendek
+     (mis. Master Biaya) tidak "memaksa" jarak kosong ganjil sebelum card
+     berikutnya spt kalau dipasangkan per baris pakai grid biasa.
+     HP/tablet portrait (<1100px) TIDAK berubah sama sekali. */
   body:has(#screenMenu.active) .wrap { width: min(100%, 1040px); }
 
   @media (min-width: 1100px) {
     #screenMenu .dashboard-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
-      align-items: start;
+      display: block;
+      columns: 2;
+      column-gap: 16px;
+    }
+    #screenMenu .dashboard-grid .menu-card {
+      break-inside: avoid;
+      margin-bottom: 16px;
     }
   }
   .menu-card {
