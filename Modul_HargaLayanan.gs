@@ -16,7 +16,24 @@
  * ============================================================================
  */
 
+// Cache baca-sekali-per-eksekusi: getDashboardFullSummary() bisa memanggil
+// getHargaLayanan(cabangId) yang SAMA sampai 4x dalam satu kali load
+// Dashboard (lewat kartu Harga Layanan, BEP, dan Potensi Omset sendiri-
+// sendiri), padahal fungsi ini murni baca data (tidak ada efek samping) dan
+// hasilnya identik selama cabangId sama. Variabel global Apps Script reset
+// otomatis tiap eksekusi google.script.run baru, jadi tidak ada risiko data
+// basi lintas request -- pola sama seperti _dataSheetCache_ di
+// Util_Penyimpanan.gs / _dashboardCabangRowsCache_ di Modul_Dashboard.gs.
+let _hargaLayananCache_ = {};
+
 function getHargaLayanan(cabangId) {
+  if (_hargaLayananCache_[cabangId]) return _hargaLayananCache_[cabangId];
+  const result = getHargaLayanan_(cabangId);
+  if (result && result.ok) _hargaLayananCache_[cabangId] = result;
+  return result;
+}
+
+function getHargaLayanan_(cabangId) {
   try {
     const cleanCabangId = sanitizeHargaLayananCabangId_(cabangId);
     if (!cleanCabangId) {

@@ -64,7 +64,23 @@ const STRUKTUR_HPP_KILOAN_TOGGLE_TITLES_ = [
 // SECTION: PUBLIC FUNCTION
 // ============================================================================
 
+// Cache baca-sekali-per-eksekusi: fungsi ini dipanggil berkali-kali dalam
+// satu kali load Dashboard (langsung dari kartu HPP, dan tidak langsung
+// lewat getHargaLayanan() yang juga dipanggil berkali-kali) padahal murni
+// baca data & hasilnya identik selama cabangId sama. Variabel global Apps
+// Script reset otomatis tiap eksekusi google.script.run baru, jadi tidak ada
+// risiko data basi lintas request -- pola sama seperti _dataSheetCache_ di
+// Util_Penyimpanan.gs.
+let _strukturBiayaHPPCache_ = {};
+
 function getStrukturBiayaHPP(cabangId) {
+  if (_strukturBiayaHPPCache_[cabangId]) return _strukturBiayaHPPCache_[cabangId];
+  const result = getStrukturBiayaHPP_(cabangId);
+  if (result && result.ok) _strukturBiayaHPPCache_[cabangId] = result;
+  return result;
+}
+
+function getStrukturBiayaHPP_(cabangId) {
   try {
     if (!cabangId || typeof cabangId !== "string") {
       return {
