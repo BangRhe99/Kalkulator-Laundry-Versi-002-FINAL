@@ -605,10 +605,10 @@ menjalankan bootApp().
   // 3 status: rugi/tipis/aman).
   function hlMarginTier_(margin, marginPercent) {
     var pct = typeof marginPercent === 'number' ? marginPercent : 0;
-    if (Number(margin) < 0) return { key: 'berisiko', emoji: '🔴', label: 'Margin Berisiko' };
-    if (pct < 15) return { key: 'tipis', emoji: '🟠', label: 'Margin Tipis' };
-    if (pct < 30) return { key: 'cukup', emoji: '🟡', label: 'Margin Cukup' };
-    if (pct < 50) return { key: 'sehat', emoji: '🟢', label: 'Margin Sehat' };
+    if (Number(margin) < 0 || pct < 21) return { key: 'berisiko', emoji: '🔴', label: 'Margin Kurang Sehat' };
+    if (pct <= 30) return { key: 'tipis', emoji: '🟠', label: 'Margin Tipis' };
+    if (pct <= 49) return { key: 'cukup', emoji: '🟡', label: 'Margin Cukup' };
+    if (pct <= 69) return { key: 'sehat', emoji: '🟢', label: 'Margin Sehat' };
     return { key: 'sangat-sehat', emoji: '🟢', label: 'Margin Sangat Sehat' };
   }
 
