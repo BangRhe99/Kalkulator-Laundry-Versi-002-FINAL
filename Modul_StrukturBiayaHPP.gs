@@ -41,11 +41,15 @@ const STRUKTUR_HPP_SERVICE_KEYS_ = {
 const STRUKTUR_HPP_UNIT_LABEL_KG_ = "per kg";
 const STRUKTUR_HPP_UNIT_LABEL_ITEM_ = "per item";
 
-// Layanan kiloan/hybrid yang bisa diaktif/nonaktifkan dari kartu Struktur
-// Biaya HPP. Default semua AKTIF - laundry sengaja mematikan kalau memang
-// tidak melayani layanan tsb (mis. tidak melayani Cuci Saja).
+// Layanan kiloan/hybrid & self service yang bisa diaktif/nonaktifkan dari
+// kartu Struktur Biaya HPP. Default semua AKTIF - laundry sengaja mematikan
+// kalau memang tidak melayani layanan tsb (mis. tidak melayani Cuci Saja).
+// CUCI_SAJA dipakai BERSAMA oleh kiloan & self service - aman krn toggle-nya
+// disimpan per (cabangId, key), dan satu cabang cuma satu kategori.
 const STRUKTUR_HPP_TOGGLABLE_KEYS_ = [
   STRUKTUR_HPP_SERVICE_KEYS_.CUCI_SAJA,
+  STRUKTUR_HPP_SERVICE_KEYS_.KERING_SAJA,
+  STRUKTUR_HPP_SERVICE_KEYS_.CUCI_KERING,
   STRUKTUR_HPP_SERVICE_KEYS_.CUCI_KERING_LIPAT,
   STRUKTUR_HPP_SERVICE_KEYS_.CUCI_KERING_SETRIKA,
   STRUKTUR_HPP_SERVICE_KEYS_.SETRIKA_SAJA,
@@ -58,6 +62,12 @@ const STRUKTUR_HPP_KILOAN_TOGGLE_TITLES_ = [
   { key: STRUKTUR_HPP_SERVICE_KEYS_.CUCI_KERING_SETRIKA, title: "HPP Cuci Kering Setrika" },
   { key: STRUKTUR_HPP_SERVICE_KEYS_.SETRIKA_SAJA, title: "HPP Setrika Saja" },
   { key: STRUKTUR_HPP_SERVICE_KEYS_.BED_COVER, title: "HPP Bed Cover" },
+];
+
+const STRUKTUR_HPP_SELF_SERVICE_TOGGLE_TITLES_ = [
+  { key: STRUKTUR_HPP_SERVICE_KEYS_.CUCI_SAJA, title: "HPP Cuci Saja" },
+  { key: STRUKTUR_HPP_SERVICE_KEYS_.KERING_SAJA, title: "HPP Kering Saja" },
+  { key: STRUKTUR_HPP_SERVICE_KEYS_.CUCI_KERING, title: "HPP Cuci Kering" },
 ];
 
 // ============================================================================
@@ -123,9 +133,16 @@ function getStrukturBiayaHPP_(cabangId) {
         return { key: item.key, title: item.title, aktif: serviceAktifMap[item.key] };
       });
     } else {
-      layanan = buildSelfServiceHPPStructure_(normalized);
+      const selfServiceAktifMap = {};
+      STRUKTUR_HPP_SELF_SERVICE_TOGGLE_TITLES_.forEach(function (item) {
+        selfServiceAktifMap[item.key] = isHPPLayananAktif_(cabangId, item.key);
+      });
+      layanan = buildSelfServiceHPPStructure_(normalized, selfServiceAktifMap);
       konsepUsaha = "Self Service Laundry";
       note = "Biaya App Kasir & Nota pada HPP Cuci Kering hanya dihitung satu kali.";
+      serviceToggles = STRUKTUR_HPP_SELF_SERVICE_TOGGLE_TITLES_.map(function (item) {
+        return { key: item.key, title: item.title, aktif: selfServiceAktifMap[item.key] };
+      });
     }
 
     return {
@@ -631,7 +648,8 @@ function validateStrukturHPPData_(normalized) {
 // SECTION: CALCULATION ENGINE
 // ============================================================================
 
-function buildSelfServiceHPPStructure_(normalized) {
+function buildSelfServiceHPPStructure_(normalized, serviceAktifMap) {
+  const aktifMap = serviceAktifMap || {};
   const appNota = normalized.notaKasir.biayaPerLoad;
 
   const cuciSaja = calculateHPPService_(
@@ -735,7 +753,11 @@ function buildSelfServiceHPPStructure_(normalized) {
     ]
   );
 
-  return [cuciSaja, keringSaja, cuciKering];
+  const layanan = [];
+  if (aktifMap[STRUKTUR_HPP_SERVICE_KEYS_.CUCI_SAJA] !== false) layanan.push(cuciSaja);
+  if (aktifMap[STRUKTUR_HPP_SERVICE_KEYS_.KERING_SAJA] !== false) layanan.push(keringSaja);
+  if (aktifMap[STRUKTUR_HPP_SERVICE_KEYS_.CUCI_KERING] !== false) layanan.push(cuciKering);
+  return layanan;
 }
 
 /**

@@ -261,12 +261,10 @@ menjalankan bootApp().
 
       '<line x1="' + plotL + '" y1="' + yCost0 + '" x2="' + plotR + '" y2="' + yCost0 + '" stroke="var(--text-faint)" stroke-width="1" stroke-dasharray="4,3"></line>' +
       '<text x="' + plotL + '" y="' + (yCost0 - 5) + '" font-size="8" fill="var(--text-faint)">' + escapeHtml(formatJutaChart_(fixedCost)) + '</text>' +
-      '<text x="' + plotR + '" y="' + (yCost0 - 5) + '" font-size="8.5" font-weight="700" fill="var(--text-dim)" text-anchor="end">FC</text>' +
-      '<text x="' + plotR + '" y="' + (yCost0 + 8) + '" font-size="7" fill="var(--text-faint)" text-anchor="end">(Biaya Tetap)</text>' +
+      '<text x="' + plotR + '" y="' + (yCost0 - 5) + '" font-size="9" font-weight="700" fill="var(--text-dim)" text-anchor="end">FC</text>' +
 
       '<line x1="' + x0 + '" y1="' + yRev0 + '" x2="' + xMax + '" y2="' + yVarMax + '" stroke="var(--volt)" stroke-width="1.5" stroke-dasharray="4,3"></line>' +
-      '<text x="' + plotR + '" y="' + (yVarMax - 5) + '" font-size="8.5" font-weight="700" fill="var(--volt)" text-anchor="end">VC</text>' +
-      '<text x="' + plotR + '" y="' + (yVarMax + 8) + '" font-size="7" fill="var(--text-faint)" text-anchor="end">(Biaya Variabel)</text>' +
+      '<text x="' + plotR + '" y="' + (yVarMax - 5) + '" font-size="9" font-weight="700" fill="var(--volt)" text-anchor="end">VC</text>' +
 
       '<line x1="' + plotL + '" y1="' + yBep + '" x2="' + xBep + '" y2="' + yBep + '" stroke="var(--sage)" stroke-width="1" stroke-dasharray="3,3"></line>' +
       '<line x1="' + (plotL - 3) + '" y1="' + yBep + '" x2="' + (plotL + 3) + '" y2="' + yBep + '" stroke="var(--sage)" stroke-width="1.5"></line>' +

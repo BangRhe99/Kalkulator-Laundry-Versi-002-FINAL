@@ -67,10 +67,10 @@ function getHargaLayanan_(cabangId) {
     const kategoriFinal = normalizeHargaLayananKategori_(kategoriLayanan);
 
     // Layanan mana yang aktif/nonaktif mengikuti toggle di kartu Struktur
-    // Biaya HPP (Modul_StrukturBiayaHPP.gs) - hanya relevan utk kategori
-    // drop_off/hybrid, kategori lain tidak punya toggle sama sekali.
+    // Biaya HPP (Modul_StrukturBiayaHPP.gs) - relevan utk drop_off/hybrid
+    // DAN self_service (jasa_setrika cuma 1 layanan, tidak ada toggle).
     const aktifMap = {};
-    if (kategoriFinal === "drop_off" || kategoriFinal === "hybrid") {
+    if (kategoriFinal === "drop_off" || kategoriFinal === "hybrid" || kategoriFinal === "self_service") {
       STRUKTUR_HPP_TOGGLABLE_KEYS_.forEach(function (key) {
         aktifMap[key] = typeof isHPPLayananAktif_ === "function" ? isHPPLayananAktif_(cleanCabangId, key) : true;
       });
@@ -285,26 +285,22 @@ function buildHargaLayananHPPMap_(hppResult) {
 
 function getHargaLayananDefinitions_(kategori, aktifMap) {
   if (kategori === "self_service") {
-    return [
-      {
-        key: "cuci_saja",
-        title: "Cuci Saja",
-        hppSourceKey: "cuci_saja",
-        unitLabel: "per load",
-      },
-      {
-        key: "kering_saja",
-        title: "Kering Saja",
-        hppSourceKey: "kering_saja",
-        unitLabel: "per load",
-      },
-      {
-        key: "cuci_kering",
-        title: "Cuci Kering",
-        hppSourceKey: "cuci_kering",
-        unitLabel: "per load",
-      },
-    ];
+    // Layanan mana yang tampil mengikuti toggle aktif di kartu Struktur
+    // Biaya HPP (aktifMap) - sama seperti drop_off/hybrid, supaya laundry
+    // yang mematikan mis. "Kering Saja" otomatis tidak lagi punya baris
+    // harga di Harga Layanan (dan tidak ikut BEP/Potensi Omset).
+    const aktif = aktifMap || {};
+    const defs = [];
+    if (aktif.cuci_saja !== false) {
+      defs.push({ key: "cuci_saja", title: "Cuci Saja", hppSourceKey: "cuci_saja", unitLabel: "per load" });
+    }
+    if (aktif.kering_saja !== false) {
+      defs.push({ key: "kering_saja", title: "Kering Saja", hppSourceKey: "kering_saja", unitLabel: "per load" });
+    }
+    if (aktif.cuci_kering !== false) {
+      defs.push({ key: "cuci_kering", title: "Cuci Kering", hppSourceKey: "cuci_kering", unitLabel: "per load" });
+    }
+    return defs;
   }
 
   if (kategori === "jasa_setrika") {

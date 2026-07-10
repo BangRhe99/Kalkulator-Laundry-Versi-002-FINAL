@@ -34,6 +34,15 @@ Jika tampilan gas, listrik, air, atau admin/nota bermasalah, mulai cek dari file
 -->
 <style>
 /* ---------------------------------------------------------------------- */
+  /* MASTER BIAYA — pill kategori biaya (Gas/Listrik/Air/Chemical/Packing/  */
+  /* Nota) - font dikecilkan khusus di sini (bukan .pill global) supaya    */
+  /* kata terpanjang ("Chemical") tetap 1 baris & semua pill presisi sama  */
+  /* tinggi di layar HP.                                                   */
+  /* ---------------------------------------------------------------------- */
+  #kategoriBiayaPills.pill-group { gap: 6px; }
+  #kategoriBiayaPills .pill { font-size: 11px; padding: 9px 4px; }
+
+  /* ---------------------------------------------------------------------- */
   /* MASTER BIAYA — pilih cabang (sub-langkah sebelum daftar kartu gas)     */
   /* ---------------------------------------------------------------------- */
   .pick-cabang-row {
