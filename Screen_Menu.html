@@ -92,6 +92,57 @@ tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
           </div>
         </div>
       </div>
+
+      <!-- =================================================================
+           RINGKASAN EKSEKUTIF - KHUSUS DESKTOP (>=1100px), TIDAK PERNAH
+           tampil di HP (dijaga 2 lapis di Style_Module_Dashboard.html sama
+           spt sidebar). Data SAMA PERSIS dgn 7 card di atas (.dashboard-grid,
+           yang disembunyikan gantian di breakpoint yg sama) - cuma
+           dirender ulang ke tata letak 1 halaman: 5 KPI + grafik BEP +
+           Master Biaya berdampingan + Harga Layanan di bawahnya.
+           Profil Outlet & Struktur Biaya HPP SENGAJA tidak ditampilkan di
+           sini - tetap ada, dibuka lewat menu sidebar.
+      ================================================================== -->
+      <div class="desktop-dashboard-summary" id="desktopDashboardSummary">
+        <div class="desktop-kpi-row">
+          <div class="desktop-kpi-card kpi-omset">
+            <div class="desktop-kpi-label">Estimasi Omset</div>
+            <div class="desktop-kpi-value" id="desktopKpiOmset">-</div>
+          </div>
+          <div class="desktop-kpi-card kpi-profit">
+            <div class="desktop-kpi-label">Estimasi Profit</div>
+            <div class="desktop-kpi-value" id="desktopKpiProfit">-</div>
+          </div>
+          <div class="desktop-kpi-card kpi-bep-load">
+            <div class="desktop-kpi-label">Target BEP Load</div>
+            <div class="desktop-kpi-value" id="desktopKpiBepLoad">-</div>
+          </div>
+          <div class="desktop-kpi-card kpi-bep-omset">
+            <div class="desktop-kpi-label">Target BEP Omset</div>
+            <div class="desktop-kpi-value" id="desktopKpiBepOmset">-</div>
+          </div>
+          <div class="desktop-kpi-card kpi-fixed-cost">
+            <div class="desktop-kpi-label">Total Fixed Cost</div>
+            <div class="desktop-kpi-value" id="desktopKpiFixedCost">-</div>
+          </div>
+        </div>
+
+        <div class="desktop-summary-row">
+          <div class="desktop-summary-panel">
+            <div class="desktop-panel-title">Target Titik Impas (BEP)</div>
+            <div class="dashboard-card-summary is-loading" id="desktopBepChart">Memuat data...</div>
+          </div>
+          <div class="desktop-summary-panel">
+            <div class="desktop-panel-title">Master Biaya Produksi</div>
+            <div class="dashboard-card-summary is-loading" id="desktopMasterBiaya">Memuat data...</div>
+          </div>
+        </div>
+
+        <div class="desktop-summary-panel desktop-summary-full">
+          <div class="desktop-panel-title">Harga Layanan</div>
+          <div class="dashboard-card-summary is-loading" id="desktopHargaLayanan">Memuat data...</div>
+        </div>
+      </div>
     </section>
 
     <!-- ===================================================================

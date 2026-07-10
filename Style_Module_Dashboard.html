@@ -29,24 +29,72 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
   /* ---------------------------------------------------------------------- */
   .menu-grid { display: flex; flex-direction: column; gap: 12px; }
 
+  /* HP/tablet portrait (<1100px): 7 card ringkasan (.dashboard-grid) apa
+     adanya, TIDAK DIUBAH SAMA SEKALI. Ringkasan eksekutif desktop
+     (.desktop-dashboard-summary) disembunyikan total di lebar ini. */
+  .desktop-dashboard-summary { display: none; }
+
   /* Dashboard di layar lebar (tablet lanskap/laptop/PC, >=1100px sama
-     dengan breakpoint 2-kolom form Profil Outlet): 7 card ringkasan jadi
-     2 kolom MASONRY (pakai CSS columns, bukan CSS grid) - tiap kolom
-     mengalir sendiri-sendiri sesuai tinggi kontennya, supaya card pendek
-     (mis. Master Biaya) tidak "memaksa" jarak kosong ganjil sebelum card
-     berikutnya spt kalau dipasangkan per baris pakai grid biasa.
-     HP/tablet portrait (<1100px) TIDAK berubah sama sekali. */
-  body:has(#screenMenu.active) .wrap { width: min(100%, 1040px); }
+     dengan breakpoint 2-kolom form Profil Outlet): .dashboard-grid (7 card
+     versi HP) diganti tampilannya dgn ringkasan eksekutif 1 halaman (5 KPI
+     + grafik BEP + Master Biaya berdampingan + Harga Layanan) - Profil
+     Outlet & Struktur HPP tetap ada, dibuka lewat sidebar (lihat
+     Screen_Sidebar.html), bukan di halaman ringkasan ini lagi. */
+  body:has(#screenMenu.active) .wrap { width: min(100%, 1200px); }
 
   @media (min-width: 1100px) {
-    #screenMenu .dashboard-grid {
-      display: block;
-      columns: 2;
-      column-gap: 16px;
+    #screenMenu .dashboard-grid { display: none; }
+    .desktop-dashboard-summary { display: flex; flex-direction: column; gap: 16px; }
+
+    .desktop-kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+    .desktop-kpi-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      min-width: 0;
     }
-    #screenMenu .dashboard-grid .menu-card {
-      break-inside: avoid;
-      margin-bottom: 16px;
+    .desktop-kpi-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-faint);
+      margin-bottom: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .desktop-kpi-value {
+      font-family: var(--font-display);
+      font-size: 19px;
+      font-weight: 800;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .kpi-omset .desktop-kpi-value { color: var(--sage); }
+    .kpi-bep-load .desktop-kpi-value,
+    .kpi-bep-omset .desktop-kpi-value { color: var(--brass); }
+    .kpi-fixed-cost .desktop-kpi-value { color: var(--text-dim); }
+    .desktop-kpi-value.pos { color: var(--sage); }
+    .desktop-kpi-value.neg { color: var(--red); }
+
+    .desktop-summary-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+    .desktop-summary-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+    }
+    .desktop-summary-full { width: 100%; }
+    .desktop-panel-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 14px;
     }
   }
   .menu-card {

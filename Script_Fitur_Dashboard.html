@@ -245,6 +245,64 @@ menjalankan bootApp().
     renderDashboardFixedCostCard(d.fixedCost);
     renderDashboardBEPCard(d.bep);
     renderDashboardPotensiOmsetCard(d.potensiOmset);
+
+    // Ringkasan eksekutif khusus DESKTOP (>=1100px, lihat Style_Module_Dashboard.html)
+    // - data SAMA PERSIS dari fetch yang sama, cuma dirender ulang ke panel
+    // terpisah, TIDAK ada fetch tambahan. Elemen ini tidak ada di HP jadi
+    // di HP fungsi ini otomatis tidak melakukan apa-apa (guard di bawah).
+    if (document.getElementById("desktopDashboardSummary")) {
+      renderDesktopKpiSummary_(d);
+      renderDesktopBepChart_(d.bep);
+      renderDashboardMasterBiayaCard(d.masterBiaya, "desktopMasterBiaya");
+      renderDashboardHargaLayananCard(d.hargaLayanan, "desktopHargaLayanan");
+    }
+  }
+
+  function setDesktopKpiText_(id, text) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  function renderDesktopKpiSummary_(d) {
+    var potensi = (d.potensiOmset && d.potensiOmset.ok && d.potensiOmset.data) ? d.potensiOmset.data : null;
+    var bep = (d.bep && d.bep.ok && d.bep.data) ? d.bep.data : null;
+    var fixedRows = (d.fixedCost && d.fixedCost.ok && d.fixedCost.data && Array.isArray(d.fixedCost.data.rows)) ? d.fixedCost.data.rows : [];
+    var fixedCostVal = fixedRows.length ? toNumber(fixedRows[0].totalPerBulan, 0) : 0;
+
+    setDesktopKpiText_("desktopKpiOmset", potensi ? money0(potensi.estimasiOmsetPerBulan) : "-");
+
+    var profitEl = document.getElementById("desktopKpiProfit");
+    if (profitEl) {
+      var profitVal = potensi ? toNumber(potensi.estimasiProfitPerBulan, 0) : 0;
+      profitEl.textContent = potensi ? money0(profitVal) : "-";
+      profitEl.classList.toggle("pos", !!potensi && profitVal >= 0);
+      profitEl.classList.toggle("neg", !!potensi && profitVal < 0);
+    }
+
+    setDesktopKpiText_("desktopKpiBepLoad", (bep && bep.bepLoadPerBulan > 0) ? (formatNum(bep.bepLoadPerBulan, 0) + " load") : "-");
+    setDesktopKpiText_("desktopKpiBepOmset", (bep && bep.bepLoadPerBulan > 0) ? money0(bep.bepOmsetPerBulan) : "-");
+    setDesktopKpiText_("desktopKpiFixedCost", money0(fixedCostVal));
+  }
+
+  function renderDesktopBepChart_(res) {
+    var target = document.getElementById("desktopBepChart");
+    if (!target) return;
+    if (!res || !res.ok || !res.data || !(res.data.bepLoadPerBulan > 0)) {
+      var msg = (res && res.data && Array.isArray(res.data.warnings) && res.data.warnings.length)
+        ? res.data.warnings.join(" · ")
+        : "Data BEP belum lengkap - isi Fixed Cost & Harga Layanan dulu.";
+      target.innerHTML = '<div class="dashboard-empty">' + escapeHtml(msg) + '</div>';
+      return;
+    }
+    var chartSvg = buildBepChartSvg(res.data);
+    target.innerHTML = chartSvg
+      ? '<div class="bep-chart-wrap">' + chartSvg +
+          '<div class="bep-chart-legend">' +
+            '<span class="bep-legend-item"><span class="bep-legend-dot sage"></span>Omset</span>' +
+            '<span class="bep-legend-item"><span class="bep-legend-dot brass"></span>Total Biaya</span>' +
+          '</div>' +
+        '</div>'
+      : '<div class="dashboard-empty">Grafik belum bisa dibuat.</div>';
   }
 
   function refreshDashboard(skipCabangCardLoading) {
@@ -485,9 +543,10 @@ menjalankan bootApp().
         setDashboardCardHtml('dashboardCabangSummary', html);
   }
 
-  function renderDashboardMasterBiayaCard(res) {
+  function renderDashboardMasterBiayaCard(res, targetId) {
+        targetId = targetId || "dashboardMasterBiayaSummary";
         if (!res || !res.ok) {
-          setDashboardCardError("dashboardMasterBiayaSummary", res && res.error ? res.error : "Data master biaya belum bisa dibaca.");
+          setDashboardCardError(targetId, res && res.error ? res.error : "Data master biaya belum bisa dibaca.");
           return;
         }
 
@@ -495,7 +554,7 @@ menjalankan bootApp().
         var rows = Array.isArray(data.rows) ? data.rows : [];
 
         if (!rows.length) {
-          setDashboardCardHtml("dashboardMasterBiayaSummary", '<div class="dashboard-empty">Belum ada outlet untuk dicek.</div>');
+          setDashboardCardHtml(targetId, '<div class="dashboard-empty">Belum ada outlet untuk dicek.</div>');
           return;
         }
         var shown = rows.slice(0, 1);
@@ -522,7 +581,7 @@ menjalankan bootApp().
             (komponen.length > 0 ? '<div class="mb-komponen-list">' + komponenHtml + '</div>' : '') +
           '</div>';
         }).join('');
-        setDashboardCardHtml("dashboardMasterBiayaSummary", html);
+        setDashboardCardHtml(targetId, html);
   }
 
   function renderDashboardHPPCard(res) {
@@ -620,15 +679,16 @@ menjalankan bootApp().
     return u.charAt(0).toUpperCase() + u.slice(1);
   }
 
-  function renderDashboardHargaLayananCard(res) {
+  function renderDashboardHargaLayananCard(res, targetId) {
+        targetId = targetId || "dashboardHargaLayananSummary";
         if (!res || !res.ok) {
-          setDashboardCardError("dashboardHargaLayananSummary", res && res.error ? res.error : "Data harga layanan belum bisa dibaca.");
+          setDashboardCardError(targetId, res && res.error ? res.error : "Data harga layanan belum bisa dibaca.");
           return;
         }
         var data = res.data || {};
         var rows = Array.isArray(data.rows) ? data.rows : [];
         if (!rows.length) {
-          setDashboardCardHtml("dashboardHargaLayananSummary", '<div class="dashboard-empty">Belum ada outlet untuk dicek harga layanan.</div>');
+          setDashboardCardHtml(targetId, '<div class="dashboard-empty">Belum ada outlet untuk dicek harga layanan.</div>');
           return;
         }
         var d = rows[0];
@@ -724,7 +784,7 @@ menjalankan bootApp().
             html += '<div class="hl-note">' + ((d.totalLayanan || 0) - (d.hargaTerisiCount || 0)) + ' layanan belum diisi harga</div>';
           }
         }
-        setDashboardCardHtml('dashboardHargaLayananSummary', html);
+        setDashboardCardHtml(targetId, html);
   }
 
   function renderDashboardFixedCostCard(res) {
