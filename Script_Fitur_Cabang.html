@@ -539,7 +539,13 @@ menjalankan bootApp().
       view.editingId = res.data.cabang.id;
       view.isNew = false;
       renderRingkasan(res.data.cabang, res.data.summary);
-      showScreen("ringkasan");
+      // Balik langsung ke Dashboard (bukan layar ringkasan outlet) - outlet
+      // yang baru disimpan dijadikan outlet terpilih DULU supaya
+      // refreshDashboard() (dipicu otomatis oleh showScreen("menu")) lewat
+      // jalur fast-path (fetch paralel, bukan tunggu listCabang() dulu).
+      if (typeof setStoredOutletId_ === "function") setStoredOutletId_(view.editingId);
+      if (typeof dashboardSelectedOutletId !== "undefined") dashboardSelectedOutletId = view.editingId;
+      showScreen("menu");
     }
 
     if (view.isNew) {
