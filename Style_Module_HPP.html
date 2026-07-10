@@ -199,6 +199,27 @@ Jika tampilan rincian HPP, persen komponen, atau total HPP bermasalah, cek file 
   padding: 30px 12px;
 }
 
+/* === DESKTOP LAYOUT (>=1100px) - screenStrukturHPPList & screenStrukturHPPDetail ===
+   .wrap dilebarkan khusus 2 screen ini (pola sama spt Profil Outlet/Master
+   Biaya) - AMAN tanpa @media krn width:min(100%,1080px) otomatis balik ke
+   100% sendiri di HP. Rule display/grid TETAP di dalam @media supaya HP
+   tidak berubah sama sekali. */
+body:has(#screenStrukturHPPList.active) .wrap,
+body:has(#screenStrukturHPPDetail.active) .wrap { width: min(100%, 1080px); }
+
+@media (min-width: 1100px) {
+  /* Daftar outlet jadi grid 2 kolom, bukan ditumpuk 1 kolom panjang. */
+  #strukturHPPOutletList { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+  /* Card per layanan (HPP Cuci Saja/Kering Saja/dst) dipakai masonry 2
+     kolom (spt Dashboard) supaya tidak 1 kolom panjang ke bawah - header
+     ringkasan outlet & kotak peringatan tetap selebar penuh di atasnya. */
+  #strukturHPPContent { columns: 2; column-gap: 16px; }
+  #strukturHPPContent .summary-hero,
+  #strukturHPPContent .hpp-warning-box { column-span: all; }
+  #strukturHPPContent .hpp-service-card { break-inside: avoid; }
+}
+
 /* === DASHBOARD HPP CARD === */
 .hpp-mini-list { display: flex; flex-direction: column; gap: 10px; }
 .hpp-mini-card {
