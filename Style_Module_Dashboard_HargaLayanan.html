@@ -1,0 +1,157 @@
+<!--
+===============================================================================
+FILE: Style_Module_Dashboard_HargaLayanan.html  (BAGIAN 8 dari 9)
+Bagian dari Style_Module_Dashboard (peta lengkap di file utama).
+ISI: Kartu Harga Layanan (hl-*, badge status margin, detail) + kartu Fixed
+Cost ringkas (fc-*). Versi ringkas di dashboard (BUKAN layar detail penuh).
+===============================================================================
+-->
+<style>
+  /* === CARD HARGA LAYANAN â€” Financial Decision Card === */
+  .hl-item {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .hl-item:last-of-type { margin-bottom: 0; }
+
+  .hl-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .hl-name { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.3; }
+
+  .hl-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .hl-status-berisiko { background: rgba(220, 38, 38, 0.12); color: var(--red); }
+  .hl-status-tipis { background: rgba(183, 121, 31, 0.12); color: var(--brass); }
+  .hl-status-cukup { background: rgba(217, 194, 75, 0.16); color: var(--volt); }
+  .hl-status-sehat { background: rgba(52, 211, 153, 0.14); color: #34D399; }
+  .hl-status-sangat-sehat { background: rgba(15, 118, 110, 0.12); color: var(--sage); }
+
+  .hl-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .hl-bar-wrap { flex: 1; height: 6px; background: var(--panel); border-radius: 3px; overflow: hidden; }
+  .hl-bar { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+  .hl-bar.hl-tier-berisiko { background: var(--red); }
+  .hl-bar.hl-tier-tipis { background: var(--brass); }
+  .hl-bar.hl-tier-cukup { background: var(--volt); }
+  .hl-bar.hl-tier-sehat { background: #34D399; }
+  .hl-bar.hl-tier-sangat-sehat { background: var(--sage); }
+  .hl-bar-pct { font-size: 12px; font-weight: 700; color: var(--text-dim); font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; flex-shrink: 0; }
+
+  .hl-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .hl-stat { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .hl-stat-label { font-size: 9.5px; font-weight: 600; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.03em; }
+  .hl-stat-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hl-stat-hpp { color: var(--brass); }
+  .hl-stat-profit { color: var(--sage); }
+  .hl-stat-unit { font-size: 9.5px; font-weight: 500; color: var(--text-faint); }
+
+  /* Kolom ke-3 (Min Order) merangkap tombol expand Detail Perhitungan -
+     value & panah sejajar dalam 1 baris supaya tidak nambah baris baru. */
+  .hl-stat-toggle { cursor: pointer; }
+  .hl-stat-value-row { display: flex; align-items: center; gap: 6px; }
+  .hl-stat-toggle .hl-stat-value { flex: 1; min-width: 0; }
+
+  .hl-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-dim);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+  }
+  .hl-arrow-sm { width: 20px; height: 20px; font-size: 11px; }
+  .hl-item.is-open .hl-arrow { transform: rotate(180deg); }
+  .hl-detail { display: none; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); margin-top: 10px; }
+  .hl-item.is-open .hl-detail { display: flex; }
+  .hl-detail-title { font-size: 11px; font-weight: 700; color: var(--text); }
+  .hl-detail-row { display: flex; justify-content: space-between; font-size: 10.5px; padding: 1px 0; }
+  .hl-detail-label { color: var(--text-faint); }
+  .hl-detail-value { color: var(--text-dim); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .hl-detail-empty { font-size: 10.5px; color: var(--text-faint); font-style: italic; padding: 2px 0; }
+  .hl-note { font-size: 11px; color: var(--text-faint); margin-top: 6px; text-align: center; }
+
+  .hl-detail-group { border-radius: 8px; padding: 8px 10px; }
+  .hl-detail-group + .hl-detail-group { margin-top: 8px; }
+  .hl-detail-group-load {
+    background: rgba(183, 121, 31, 0.08);
+    border: 1px solid rgba(183, 121, 31, 0.2);
+  }
+  .hl-detail-group-kg {
+    background: rgba(15, 118, 110, 0.08);
+    border: 1px solid rgba(15, 118, 110, 0.2);
+  }
+  .hl-detail-group-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+  .hl-detail-group-load .hl-detail-group-title { color: var(--brass); }
+  .hl-detail-group-kg .hl-detail-group-title { color: var(--sage); }
+  .hl-detail-group-hint { font-weight: 400; text-transform: none; color: var(--text-faint); letter-spacing: normal; }
+  .hl-empty { font-size: 12px; color: var(--text-faint); text-align: center; padding: 8px 0; }
+
+  .fc-main-row { display: flex; align-items: baseline; gap: 6px; cursor: pointer; margin-bottom: 14px; }
+  .fc-main { font-size: 28px; font-weight: 500; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1; }
+  .fc-main-unit { font-size: 12px; color: var(--text-faint); }
+  .fc-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-dim);
+    margin-left: auto;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+  }
+  .fc-card.is-open .fc-arrow { transform: rotate(180deg); }
+  .fc-divider { height: 1px; background: var(--border); margin: 12px 0; }
+  .fc-hari { display: flex; justify-content: space-between; align-items: center; }
+  .fc-hari-label { font-size: 12px; color: var(--text-dim); }
+  .fc-hari-val { font-size: 13px; font-weight: 500; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .fc-detail { display: none; flex-direction: column; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .fc-card.is-open .fc-detail { display: flex; }
+  .fc-detail-row { display: flex; align-items: center; gap: 6px; font-size: 11.5px; }
+  .fc-detail-label { flex: 1; color: var(--text-faint); }
+  .fc-detail-percent { width: 44px; flex-shrink: 0; text-align: right; color: var(--brass); font-variant-numeric: tabular-nums; }
+  .fc-detail-value { width: 84px; flex-shrink: 0; text-align: right; color: var(--text-dim); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+</style>

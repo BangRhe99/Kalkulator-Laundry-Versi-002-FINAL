@@ -1,0 +1,272 @@
+<!--
+===============================================================================
+FILE: Style_Module_Dashboard_BEP.html  (BAGIAN 4 dari 9)
+Bagian dari Style_Module_Dashboard (peta lengkap di file utama).
+ISI: Kartu BEP (bep-card, hero, grafik bep-chart-*, legend, mix box).
+Catatan: polesan KHUSUS panel desktop #desktopBepChart ada di file utama &
+DesktopDensity (scoped), file ini gaya dasar kartu BEP (dipakai bareng HP).
+===============================================================================
+-->
+<style>
+  /* === BEP CARD === */
+  .bep-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .bep-hero-row-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .bep-hero-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--panel-2);
+    border-radius: var(--radius);
+    padding: 12px;
+  }
+
+  .bep-hero-item-label {
+    font-size: 9.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+  }
+
+  .bep-hero-item-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+  }
+
+  .bep-hero-item-value-omset {
+    font-size: 17px;
+    color: var(--sage);
+  }
+
+  .bep-hero-item-unit {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-faint);
+    margin-left: 4px;
+  }
+
+  .bep-incomplete-top {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .bep-mix-btn {
+    flex-shrink: 0;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 11px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .bep-mix-btn:hover { border-color: var(--sage-dim); color: var(--sage); }
+
+  .bep-chart-wrap {
+    background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
+    border-radius: var(--radius);
+    padding: 10px 10px 8px 10px;
+    margin-bottom: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 6px 16px rgba(0,0,0,0.05);
+  }
+
+  .bep-chart-svg {
+    width: 100%;
+    height: 120px;
+    display: block;
+  }
+
+  .bep-chart-legend {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    margin-top: 4px;
+  }
+
+  .bep-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10.5px;
+    color: var(--text-faint);
+  }
+
+  .bep-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .bep-legend-dot.sage { background: var(--sage); }
+  .bep-legend-dot.brass { background: var(--brass); }
+
+  .bep-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .bep-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .bep-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--panel-2);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+  }
+
+  .bep-item-sub {
+    padding: 7px 10px;
+  }
+
+  .bep-item-sub .bep-label { font-size: 9px; }
+  .bep-item-sub .bep-value { font-size: 13px; }
+  .bep-item-sub .bep-omset { font-size: 11.5px; }
+
+  .bep-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+  }
+
+  .bep-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+  }
+
+  .bep-omset {
+    color: var(--sage);
+    font-size: 13px;
+  }
+
+  .bep-unit {
+    font-size: 10px;
+    color: var(--text-faint);
+    font-weight: 500;
+  }
+
+  .bep-warning {
+    font-size: 10.5px;
+    color: var(--brass);
+    padding: 6px 10px;
+    background: rgba(180, 130, 60, 0.08);
+    border-radius: var(--radius);
+    border: 1px solid rgba(180, 130, 60, 0.2);
+    line-height: 1.5;
+  }
+
+  .bep-incomplete {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .bep-incomplete-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-faint);
+  }
+
+  .bep-incomplete-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  .bep-mix-box {
+    max-width: 380px;
+  }
+
+  .bep-mix-desc {
+    font-size: 12px;
+    color: var(--text-faint);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .bep-mix-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+
+  .bep-mix-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .bep-mix-row-title {
+    font-size: 13px;
+    color: var(--text-dim);
+    flex: 1;
+    min-width: 0;
+  }
+
+  .bep-mix-row-input {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .bep-mix-row-input input {
+    width: 56px;
+    text-align: right;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bep-mix-row-percent-sign {
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+
+  .bep-mix-total {
+    margin-top: 12px;
+    font-size: 11.5px;
+    color: var(--brass);
+    text-align: right;
+  }
+
+  .bep-mix-total.is-ok { color: var(--sage); }
+  /* === END BEP CARD === */
+
+</style>

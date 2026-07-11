@@ -1,0 +1,153 @@
+<!--
+===============================================================================
+FILE: Style_Module_Dashboard_DesktopDensity.html  (BAGIAN 9 dari 9)
+Bagian dari Style_Module_Dashboard (peta lengkap di file utama).
+!!! WAJIB DI-INCLUDE PALING AKHIR di antara file Style_Module_Dashboard_* !!!
+ISI: Blok "DENSITY COMPACT" - override KHUSUS desktop (>=1100px) yang menimpa
+aturan di file-file di atas agar ringkasan desktop muat 1 layar (judul/KPI/BEP/
+MasterBiaya/HargaLayanan lebih padat, badge kategori, legenda BEP, dll).
+Karena isinya OVERRIDE, memindahkannya dari urutan akhir akan merusak tampilan.
+===============================================================================
+-->
+<style>
+  /* ====================================================================
+     DENSITY COMPACT (2026-07-11): paksa ringkasan desktop muat 1 layar
+     penuh (laptop 1366x768) TANPA scroll & TANPA terpotong. Prinsipnya
+     kepadatan profesional: padding/gap diperkecil terukur, hierarki
+     tetap. Sengaja dikumpulkan jadi SATU blok supaya gampang di-tune
+     atau dihapus. Panel tengah berhenti mengecil di 230px (floor)
+     supaya grafik tetap terbaca.
+     ==================================================================== */
+  @media (min-width: 1100px) {
+    /* Dashboard desktop dinaikkan: app-header disembunyikan di lebar ini
+       (lihat aturan di atas), jadi satu-satunya jarak dari atas layar
+       tinggal body padding-top:16px (Style_Base.html). Dipangkas KHUSUS
+       saat Dashboard aktif supaya konten mepet ke atas. DIBATASI ke
+       body:has(#screenMenu.active) + media query >=1100px -> HP (<1100px)
+       & layar lain (Profil Outlet dst, #screenMenu tidak .active) TIDAK
+       ikut berubah. Ikut menambah tinggi elastis panel via fit-JS krn
+       rect.top jadi lebih kecil. */
+    body:has(#screenMenu.active) { padding-top: 4px; }
+    .desktop-dashboard-summary { gap: 10px; }
+    #screenMenu .dashboard-header { padding: 7px 14px; margin-bottom: 0; }
+    .desktop-kpi-row { gap: 12px; }
+    .desktop-kpi-card { padding: 13px 16px 12px; }
+    .desktop-kpi-label { margin-bottom: 7px; }
+    .desktop-kpi-number { font-size: clamp(20px, 1.55vw, 29px); }
+    /* "Rp" inline mepet nominal (jarak rapat) - font Rp kecil, angka besar. */
+    .desktop-kpi-number-row { gap: 3px; align-items: baseline; }
+    .desktop-kpi-currency { font-size: 12.5px; }
+    /* Keterangan kecil di bawah nominal tiap KPI (Rugi/Impas/Untung, margin,
+       rumus, target BEP dll) - biar orang awam paham. */
+    .desktop-kpi-note {
+      font-size: 8.5px;
+      color: var(--text-faint);
+      line-height: 1.4;
+      margin-top: 8px;
+    }
+    .desktop-kpi-note .kpi-note-status { font-weight: 700; color: var(--text-dim); }
+    .desktop-kpi-note .kpi-note-sub { display: block; color: var(--text-faint); margin-top: 1px; }
+    .desktop-kpi-note.note-untung .kpi-note-status { color: var(--sage); }
+    .desktop-kpi-note.note-rugi .kpi-note-status { color: var(--red); }
+    .desktop-kpi-note.note-impas .kpi-note-status { color: var(--brass); }
+    /* Kategori laundry tampil di desktop: pelebaran pill dibuka (HP tetap
+       max-width 140px) supaya nama + badge muat 1 baris. */
+    body:has(#screenMenu.active) .outlet-filter-pill { max-width: none; }
+    body:has(#screenMenu.active) .outlet-kategori-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--brass);
+      background: rgba(var(--brass-rgb, 180, 130, 60), 0.10);
+      border: 1px solid rgba(var(--brass-rgb, 180, 130, 60), 0.22);
+      border-radius: 999px;
+      padding: 2px 8px;
+      margin: 0 2px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .desktop-summary-row { gap: 14px; min-height: 230px; }
+    .desktop-summary-panel { padding: 13px 16px 11px; }
+    .desktop-panel-title { margin-bottom: 8px; }
+    /* Panel BEP desktop: (1) judul "Target Titik Impas (BEP)" dikecilkan &
+       garis di bawahnya dinaikkan (font 14->11px, jarak bawah ->0) - sama
+       gaya dgn panel Master Biaya biar konsisten & elegan. Judul SIBLING
+       dari #desktopBepChart, discope :has(#desktopBepChart) supaya judul
+       panel lain tidak ikut. (2) Grafik "penyet" krn viewBox 300x150 +
+       preserveAspectRatio="none" diregang di panel yg lebar & pendek -
+       diperbaiki dgn memberi SVG tinggi maksimal: padding atas/bawah
+       chart-wrap & margin legenda dipangkas supaya .bep-chart-svg (flex:1)
+       tumbuh lebih tinggi -> garis lebih tegak/proporsional. Semua discope
+       ke panel BEP saja. */
+    .desktop-summary-panel:has(#desktopBepChart) .desktop-panel-title { font-size: 11px; margin-bottom: 0; }
+    #desktopBepChart .bep-chart-wrap { padding: 6px 12px 2px; position: relative; }
+    /* Legenda "Omset / Total Biaya" DIPINDAH masuk ke dalam grafik bagian
+       atas (permintaan user): dimunculkan lagi tapi di-overlay absolut
+       sebagai pill kecil di tengah-atas area chart (di atas titik potong
+       BEP, area yg kosong). Karena keluar dari alur normal (position:
+       absolute), .bep-chart-svg (flex:1) tetap memakai SELURUH tinggi
+       chart-wrap -> grafik tetap tinggi. Semua discope #desktopBepChart ->
+       legenda kartu HP (#dashboardBEPSummary) TIDAK berubah. */
+    #desktopBepChart .bep-chart-legend {
+      display: flex;
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      margin: 0;
+      gap: 14px;
+      z-index: 2;
+      padding: 3px 11px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      box-shadow: 0 1px 2px rgba(17,24,39,0.05);
+    }
+    /* Master Biaya desktop: SEMUA komponen (Gas/Chemical/Listrik/Packing/
+       Air/Nota) harus tampil. Sebelumnya .mb-komponen-list pakai
+       justify-content:space-between (dari aturan dasar di atas) + flex:1 -
+       itu menyebar 4 item teratas dgn jarak lebar & mendorong 2 item
+       terbawah ke area panel yg ke-clip (overflow:hidden), jadi Air/Nota
+       terpotong. Diganti flex-start supaya semua baris dipadatkan dari
+       ATAS dgn jarak konsisten - ruang yg tadinya terbuang jadi gap lebar
+       kini menampung baris 5 & 6 di area yg sama. justify-content di-reset
+       eksplisit (bukan cuma gap) supaya menang atas aturan dasar. */
+    /* Judul "Master Biaya Produksi" dikecilkan & garis/jaraknya dinaikkan
+       (font 14->11px, jarak bawah 8->2px) supaya blok data di bawahnya
+       ikut naik & baris terakhir (Nota) muat. Judul ini SIBLING dari
+       #desktopMasterBiaya (bukan anak), jadi discope pakai
+       :has(#desktopMasterBiaya) -> judul panel BEP & Harga Layanan TIDAK
+       ikut mengecil. */
+    .desktop-summary-panel:has(#desktopMasterBiaya) .desktop-panel-title { font-size: 11px; margin-bottom: 0; }
+    #desktopMasterBiaya .mb-komponen-list { justify-content: flex-start; gap: 1px; }
+    #desktopMasterBiaya .mb-komponen-row-desktop { gap: 2px; }
+    /* Tinggi panel (dikunci fit-JS) hanya cukup utk ~4 baris pada ukuran
+       lama, jadi Air & Nota jatuh di area yg ke-clip. Tiap baris dipadatkan
+       (font 12px + line-height rapat, bar 5px) supaya 6 komponen muat dalam
+       tinggi panel yg sama. Semua discope #desktopMasterBiaya -> kartu HP
+       (#dashboardMasterBiayaSummary) & panel lain tidak tersentuh. */
+    #desktopMasterBiaya .mb-komponen-line1 .mb-komponen-label { font-size: 12px; line-height: 1.2; }
+    #desktopMasterBiaya .mb-komponen-line1 .mb-komponen-value { font-size: 12px; line-height: 1.2; }
+    #desktopMasterBiaya .mb-komponen-line2 .mb-progress-bar { height: 5px; }
+    #desktopMasterBiaya .mb-komponen-line2 .mb-komponen-persen { font-size: 10px; }
+    /* Judul "Harga Layanan" disamakan dgn panel BEP/Master Biaya (font
+       11px, garis di bawahnya dinaikkan ke 0). Judul SIBLING dari
+       #desktopHargaLayanan -> discope :has(#desktopHargaLayanan). */
+    .desktop-summary-panel:has(#desktopHargaLayanan) .desktop-panel-title { font-size: 11px; margin-bottom: 0; }
+    #desktopHargaLayanan .hl-item { padding: 10px 12px; }
+    #desktopHargaLayanan .hl-top { margin-bottom: 6px; }
+    /* Nama layanan dikecilkan + nowrap -> "Cuci Kering Setrika"/"Setrika
+       Saja" presisi 1 baris (tdk lagi turun 2 baris). */
+    #desktopHargaLayanan .hl-name { font-size: 11px; line-height: 1.25; white-space: nowrap; }
+    #desktopHargaLayanan .hl-bar-row { margin-bottom: 8px; }
+    #desktopHargaLayanan .hl-stat-grid { gap: 6px; padding-bottom: 0; border-bottom: none; }
+    /* Badge margin ("Margin Sehat"/"Sangat Sehat") fontnya dikecilkan. */
+    #desktopHargaLayanan .hl-status-badge { padding: 3px 7px; font-size: 8.5px; }
+    /* Label "HARGA JUAL / HPP PER LOAD / MIN ORDER" dikecilkan + nowrap +
+       tracking dirapatkan -> "HPP PER LOAD" muat 1 baris, tidak bertumpuk. */
+    #desktopHargaLayanan .hl-stat-label { font-size: 8px; letter-spacing: 0.02em; white-space: nowrap; }
+  }
+</style>

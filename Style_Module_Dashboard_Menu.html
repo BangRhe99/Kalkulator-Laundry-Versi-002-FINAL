@@ -1,0 +1,195 @@
+<!--
+===============================================================================
+FILE: Style_Module_Dashboard_Menu.html  (BAGIAN 2 dari 9)
+Bagian dari Style_Module_Dashboard (lihat peta lengkap di file utama
+Style_Module_Dashboard.html). Di-include SETELAH file utama.
+ISI: Menu utama (menu-card), dashboard-header + dashboard-header-top,
+outlet-filter-pill + badge kategori, dashboard-title/subtitle/eyebrow,
+dan kartu generik dashboard (dashboard-card-summary).
+===============================================================================
+-->
+<style>
+  .menu-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+    text-align: left;
+  }
+  .menu-card:hover { border-color: var(--sage-dim); }
+  .menu-card.is-static { cursor: default; }
+  .menu-card.is-static:hover { border-color: var(--border); }
+  .menu-card .menu-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .menu-card.tone-sage .menu-icon { background: rgba(111,160,140,0.12); color: var(--sage); }
+  .menu-card.tone-flame .menu-icon { background: rgba(217,113,75,0.12); color: var(--flame); }
+  .menu-card.tone-volt .menu-icon { background: rgba(217,194,75,0.12); color: var(--volt); }
+  .menu-card .menu-body { flex: 1; min-width: 0; }
+  .menu-card .menu-title {
+    font-family: var(--font-display);
+    font-size: 15.5px;
+    font-weight: 600;
+    margin-bottom: 3px;
+  }
+
+  .menu-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .dashboard-card .menu-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-faint);
+    margin-bottom: 8px;
+  }
+  .menu-title-row .menu-title { margin-bottom: 0; }
+  .menu-card .menu-desc { font-size: 12.5px; color: var(--text-faint); line-height: 1.4; }
+  .menu-card .menu-arrow { color: var(--text-dim); font-size: 22px; font-weight: 700; flex-shrink: 0; }
+
+  .dashboard-header {
+    margin-bottom: 16px;
+  }
+
+  .dashboard-header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .dashboard-header-text {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .outlet-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    max-width: 140px;
+    margin-top: 2px;
+  }
+
+  .outlet-filter-pill:hover {
+    border-color: var(--sage-dim);
+  }
+
+  .outlet-filter-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .outlet-filter-arrow {
+    flex-shrink: 0;
+  }
+
+  /* Badge kategori laundry (mis. "Hybrid") di sebelah nama outlet.
+     Default HIDDEN -> di HP tidak muncul sama sekali (tampilan HP tidak
+     berubah). Dimunculkan hanya di desktop, lihat @media di bawah. */
+  .outlet-kategori-badge { display: none; }
+
+  .outlet-filter-pill.single-outlet {
+    cursor: default;
+  }
+
+  .outlet-filter-pill.single-outlet:hover {
+    border-color: var(--border);
+  }
+
+  .outlet-filter-pill.single-outlet .outlet-filter-arrow {
+    display: none;
+  }
+
+  .dashboard-filter-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+    max-width: 140px;
+  }
+
+  .outlet-count-label {
+    font-size: 9.5px;
+    color: var(--text-faint);
+    text-align: right;
+    opacity: 0.7;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+  }
+
+  .dashboard-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--sage);
+    margin-bottom: 6px;
+  }
+
+  .dashboard-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 6px;
+  }
+
+  .dashboard-subtitle {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+
+  .dashboard-grid .dashboard-card {
+    align-items: flex-start;
+  }
+
+  .dashboard-card-summary {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .dashboard-card-summary.is-loading {
+    color: var(--text-faint);
+  }
+
+</style>

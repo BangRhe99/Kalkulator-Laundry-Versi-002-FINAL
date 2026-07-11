@@ -1,0 +1,221 @@
+<!--
+===============================================================================
+FILE: Style_Module_Dashboard_Potensi.html  (BAGIAN 5 dari 9)
+Bagian dari Style_Module_Dashboard (peta lengkap di file utama).
+ISI: Kartu Potensi Omset (potensi-card, estimate, mix list, basis note).
+===============================================================================
+-->
+<style>
+  /* === POTENSI OMSET CARD === */
+  .potensi-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .potensi-estimate {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--panel-2);
+    border-radius: var(--radius);
+    padding: 12px;
+  }
+
+  .potensi-estimate-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 12.5px;
+  }
+
+  .potensi-estimate-label { color: var(--text-dim); }
+
+  .potensi-estimate-value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  .potensi-estimate-minus { color: var(--brass); }
+
+  .potensi-estimate-row-profit {
+    padding-top: 6px;
+    margin-top: 2px;
+    border-top: 1px dashed var(--border);
+  }
+
+  .potensi-estimate-row-profit .potensi-estimate-label { font-weight: 600; }
+
+  .potensi-profit-pos { color: var(--sage); font-size: 14px; }
+  .potensi-profit-neg { color: var(--red); font-size: 14px; }
+
+  .potensi-mix-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .potensi-mix-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  .potensi-mix-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+  }
+
+  .potensi-mix-list-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+  }
+
+  .potensi-mix-list.is-open .potensi-mix-list-arrow { transform: rotate(180deg); }
+
+  .potensi-mix-list-body {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 8px;
+  }
+
+  .potensi-mix-list.is-open .potensi-mix-list-body { display: flex; }
+
+  .potensi-mix-item { border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  .potensi-mix-item:last-of-type { border-bottom: none; padding-bottom: 0; }
+
+  .potensi-mix-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 11.5px;
+    cursor: pointer;
+    padding: 3px 0;
+  }
+
+  .potensi-mix-row-title { color: var(--text-dim); flex: 1; }
+
+  .potensi-mix-row-percent {
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .potensi-mix-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+  }
+
+  .potensi-mix-item.is-open .potensi-mix-arrow { transform: rotate(180deg); }
+
+  .potensi-mix-detail {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 0 6px 0;
+  }
+
+  .potensi-mix-item.is-open .potensi-mix-detail { display: flex; }
+
+  .potensi-mix-detail-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10.5px;
+  }
+
+  .potensi-mix-detail-label { color: var(--text-faint); }
+
+  .potensi-mix-detail-value {
+    color: var(--text-dim);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .potensi-mix-detail-highlight .potensi-mix-detail-value { color: var(--sage); }
+
+  .potensi-basis-note {
+    margin-top: 4px;
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+
+  .potensi-basis-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  .potensi-basis-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+  }
+
+  .potensi-basis-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+  }
+
+  .potensi-basis-note.is-open .potensi-basis-arrow { transform: rotate(180deg); }
+
+  .potensi-basis-text {
+    display: none;
+    font-size: 11px;
+    line-height: 1.55;
+    color: var(--text-dim);
+    margin-top: 8px;
+  }
+
+  .potensi-basis-note.is-open .potensi-basis-text { display: block; }
+
+  .potensi-basis-text b { color: var(--text); font-weight: 600; }
+  /* === END POTENSI OMSET CARD === */
+
+</style>

@@ -1,0 +1,137 @@
+<!--
+===============================================================================
+FILE: Style_Module_Dashboard_MasterBiaya.html  (BAGIAN 6 dari 9)
+Bagian dari Style_Module_Dashboard (peta lengkap di file utama).
+ISI: Kartu Master Biaya (mb-card, mb-komponen-*, progress bar, warna komponen).
+Catatan: susunan 2-baris KHUSUS panel desktop #desktopMasterBiaya ada di file
+utama & DesktopDensity (scoped); file ini gaya dasar (dipakai bareng HP).
+===============================================================================
+-->
+<style>
+  /* === MASTER BIAYA CARD === */
+  .mb-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .mb-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mb-total-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .mb-total-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+  }
+
+  .mb-total-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+
+  .mb-status {
+    flex-shrink: 0;
+  }
+
+  .mb-komponen-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mb-komponen-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .mb-komponen-top {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mb-komponen-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    width: 74px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mb-komponen-value {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    width: 62px;
+    flex-shrink: 0;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .mb-komponen-persen {
+    font-size: 10px;
+    color: var(--text-faint);
+    width: 46px;
+    flex-shrink: 0;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mb-progress-bar {
+    height: 6px;
+    flex: 1;
+    background: var(--panel-2);
+    border-radius: 3px;
+  }
+
+
+  .mb-progress-fill {
+    height: 100%;
+    border-radius: 3px;
+  }
+
+  .mb-progress-fill.mb-gas { background: var(--brass); }
+  .mb-progress-fill.mb-listrik { background: var(--volt, #e8d44d); }
+  .mb-progress-fill.mb-air { background: var(--sage); }
+  .mb-progress-fill.mb-nota { background: var(--text-dim); }
+  .mb-progress-fill.mb-chemical { background: var(--indigo, #6366f1); }
+  .mb-progress-fill.mb-packing { background: var(--clay, #A3765C); }
+
+  .mb-missing {
+    font-size: 10.5px;
+    color: var(--brass);
+    padding: 6px 10px;
+    background: rgba(180, 130, 60, 0.08);
+    border-radius: var(--radius);
+  }
+  .mb-bar-wrap { display: flex; align-items: center; gap: 6px; flex: 1; }
+  .mb-komponen-row.zero .mb-komponen-label,
+  .mb-komponen-row.zero .mb-komponen-persen { opacity: 0.35; }
+  .mb-zero-label { font-size: 10px; color: var(--text-faint); font-style: italic; }
+
+  .mb-komponen-unit { font-size: 9.5px; font-weight: 500; color: var(--text-faint); }
+
+  /* === END MASTER BIAYA CARD === */
+</style>
