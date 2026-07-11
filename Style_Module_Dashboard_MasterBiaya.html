@@ -188,68 +188,45 @@ utama & DesktopDensity (scoped); file ini gaya dasar (dipakai bareng HP).
     .mb-desktop-total-row .k { font-size: 13px; color: var(--text-dim); font-weight: 500; }
     .mb-desktop-total-row .v { font-size: 22px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 
-    /* Grid 6 kartu komponen - 3 kolom, muat 1 layar tanpa scroll. */
+    /* Grid 6 kartu komponen - 3 kolom, muat 1 layar tanpa scroll. Tiap
+       kartu ADALAH .gas-card apa adanya (dipakai ulang persis, bukan
+       ditiru-tiru) - satu-satunya tambahan di sini adalah titik warna
+       kategori (.dot) & varian warna highlight per kategori, supaya
+       bahasa visual "ringkasan fitur" konsisten di seluruh aplikasi
+       (lihat KONTEKS_PROYEK.md, standar Hyper-Premium FinTech). */
     .mb-desktop-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 14px;
     }
-    .mb-desktop-card {
-      background: var(--panel-2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      min-width: 0;
-      border-left: 3px solid var(--border);
-    }
-    .mb-desktop-card.tone-flame { border-left-color: var(--flame); }
-    .mb-desktop-card.tone-volt { border-left-color: var(--volt); }
-    .mb-desktop-card.tone-sage { border-left-color: var(--sage); }
-    .mb-desktop-card.tone-indigo { border-left-color: var(--indigo); }
-    .mb-desktop-card.tone-clay { border-left-color: var(--clay); }
-    .mb-desktop-card.tone-brass { border-left-color: var(--brass); }
-    .mb-desktop-card.is-empty { opacity: 0.72; }
+    .mb-desktop-card.gas-card { margin-bottom: 0; }
+    .mb-desktop-card.is-empty { opacity: 0.78; }
+    .mb-desktop-card .gas-card-result { margin-top: 12px; padding-top: 12px; }
 
-    .mb-desktop-card-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-    }
-    .mb-desktop-label {
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--text-dim);
-    }
-    .mb-desktop-manage-btn {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text);
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 5px 12px;
-      cursor: pointer;
-      flex-shrink: 0;
-      white-space: nowrap;
-    }
-    .mb-desktop-manage-btn:hover { border-color: var(--brass); color: var(--brass); }
+    /* Titik warna kategori - pengganti .flame-dot yang khusus Gas, di sini
+       digeneralisasi per tone lewat variabel --dot-color pada wrapper. */
+    .mb-desktop-card .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--dot-color, var(--text-faint)); }
+    .mb-desktop-card.tone-flame { --dot-color: var(--flame); }
+    .mb-desktop-card.tone-volt { --dot-color: var(--volt); }
+    .mb-desktop-card.tone-sage { --dot-color: var(--sage); }
+    .mb-desktop-card.tone-indigo { --dot-color: var(--indigo); }
+    .mb-desktop-card.tone-clay { --dot-color: var(--clay); }
+    .mb-desktop-card.tone-brass { --dot-color: var(--brass); }
 
-    .mb-desktop-value {
-      font-size: 21px;
-      font-weight: 800;
-      color: var(--text);
-      font-variant-numeric: tabular-nums;
-      letter-spacing: -0.01em;
-      line-height: 1.1;
-    }
-    .mb-desktop-unit { font-size: 11px; font-weight: 500; color: var(--text-faint); }
-    .mb-desktop-empty { font-size: 13px; font-weight: 500; color: var(--text-faint); font-style: italic; }
-    .mb-desktop-persen { font-size: 11px; color: var(--text-faint); }
+    /* .gas-result-cell.highlight bawaan sudah berwarna flame (dipakai apa
+       adanya utk kartu Gas) - kategori lain dapat varian warna sendiri
+       lewat token *-dim yang sudah ada, TIDAK membuat warna baru. */
+    .mb-desktop-card.tone-volt .gas-result-cell.highlight { background: rgba(217, 194, 75, 0.16); border: 1px solid rgba(217, 194, 75, 0.4); }
+    .mb-desktop-card.tone-volt .gas-result-cell.highlight .val { color: var(--volt-dim); }
+    .mb-desktop-card.tone-sage .gas-result-cell.highlight { background: var(--sage-dim); border: 1px solid rgba(15, 118, 110, 0.35); }
+    .mb-desktop-card.tone-sage .gas-result-cell.highlight .val { color: var(--sage); }
+    .mb-desktop-card.tone-indigo .gas-result-cell.highlight { background: var(--indigo-dim); border: 1px solid rgba(79, 70, 229, 0.35); }
+    .mb-desktop-card.tone-indigo .gas-result-cell.highlight .val { color: var(--indigo); }
+    .mb-desktop-card.tone-clay .gas-result-cell.highlight { background: var(--clay-dim); border: 1px solid rgba(163, 118, 92, 0.35); }
+    .mb-desktop-card.tone-clay .gas-result-cell.highlight .val { color: var(--clay); }
+    .mb-desktop-card.tone-brass .gas-result-cell.highlight { background: var(--brass-dim); border: 1px solid rgba(183, 121, 31, 0.35); }
+    .mb-desktop-card.tone-brass .gas-result-cell.highlight .val { color: var(--brass); }
+
+    .mb-desktop-empty-val { color: var(--text-faint); font-style: italic; font-weight: 500; font-size: 13px; }
   }
 </style>

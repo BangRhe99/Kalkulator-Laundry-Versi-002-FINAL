@@ -170,6 +170,23 @@ Bertindaklah sebagai **Elite FinTech UI/UX Director**, **Senior UI Engineer**, *
 - Tampilan eksklusif, aman, profesional, mudah dibaca
 - Tidak ramai, tidak penuh sesak — setiap elemen harus punya fungsi dan alasan visual
 
+**[2026-07-12] Standar ini BERLAKU DI SELURUH APLIKASI, bukan cuma Dashboard**
+(nama file/judul lama "PROMPT DESAIN DASHBOARD" menyesatkan - user konfirmasi
+standar "hyper premium, standard profesional, standard internasional, no AI
+slop" ini jadi acuan semua layar, termasuk Master Biaya, Profil Outlet, dst).
+
+**Komponen kanonik "ringkasan fitur" (jangan bikin bahasa visual baru):**
+`.gas-card` (+ `.gas-card-top`, `.title-group`, dot warna kategori, `.actions`
++ `.icon-btn`, `.gas-card-result`, `.gas-result-grid`, `.gas-result-cell`,
+`.gas-result-cell.highlight`) di `Style_Module_MasterBiaya.html` adalah
+CONTOH ACUAN yang sudah disetujui user secara eksplisit (screenshot kartu Gas
+3 Kg, 2026-07-12): card putih (`--panel`) radius besar, titik warna kecil +
+judul di header, 1 tombol ikon aksi di kanan, garis pemisah tipis, lalu sel
+hasil kunci dengan warna highlight lembut (tint dari warna kategori, BUKAN
+warna baru). Kalau diminta desain ulang "ringkasan"/"summary card" di layar
+manapun, REUSE class ini dulu (persis seperti Chemical & Packing yang sudah
+lebih dulu reuse `.gas-card` apa adanya) sebelum mempertimbangkan pola baru.
+
 ### Prinsip UX Wajib:
 1. **F-Pattern / Z-Pattern** — KPI utama di posisi yang mata langsung tangkap
 2. **The 5-Second Rule** — pengguna paham kondisi utama dalam 5 detik
@@ -358,6 +375,26 @@ apa adanya, tidak bikin style baru). Cascade delete sudah ditambahkan di
 `Modul_Cabang.gs:deleteCabang()`. **BELUM terhubung ke Struktur Biaya HPP**
 - itu langkah lanjutan, lihat Prioritas #3 di bawah (jangan dikira sudah
 otomatis masuk hitungan HPP hanya karena datanya sudah bisa diisi).
+
+**[2026-07-12] Layar Master Biaya DESKTOP (`#screenMasterBiaya`, >=1100px) -
+SELESAI didesain ulang, JANGAN disamakan dgn "Card Master Biaya Produksi" di
+Dashboard (itu kartu ringkas terpisah, tidak diubah).** Konsep sekarang sama
+persis pola Dashboard & Profil Outlet: satu kartu besar utk SATU outlet
+terpilih (pill nama+kategori kanan atas, ganti outlet lewat picker global),
+brand "Kalkulator Laundry" + tombol Back dibuang. Di dalamnya, 6 komponen
+biaya (Gas LPG/Listrik/Air/Chemical/Packing/Nota) masing-masing jadi kartu
+`.gas-card` (REUSE apa adanya, lihat catatan komponen kanonik di atas) dengan
+dot warna kategori, 1 tombol ikon (pensil="Kelola" kalau sudah ada data,
+plus="Isi data" kalau belum) yang membuka layar kategori itu langsung utk
+outlet ini (`openGasList`/`openListrikForm`/`openAirForm`/`openChemicalList`/
+`openPackingList`/`openNotaKasirForm`), sel highlight berwarna tint kategori
+utk nominal Rp/load (atau Rp/jam khusus Gas kategori Jasa Setrika), + sel
+kontribusi %. Data dari `getDashboardMasterBiayaSummary(cabangId)` (fungsi
+lama, dipakai bareng Dashboard) lewat `cachedServerRead_` (SWR, refetch tiap
+masuk/balik ke layar). HP/tablet (<1100px) TIDAK diubah - tetap pill kategori
++ pilih cabang lama. File terkait: `Screen_MasterBiaya.html`,
+`Script_Fitur_MasterBiaya.html` (`renderMasterBiayaDesktop_`,
+`buildMasterBiayaDesktopHtml_`), `Style_Module_Dashboard_MasterBiaya.html`.
 
 ---
 

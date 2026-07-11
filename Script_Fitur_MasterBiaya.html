@@ -160,6 +160,15 @@ menjalankan bootApp().
     });
   }
 
+  /**
+   * buildMasterBiayaDesktopHtml_: kartu komponen dibangun dengan menggunakan
+   * ULANG class ".gas-card"/".gas-result-cell" apa adanya (persis komponen
+   * "Analisa Biaya Gas" yang sudah jadi acuan visual premium di aplikasi ini
+   * - lihat juga Chemical & Packing yang sudah lebih dulu reuse pola yang
+   * sama, dicatat di KONTEKS_PROYEK.md). Prinsipnya: JANGAN bikin bahasa
+   * visual baru untuk "ringkasan fitur" - satu komponen kartu premium yang
+   * sudah disetujui dipakai konsisten di semua tempat.
+   */
   function buildMasterBiayaDesktopHtml_(cabangId, row) {
     var komponen = row && Array.isArray(row.komponenBiaya) ? row.komponenBiaya : [];
     var byKey = {};
@@ -169,19 +178,46 @@ menjalankan bootApp().
     var cardsHtml = MASTERBIAYA_KATEGORI_META.map(function (meta) {
       var k = byKey[meta.key];
       var hasValue = !!k && Number(k.biayaPerLoad) > 0;
-      var valueHtml = k
-        ? (money0(k.biayaPerLoad) + (k.unitSuffix ? ' <span class="mb-desktop-unit">' + escapeHtml(k.unitSuffix) + '</span>' : ' <span class="mb-desktop-unit">/load</span>'))
-        : '<span class="mb-desktop-empty">Belum diisi</span>';
-      var persenHtml = k ? (Number(k.persen || 0) + '% dari total') : '';
+      var hasEntry = !!k;
+      var unitLabel = (k && k.unitSuffix) ? k.unitSuffix.replace(/^\//, '') : 'load';
+      var resultHtml;
+
+      if (hasEntry) {
+        resultHtml =
+          '<div class="gas-result-grid" style="grid-template-columns:1fr;">' +
+            '<div class="gas-result-cell highlight">' +
+              '<div class="label">Biaya ' + escapeHtml(meta.label) + ' Per ' + escapeHtml(unitLabel.charAt(0).toUpperCase() + unitLabel.slice(1)) + '</div>' +
+              '<div class="val">' + money0(k.biayaPerLoad) + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="gas-result-grid" style="grid-template-columns:1fr;">' +
+            '<div class="gas-result-cell">' +
+              '<div class="label">Kontribusi dari total biaya</div>' +
+              '<div class="val">' + escapeHtml(String(Number(k.persen || 0))) + '<span class="unit">%</span></div>' +
+            '</div>' +
+          '</div>';
+      } else {
+        resultHtml =
+          '<div class="gas-result-grid" style="grid-template-columns:1fr;">' +
+            '<div class="gas-result-cell">' +
+              '<div class="label">Status</div>' +
+              '<div class="val mb-desktop-empty-val">Belum diisi</div>' +
+            '</div>' +
+          '</div>';
+      }
 
       return (
-        '<div class="mb-desktop-card tone-' + escapeHtml(meta.tone) + (hasValue ? '' : ' is-empty') + '">' +
-          '<div class="mb-desktop-card-top">' +
-            '<span class="mb-desktop-label">' + escapeHtml(meta.label) + '</span>' +
-            '<button type="button" class="mb-desktop-manage-btn" onclick="' + meta.open + '(\'' + escapeJsAttr(cabangId) + '\')">' + (hasValue ? 'Kelola' : 'Isi data') + '</button>' +
+        '<div class="gas-card mb-desktop-card tone-' + escapeHtml(meta.tone) + (hasValue ? '' : ' is-empty') + '">' +
+          '<div class="gas-card-top">' +
+            '<div class="title-group">' +
+              '<span class="dot"></span>' +
+              '<h3>' + escapeHtml(meta.label) + '</h3>' +
+            '</div>' +
+            '<div class="actions">' +
+              '<button class="icon-btn" type="button" aria-label="' + (hasEntry ? 'Kelola' : 'Isi data') + ' ' + escapeHtml(meta.label) + '" onclick="' + meta.open + '(\'' + escapeJsAttr(cabangId) + '\')">' + (hasEntry ? '&#9998;' : '&#43;') + '</button>' +
+            '</div>' +
           '</div>' +
-          '<div class="mb-desktop-value">' + valueHtml + '</div>' +
-          (persenHtml ? '<div class="mb-desktop-persen">' + escapeHtml(persenHtml) + '</div>' : '') +
+          '<div class="gas-card-result">' + resultHtml + '</div>' +
         '</div>'
       );
     }).join('');
