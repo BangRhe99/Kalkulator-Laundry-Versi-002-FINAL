@@ -778,10 +778,6 @@ menjalankan bootApp().
 
   function renderDashboardHargaLayananCard(res, targetId) {
         targetId = targetId || "dashboardHargaLayananSummary";
-        var isDesktopPanelHl = targetId === "desktopHargaLayanan";
-        function hlTrimDec_(x) { var s = (Math.round(x * 10) / 10).toFixed(1); if (s.slice(-2) === ".0") s = s.slice(0, -2); return s.replace(".", ","); }
-        function hlMoneyCompact_(v) { var n = Number(v) || 0; var neg = n < 0; var a = Math.abs(n); var out = a >= 1000000 ? hlTrimDec_(a / 1000000) + "jt" : (a >= 1000 ? hlTrimDec_(a / 1000) + "rb" : String(Math.round(a))); return "Rp " + (neg ? "-" : "") + out; }
-        function fmtStat(v) { return isDesktopPanelHl ? hlMoneyCompact_(v) : money0(v); }
         if (!res || !res.ok) {
           setDashboardCardError(targetId, res && res.error ? res.error : "Data harga layanan belum bisa dibaca.");
           return;
@@ -856,7 +852,7 @@ menjalankan bootApp().
             var thirdStatLabel = hasMinOrder ? 'Min Order' : 'Laba Bersih';
             var thirdStatValue = hasMinOrder
               ? (item.minimumOrderKg > 0 ? formatNum(item.minimumOrderKg, 1) + ' Kg' : 'Belum diisi')
-              : fmtStat(isKgBased ? item.marginPerKg : item.margin) + '<span class="hl-stat-unit"> /' + escapeHtml(headlineUnit) + '</span>';
+              : money0(isKgBased ? item.marginPerKg : item.margin) + '<span class="hl-stat-unit"> /' + escapeHtml(headlineUnit) + '</span>';
 
             html += '<div class="hl-item">' +
               '<div class="hl-top">' +
@@ -868,8 +864,8 @@ menjalankan bootApp().
                 '<span class="hl-bar-pct">' + escapeHtml(pctTxt) + '</span>' +
               '</div>' +
               '<div class="hl-stat-grid">' +
-                '<div class="hl-stat"><span class="hl-stat-label">Harga Jual</span><span class="hl-stat-value" title="' + escapeHtml(money0(headlineHarga)) + '">' + fmtStat(headlineHarga) + '<span class="hl-stat-unit"> /' + escapeHtml(headlineUnit) + '</span></span></div>' +
-                '<div class="hl-stat"><span class="hl-stat-label">' + escapeHtml(hppSiklusLabel) + '</span><span class="hl-stat-value hl-stat-hpp" title="' + escapeHtml(money0(hppSiklusValue)) + '">' + fmtStat(hppSiklusValue) + '</span></div>' +
+                '<div class="hl-stat"><span class="hl-stat-label">Harga Jual</span><span class="hl-stat-value">' + money0(headlineHarga) + '<span class="hl-stat-unit"> /' + escapeHtml(headlineUnit) + '</span></span></div>' +
+                '<div class="hl-stat"><span class="hl-stat-label">' + escapeHtml(hppSiklusLabel) + '</span><span class="hl-stat-value hl-stat-hpp">' + money0(hppSiklusValue) + '</span></div>' +
                 '<div class="hl-stat hl-stat-toggle">' +
                   '<span class="hl-stat-label">' + escapeHtml(thirdStatLabel) + '</span>' +
                   '<div class="hl-stat-value-row">' +
