@@ -60,7 +60,7 @@ menjalankan bootApp().
     lockDashboardViewportScroll_(true);
     summaryEl.style.height = "";
     var rect = summaryEl.getBoundingClientRect();
-    var bottomGap = 10;
+    var bottomGap = 20;
     var available = Math.round(window.innerHeight - rect.top - bottomGap);
     if (available < 320) available = 320;
     summaryEl.style.height = available + "px";

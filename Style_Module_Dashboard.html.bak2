@@ -1781,34 +1781,4 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
   .fc-detail-label { flex: 1; color: var(--text-faint); }
   .fc-detail-percent { width: 44px; flex-shrink: 0; text-align: right; color: var(--brass); font-variant-numeric: tabular-nums; }
   .fc-detail-value { width: 84px; flex-shrink: 0; text-align: right; color: var(--text-dim); font-weight: 600; font-variant-numeric: tabular-nums; }
-
-  /* ====================================================================
-     DENSITY COMPACT (2026-07-11): paksa ringkasan desktop muat 1 layar
-     penuh (laptop 1366x768) TANPA scroll & TANPA terpotong. Prinsipnya
-     kepadatan profesional: padding/gap diperkecil terukur, hierarki
-     tetap. Sengaja dikumpulkan jadi SATU blok supaya gampang di-tune
-     atau dihapus. Panel tengah berhenti mengecil di 230px (floor)
-     supaya grafik tetap terbaca.
-     ==================================================================== */
-  @media (min-width: 1100px) {
-    .desktop-dashboard-summary { gap: 10px; }
-    #screenMenu .dashboard-header { padding: 7px 14px; margin-bottom: 0; }
-    .desktop-kpi-row { gap: 12px; }
-    .desktop-kpi-card { padding: 13px 16px 12px; }
-    .desktop-kpi-label { margin-bottom: 7px; }
-    .desktop-kpi-number { font-size: clamp(17px, 1.3vw, 24px); }
-    .desktop-summary-row { gap: 14px; min-height: 230px; }
-    .desktop-summary-panel { padding: 13px 16px 11px; }
-    .desktop-panel-title { margin-bottom: 8px; }
-    #desktopBepChart .bep-chart-wrap { padding: 10px 12px 6px; }
-    #desktopBepChart .bep-chart-legend { margin-top: 6px; }
-    #desktopMasterBiaya .mb-komponen-list { gap: 6px; }
-    #desktopMasterBiaya .mb-komponen-row-desktop { gap: 4px; }
-    #desktopHargaLayanan .hl-item { padding: 10px 12px; }
-    #desktopHargaLayanan .hl-top { margin-bottom: 6px; }
-    #desktopHargaLayanan .hl-name { font-size: 13px; }
-    #desktopHargaLayanan .hl-bar-row { margin-bottom: 8px; }
-    #desktopHargaLayanan .hl-stat-grid { gap: 6px; padding-bottom: 0; border-bottom: none; }
-    #desktopHargaLayanan .hl-status-badge { padding: 3px 8px; }
-  }
 </style>
