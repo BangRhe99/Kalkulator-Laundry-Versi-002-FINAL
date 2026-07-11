@@ -46,41 +46,75 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     #screenMenu .dashboard-grid { display: none; }
     .desktop-dashboard-summary { display: flex; flex-direction: column; gap: 16px; }
 
-    .desktop-kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+    /* Hero KPI row: card lebih tinggi & lega (bukan 5 card datar spt
+       sebelumnya) - label jadi info sekunder kecil, angka jadi fokus utama
+       dgn hierarki 2 baris (prefix "Rp" kecil di atas, angka besar di
+       bawah) utk KPI berbasis Rupiah - lihat setDesktopKpiMoney_ di
+       Script_Fitur_Dashboard.html. Kartu ringkas HP (.dashboard-kpi) TIDAK
+       memakai class desktop-kpi-* sama sekali jadi tidak ikut berubah. */
+    .desktop-kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
     .desktop-kpi-card {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 16px;
+      padding: 22px 20px 20px;
       min-width: 0;
+      box-shadow: 0 1px 2px rgba(17,24,39,0.03), 0 10px 24px -12px rgba(17,24,39,0.12);
     }
     .desktop-kpi-label {
       font-size: 10.5px;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.05em;
       color: var(--text-faint);
-      margin-bottom: 8px;
+      margin-bottom: 16px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .desktop-kpi-value {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+    .desktop-kpi-currency {
+      font-family: var(--font-body);
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-faint);
+      letter-spacing: 0.02em;
+    }
+    .desktop-kpi-number {
       font-family: var(--font-display);
-      font-size: 19px;
+      font-size: 27px;
       font-weight: 800;
       color: var(--text);
+      letter-spacing: -0.02em;
+      line-height: 1.08;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .kpi-omset .desktop-kpi-value { color: var(--sage); }
-    .kpi-bep-load .desktop-kpi-value,
-    .kpi-bep-omset .desktop-kpi-value { color: var(--brass); }
-    .kpi-fixed-cost .desktop-kpi-value { color: var(--text-dim); }
-    .desktop-kpi-value.pos { color: var(--sage); }
-    .desktop-kpi-value.neg { color: var(--red); }
+    .desktop-kpi-number-row {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      min-width: 0;
+    }
+    .desktop-kpi-unit {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-faint);
+      flex-shrink: 0;
+    }
+    .kpi-omset .desktop-kpi-number { color: var(--sage); }
+    .kpi-bep-load .desktop-kpi-number,
+    .kpi-bep-omset .desktop-kpi-number { color: var(--brass); }
+    .kpi-fixed-cost .desktop-kpi-number { color: var(--text-dim); }
+    .desktop-kpi-value.pos .desktop-kpi-number { color: var(--sage); }
+    .desktop-kpi-value.neg .desktop-kpi-number { color: var(--red); }
 
     /* Grafik BEP dilebarkan lagi (2.4fr), Master Biaya dikecilkan lagi (0.9fr). */
     .desktop-summary-row { display: grid; grid-template-columns: 2.4fr 0.9fr; gap: 16px; align-items: start; }
@@ -88,10 +122,65 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 18px;
+      padding: 22px 20px;
       min-width: 0;
+      box-shadow: 0 1px 2px rgba(17,24,39,0.03), 0 10px 24px -12px rgba(17,24,39,0.12);
     }
     .desktop-summary-full { width: 100%; }
+
+    /* === CHART BEP - restyle premium KHUSUS panel desktop (#desktopBepChart) ===
+       buildBepChartSvg() di Script_Shared_Util.html dipakai bareng kartu
+       ringkas HP (#dashboardBEPSummary) - markup SVG-nya TIDAK diubah (JS
+       tetap sama) supaya HP tidak ikut berubah. Semua polesan visual di
+       sini murni CSS yang di-scope ke id panel desktop saja: CSS menang
+       atas atribut presentasi SVG (stroke-width dll) jadi aman menimpa
+       tanpa sentuh JS. */
+    #desktopBepChart .bep-chart-wrap {
+      background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
+      border-radius: 12px;
+      padding: 14px 14px 10px;
+      box-shadow: none;
+    }
+    #desktopBepChart .bep-chart-svg line { stroke-width: 1.3; }
+    #desktopBepChart .bep-chart-svg text { font-family: var(--font-mono); letter-spacing: 0.01em; }
+    #desktopBepChart .bep-chart-svg polygon { opacity: 0.92; }
+    #desktopBepChart .bep-chart-legend { gap: 22px; margin-top: 10px; }
+    #desktopBepChart .bep-legend-item { font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+    #desktopBepChart .bep-legend-dot { width: 7px; height: 7px; }
+
+    /* === MASTER BIAYA - breathing room KHUSUS panel desktop (#desktopMasterBiaya) ===
+       .mb-* dipakai bareng kartu ringkas HP (#dashboardMasterBiayaSummary) -
+       style global .mb-* TIDAK diubah, semua di sini di-scope ke id panel
+       desktop saja supaya HP tetap identik. */
+    #desktopMasterBiaya .mb-desktop-total {
+      padding-bottom: 14px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    #desktopMasterBiaya .mb-desktop-total-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-faint);
+      margin-bottom: 6px;
+    }
+    #desktopMasterBiaya .mb-desktop-total-value {
+      font-family: var(--font-display);
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+    }
+    #desktopMasterBiaya .mb-komponen-list { gap: 16px; }
+    #desktopMasterBiaya .mb-komponen-row { gap: 6px; }
+    #desktopMasterBiaya .mb-komponen-label { font-size: 12px; width: auto; flex: 1 1 auto; }
+    #desktopMasterBiaya .mb-progress-bar { height: 8px; border-radius: 999px; }
+    #desktopMasterBiaya .mb-progress-fill { border-radius: 999px; transition: width 0.4s ease; }
+    #desktopMasterBiaya .mb-komponen-persen { font-size: 11px; }
+    #desktopMasterBiaya .mb-komponen-value { font-size: 12.5px; }
 
     /* Grafik BEP di panel desktop: .bep-chart-svg bawaan (dipakai bareng
        kartu ringkas HP) tingginya fixed 120px - begitu kolomnya dilebarkan

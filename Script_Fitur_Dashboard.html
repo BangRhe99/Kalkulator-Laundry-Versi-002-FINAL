@@ -258,9 +258,30 @@ menjalankan bootApp().
     }
   }
 
-  function setDesktopKpiText_(id, text) {
+  /**
+   * setDesktopKpiMoney_ / setDesktopKpiUnitValue_: helper KHUSUS panel
+   * ringkasan eksekutif desktop (elemen id "desktopKpi*" tidak pernah
+   * dirender di HP - lihat Style_Module_Dashboard.html, .desktop-dashboard-
+   * summary disembunyikan total di bawah 1100px) - jadi aman mengubah cara
+   * rendernya di sini, HP tidak ikut berubah. Cuma memecah string yang SAMA
+   * PERSIS dari money0()/formatNum() (tidak ada rumus baru) jadi 2 baris
+   * (prefix "Rp" kecil + angka besar) supaya jadi Hero KPI, bukan 1 baris
+   * datar spt sebelumnya.
+   */
+  function setDesktopKpiMoney_(id, hasValue, amount) {
     var el = document.getElementById(id);
-    if (el) el.textContent = text;
+    if (!el) return;
+    if (!hasValue) { el.innerHTML = '<span class="desktop-kpi-number">-</span>'; return; }
+    var num = money0(amount).replace(/^Rp\s*/, '');
+    el.innerHTML = '<span class="desktop-kpi-currency">Rp</span><span class="desktop-kpi-number">' + escapeHtml(num) + '</span>';
+  }
+
+  function setDesktopKpiUnitValue_(id, hasValue, numText, unit) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = hasValue
+      ? '<span class="desktop-kpi-number-row"><span class="desktop-kpi-number">' + escapeHtml(numText) + '</span><span class="desktop-kpi-unit">' + escapeHtml(unit) + '</span></span>'
+      : '<span class="desktop-kpi-number">-</span>';
   }
 
   function renderDesktopKpiSummary_(d) {
@@ -269,19 +290,20 @@ menjalankan bootApp().
     var fixedRows = (d.fixedCost && d.fixedCost.ok && d.fixedCost.data && Array.isArray(d.fixedCost.data.rows)) ? d.fixedCost.data.rows : [];
     var fixedCostVal = fixedRows.length ? toNumber(fixedRows[0].totalPerBulan, 0) : 0;
 
-    setDesktopKpiText_("desktopKpiOmset", potensi ? money0(potensi.estimasiOmsetPerBulan) : "-");
+    setDesktopKpiMoney_("desktopKpiOmset", !!potensi, potensi ? potensi.estimasiOmsetPerBulan : 0);
 
     var profitEl = document.getElementById("desktopKpiProfit");
     if (profitEl) {
       var profitVal = potensi ? toNumber(potensi.estimasiProfitPerBulan, 0) : 0;
-      profitEl.textContent = potensi ? money0(profitVal) : "-";
       profitEl.classList.toggle("pos", !!potensi && profitVal >= 0);
       profitEl.classList.toggle("neg", !!potensi && profitVal < 0);
+      setDesktopKpiMoney_("desktopKpiProfit", !!potensi, profitVal);
     }
 
-    setDesktopKpiText_("desktopKpiBepLoad", (bep && bep.bepLoadPerBulan > 0) ? (formatNum(bep.bepLoadPerBulan, 0) + " load") : "-");
-    setDesktopKpiText_("desktopKpiBepOmset", (bep && bep.bepLoadPerBulan > 0) ? money0(bep.bepOmsetPerBulan) : "-");
-    setDesktopKpiText_("desktopKpiFixedCost", money0(fixedCostVal));
+    var bepOk = !!(bep && bep.bepLoadPerBulan > 0);
+    setDesktopKpiUnitValue_("desktopKpiBepLoad", bepOk, bepOk ? formatNum(bep.bepLoadPerBulan, 0) : "", "load");
+    setDesktopKpiMoney_("desktopKpiBepOmset", bepOk, bepOk ? bep.bepOmsetPerBulan : 0);
+    setDesktopKpiMoney_("desktopKpiFixedCost", true, fixedCostVal);
   }
 
   function renderDesktopBepChart_(res) {
@@ -545,6 +567,13 @@ menjalankan bootApp().
 
   function renderDashboardMasterBiayaCard(res, targetId) {
         targetId = targetId || "dashboardMasterBiayaSummary";
+        // Panel ringkasan eksekutif desktop ("desktopMasterBiaya") butuh baris
+        // "Total Biaya / Load" di atas breakdown - kartu ringkas HP
+        // ("dashboardMasterBiayaSummary") TIDAK ikut berubah (isDesktopPanel
+        // dicek dari targetId, bukan lebar layar, jadi 100% aman utk mobile).
+        // Angka totalnya cuma penjumlahan biayaPerLoad yang SUDAH ada di
+        // data komponen (tidak ada rumus/backend baru).
+        var isDesktopPanel = targetId === "desktopMasterBiaya";
         if (!res || !res.ok) {
           setDashboardCardError(targetId, res && res.error ? res.error : "Data master biaya belum bisa dibaca.");
           return;
@@ -577,7 +606,16 @@ menjalankan bootApp().
               '</div>' +
             '</div>';
           }).join('');
+          var totalHtml = '';
+          if (isDesktopPanel) {
+            var totalPerLoad = komponen.reduce(function (s, k) { return s + (Number(k.biayaPerLoad) || 0); }, 0);
+            totalHtml = '<div class="mb-desktop-total">' +
+              '<div class="mb-desktop-total-label">Total Biaya / Load</div>' +
+              '<div class="mb-desktop-total-value">' + money0(totalPerLoad) + '</div>' +
+            '</div>';
+          }
           return '<div class="mb-card">' +
+            totalHtml +
             (komponen.length > 0 ? '<div class="mb-komponen-list">' + komponenHtml + '</div>' : '') +
           '</div>';
         }).join('');
