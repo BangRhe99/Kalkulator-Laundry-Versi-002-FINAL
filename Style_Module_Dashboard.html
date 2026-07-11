@@ -1809,8 +1809,19 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     .desktop-summary-row { gap: 14px; min-height: 230px; }
     .desktop-summary-panel { padding: 13px 16px 11px; }
     .desktop-panel-title { margin-bottom: 8px; }
-    #desktopBepChart .bep-chart-wrap { padding: 10px 12px 6px; }
-    #desktopBepChart .bep-chart-legend { margin-top: 6px; }
+    /* Panel BEP desktop: (1) judul "Target Titik Impas (BEP)" dikecilkan &
+       garis di bawahnya dinaikkan (font 14->11px, jarak bawah ->0) - sama
+       gaya dgn panel Master Biaya biar konsisten & elegan. Judul SIBLING
+       dari #desktopBepChart, discope :has(#desktopBepChart) supaya judul
+       panel lain tidak ikut. (2) Grafik "penyet" krn viewBox 300x150 +
+       preserveAspectRatio="none" diregang di panel yg lebar & pendek -
+       diperbaiki dgn memberi SVG tinggi maksimal: padding atas/bawah
+       chart-wrap & margin legenda dipangkas supaya .bep-chart-svg (flex:1)
+       tumbuh lebih tinggi -> garis lebih tegak/proporsional. Semua discope
+       ke panel BEP saja. */
+    .desktop-summary-panel:has(#desktopBepChart) .desktop-panel-title { font-size: 11px; margin-bottom: 0; }
+    #desktopBepChart .bep-chart-wrap { padding: 6px 12px 4px; }
+    #desktopBepChart .bep-chart-legend { margin-top: 4px; }
     /* Master Biaya desktop: SEMUA komponen (Gas/Chemical/Listrik/Packing/
        Air/Nota) harus tampil. Sebelumnya .mb-komponen-list pakai
        justify-content:space-between (dari aturan dasar di atas) + flex:1 -
