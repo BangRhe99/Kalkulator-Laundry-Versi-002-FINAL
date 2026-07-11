@@ -1820,7 +1820,14 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
        ATAS dgn jarak konsisten - ruang yg tadinya terbuang jadi gap lebar
        kini menampung baris 5 & 6 di area yg sama. justify-content di-reset
        eksplisit (bukan cuma gap) supaya menang atas aturan dasar. */
-    #desktopMasterBiaya .mb-komponen-list { justify-content: flex-start; gap: 6px; }
+    /* Judul "Master Biaya Produksi" dikecilkan & garis/jaraknya dinaikkan
+       (font 14->11px, jarak bawah 8->2px) supaya blok data di bawahnya
+       ikut naik & baris terakhir (Nota) muat. Judul ini SIBLING dari
+       #desktopMasterBiaya (bukan anak), jadi discope pakai
+       :has(#desktopMasterBiaya) -> judul panel BEP & Harga Layanan TIDAK
+       ikut mengecil. */
+    .desktop-summary-panel:has(#desktopMasterBiaya) .desktop-panel-title { font-size: 11px; margin-bottom: 2px; }
+    #desktopMasterBiaya .mb-komponen-list { justify-content: flex-start; gap: 4px; }
     #desktopMasterBiaya .mb-komponen-row-desktop { gap: 2px; }
     /* Tinggi panel (dikunci fit-JS) hanya cukup utk ~4 baris pada ukuran
        lama, jadi Air & Nota jatuh di area yg ke-clip. Tiap baris dipadatkan
