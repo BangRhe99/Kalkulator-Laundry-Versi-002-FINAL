@@ -1870,11 +1870,21 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     #desktopMasterBiaya .mb-komponen-line1 .mb-komponen-value { font-size: 12px; line-height: 1.2; }
     #desktopMasterBiaya .mb-komponen-line2 .mb-progress-bar { height: 5px; }
     #desktopMasterBiaya .mb-komponen-line2 .mb-komponen-persen { font-size: 10px; }
+    /* Judul "Harga Layanan" disamakan dgn panel BEP/Master Biaya (font
+       11px, garis di bawahnya dinaikkan ke 0). Judul SIBLING dari
+       #desktopHargaLayanan -> discope :has(#desktopHargaLayanan). */
+    .desktop-summary-panel:has(#desktopHargaLayanan) .desktop-panel-title { font-size: 11px; margin-bottom: 0; }
     #desktopHargaLayanan .hl-item { padding: 10px 12px; }
     #desktopHargaLayanan .hl-top { margin-bottom: 6px; }
-    #desktopHargaLayanan .hl-name { font-size: 13px; }
+    /* Nama layanan dikecilkan + nowrap -> "Cuci Kering Setrika"/"Setrika
+       Saja" presisi 1 baris (tdk lagi turun 2 baris). */
+    #desktopHargaLayanan .hl-name { font-size: 11px; line-height: 1.25; white-space: nowrap; }
     #desktopHargaLayanan .hl-bar-row { margin-bottom: 8px; }
     #desktopHargaLayanan .hl-stat-grid { gap: 6px; padding-bottom: 0; border-bottom: none; }
-    #desktopHargaLayanan .hl-status-badge { padding: 3px 8px; }
+    /* Badge margin ("Margin Sehat"/"Sangat Sehat") fontnya dikecilkan. */
+    #desktopHargaLayanan .hl-status-badge { padding: 3px 7px; font-size: 8.5px; }
+    /* Label "HARGA JUAL / HPP PER LOAD / MIN ORDER" dikecilkan + nowrap +
+       tracking dirapatkan -> "HPP PER LOAD" muat 1 baris, tidak bertumpuk. */
+    #desktopHargaLayanan .hl-stat-label { font-size: 8px; letter-spacing: 0.02em; white-space: nowrap; }
   }
 </style>
