@@ -105,21 +105,23 @@ menjalankan bootApp().
     var selId = (typeof dashboardSelectedOutletId !== "undefined") ? dashboardSelectedOutletId : null;
     var current = rows.find(function (c) { return c.id === selId; }) || rows[0] || null;
 
-    var actions = document.getElementById("profilOutletDesktopActions");
+    // Tombol "Tambah Outlet" SELALU tampil (termasuk saat belum ada outlet,
+    // supaya outlet pertama bisa dibuat dari sini). Edit & Hapus hanya tampil
+    // kalau ada outlet terpilih.
+    var delBtn = document.getElementById("profilOutletDeleteBtn");
+    var editBtn = document.getElementById("profilOutletEditBtn");
 
     if (!current) {
-      host.innerHTML = '<div class="dashboard-empty">Belum ada outlet. Tambahkan outlet lebih dulu.</div>';
-      if (actions) actions.style.display = "none";
+      host.innerHTML = '<div class="dashboard-empty">Belum ada outlet. Klik "+ Tambah Outlet" untuk membuat outlet pertama.</div>';
+      if (delBtn) delBtn.style.display = "none";
+      if (editBtn) editBtn.style.display = "none";
       return;
     }
-    if (actions) actions.style.display = "";
 
     host.innerHTML = buildProfilOutletDetailHtml_(current);
 
-    var delBtn = document.getElementById("profilOutletDeleteBtn");
-    var editBtn = document.getElementById("profilOutletEditBtn");
-    if (delBtn) delBtn.onclick = function () { openConfirmDelete(current.id); };
-    if (editBtn) editBtn.onclick = function () { openFormEdit(current.id); };
+    if (delBtn) { delBtn.style.display = ""; delBtn.onclick = function () { openConfirmDelete(current.id); }; }
+    if (editBtn) { editBtn.style.display = ""; editBtn.onclick = function () { openFormEdit(current.id); }; }
   }
 
   /**
