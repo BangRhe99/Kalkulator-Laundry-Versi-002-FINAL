@@ -40,11 +40,19 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
      + grafik BEP + Master Biaya berdampingan + Harga Layanan) - Profil
      Outlet & Struktur HPP tetap ada, dibuka lewat sidebar (lihat
      Screen_Sidebar.html), bukan di halaman ringkasan ini lagi. */
-  body:has(#screenMenu.active) .wrap { width: min(100%, 1200px); }
+  body:has(#screenMenu.active) .wrap { width: min(100%, 1440px); }
 
   @media (min-width: 1100px) {
     #screenMenu .dashboard-grid { display: none; }
-    .desktop-dashboard-summary { display: flex; flex-direction: column; gap: 16px; }
+    .desktop-dashboard-summary { display: flex; flex-direction: column; gap: 18px; }
+
+    /* Header app ("Kalkulator Laundry" + icon) sudah ada duplikatnya di
+       sidebar (Screen_Sidebar.html) - di Dashboard header ini dibuang total
+       supaya konten naik ke atas (tidak ada baris kosong sisa) & tidak
+       ada branding dobel. DIBATASI ke #screenMenu.active saja - layar lain
+       (Profil Outlet, Master Biaya, dst) TETAP pakai header spt biasa krn
+       masih butuh tombol Kembali. HP tidak pernah masuk media query ini. */
+    body:has(#screenMenu.active) .app-header { display: none !important; }
 
     /* Topbar tipis khusus desktop: header dashboard jadi strip putih (var
        --panel) presisi dgn border halus - spt topbar Stripe/Linear/Vercel -
@@ -71,22 +79,22 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
        bawah) utk KPI berbasis Rupiah - lihat setDesktopKpiMoney_ di
        Script_Fitur_Dashboard.html. Kartu ringkas HP (.dashboard-kpi) TIDAK
        memakai class desktop-kpi-* sama sekali jadi tidak ikut berubah. */
-    .desktop-kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+    .desktop-kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; }
     .desktop-kpi-card {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 22px 20px 20px;
+      padding: 26px 22px 24px;
       min-width: 0;
       box-shadow: 0 1px 2px rgba(17,24,39,0.03), 0 10px 24px -12px rgba(17,24,39,0.12);
     }
     .desktop-kpi-label {
-      font-size: 10.5px;
+      font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-faint);
-      margin-bottom: 16px;
+      margin-bottom: 18px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -106,7 +114,7 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     }
     .desktop-kpi-number {
       font-family: var(--font-display);
-      font-size: 27px;
+      font-size: 30px;
       font-weight: 800;
       color: var(--text);
       letter-spacing: -0.02em;
@@ -141,18 +149,23 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
        masing-masing. Kedua panel dijadikan flex column supaya body-nya
        (#desktopBepChart / #desktopMasterBiaya) bisa flex:1 mengisi penuh
        tinggi panel - dasar dari pola "paksa 1 layar" di bawah. */
-    .desktop-summary-row { display: grid; grid-template-columns: 2.4fr 0.9fr; gap: 16px; align-items: stretch; }
+    .desktop-summary-row { display: grid; grid-template-columns: 2.4fr 0.9fr; gap: 20px; align-items: stretch; }
     .desktop-summary-panel {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 20px 20px 18px;
+      padding: 24px 22px 20px;
       min-width: 0;
       display: flex;
       flex-direction: column;
       box-shadow: 0 1px 2px rgba(17,24,39,0.03), 0 10px 24px -12px rgba(17,24,39,0.12);
     }
-    .desktop-summary-panel > .dashboard-card-summary { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    /* DIBATASI ke ".desktop-summary-row" saja (panel BEP & Master Biaya) -
+       kalau ditulis tanpa scope ini, rule "flex-direction:column" ini
+       KEBOCORAN ke panel Harga Layanan (.desktop-summary-full JUGA punya
+       class .desktop-summary-panel) & merusak barisnya jadi tersusun ke
+       bawah - itu penyebab bug "Harga Layanan lurus ke bawah" sebelumnya. */
+    .desktop-summary-row .desktop-summary-panel > .dashboard-card-summary { flex: 1; display: flex; flex-direction: column; min-height: 0; }
     .desktop-summary-full { width: 100%; }
 
     /* === CHART BEP - restyle premium KHUSUS panel desktop (#desktopBepChart) ===
@@ -234,6 +247,7 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
        ikut berubah. */
     #desktopHargaLayanan {
       display: flex;
+      flex-direction: row;
       flex-wrap: nowrap;
       gap: 12px;
       align-items: start;
