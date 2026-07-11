@@ -567,6 +567,13 @@ menjalankan bootApp().
 
   function renderDashboardMasterBiayaCard(res, targetId) {
         targetId = targetId || "dashboardMasterBiayaSummary";
+        // Panel ringkasan eksekutif desktop ("desktopMasterBiaya") butuh
+        // susunan 2 baris per item (baris 1: nama + nominal, baris 2: bar +
+        // persen) - kartu ringkas HP ("dashboardMasterBiayaSummary") TETAP
+        // pakai markup lama (.mb-komponen-top 1 baris) supaya HP TIDAK ikut
+        // berubah sama sekali. isDesktopPanel dicek dari targetId, bukan
+        // lebar layar, jadi aman.
+        var isDesktopPanel = targetId === "desktopMasterBiaya";
         if (!res || !res.ok) {
           setDashboardCardError(targetId, res && res.error ? res.error : "Data master biaya belum bisa dibaca.");
           return;
@@ -586,16 +593,27 @@ menjalankan bootApp().
           var komponenHtml = komponen.map(function(k) {
             var isZero = !k.biayaPerLoad || k.biayaPerLoad === 0;
             var cls = isZero ? 'mb-komponen-row zero' : 'mb-komponen-row';
+            var valueHtml = isZero ? '<span class="mb-zero-label">Rp 0 (tanpa biaya)</span>' : (money0(k.biayaPerLoad) + (k.unitSuffix ? ' <span class="mb-komponen-unit">' + escapeHtml(k.unitSuffix) + '</span>' : ''));
+            var barHtml = '<div class="mb-progress-bar">' +
+                '<div class="mb-progress-fill mb-' + escapeHtml(k.key) + '" style="width:' + String(Math.min(k.persen||0,100)) + '%"></div>' +
+              '</div>' +
+              '<span class="mb-komponen-persen">' + String(k.persen||0) + '%</span>';
+
+            if (isDesktopPanel) {
+              return '<div class="' + cls + ' mb-komponen-row-desktop">' +
+                '<div class="mb-komponen-line1">' +
+                  '<span class="mb-komponen-label">' + escapeHtml(k.label) + '</span>' +
+                  '<span class="mb-komponen-value">' + valueHtml + '</span>' +
+                '</div>' +
+                '<div class="mb-komponen-line2">' + barHtml + '</div>' +
+              '</div>';
+            }
+
             return '<div class="' + cls + '">' +
               '<div class="mb-komponen-top">' +
                 '<span class="mb-komponen-label">' + escapeHtml(k.label) + '</span>' +
-                '<div class="mb-bar-wrap">' +
-                  '<div class="mb-progress-bar">' +
-                    '<div class="mb-progress-fill mb-' + escapeHtml(k.key) + '" style="width:' + String(Math.min(k.persen||0,100)) + '%"></div>' +
-                  '</div>' +
-                  '<span class="mb-komponen-persen">' + String(k.persen||0) + '%</span>' +
-                '</div>' +
-                '<span class="mb-komponen-value">' + (isZero ? '<span class="mb-zero-label">Rp 0 (tanpa biaya)</span>' : (money0(k.biayaPerLoad) + (k.unitSuffix ? ' <span class="mb-komponen-unit">' + escapeHtml(k.unitSuffix) + '</span>' : ''))) + '</span>' +
+                '<div class="mb-bar-wrap">' + barHtml + '</div>' +
+                '<span class="mb-komponen-value">' + valueHtml + '</span>' +
               '</div>' +
             '</div>';
           }).join('');
