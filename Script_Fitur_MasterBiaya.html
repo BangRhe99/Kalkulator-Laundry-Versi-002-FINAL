@@ -210,9 +210,18 @@ menjalankan bootApp().
       '<div class="gas-result-cell"><div class="label">Konversi waktu</div><div class="val">' + escapeHtml(formatNum(gasCard.konversiMenit)) + '<span class="unit">menit</span></div></div>' +
       (gasCard.hasDryerRef ? '<div class="gas-result-cell"><div class="label">Estimasi load</div><div class="val">' + escapeHtml(formatNum(gasCard.estimasiLoadPemakaian)) + '<span class="unit">load</span></div></div>' : '');
 
-    var highlightHtml =
-      (gasCard.hasDryerRef ? '<div class="gas-result-grid" style="grid-template-columns:1fr;"><div class="gas-result-cell highlight"><div class="label">Biaya Gas Dryer Per Load</div><div class="val">' + money0(gasCard.biayaGasDryerPerLoad) + '</div></div></div>' : '') +
-      (gasCard.hasSetrikaRef ? '<div class="gas-result-grid" style="grid-template-columns:1fr;"><div class="gas-result-cell highlight"><div class="label">Biaya Gas Setrika Per Jam</div><div class="val">' + money0(gasCard.biayaGasSetrikaPerJam) + '</div></div></div>' : '');
+    // Dua sel highlight DIJEJER 2 kolom (bukan ditumpuk 1 kolom penuh spt
+    // kartu Gas asli) kalau keduanya ada - kartu ini di grid Master Biaya
+    // desktop berbagi tinggi baris dgn 5 kartu lain (grid-auto-rows:1fr),
+    // jadi harus lebih padat vertikal supaya tidak kepotong (overflow:
+    // hidden). Kalau cuma satu yang ada, tetap 1 kolom penuh spt biasa.
+    var highlightCellsHtml =
+      (gasCard.hasDryerRef ? '<div class="gas-result-cell highlight"><div class="label">Biaya Gas Dryer Per Load</div><div class="val">' + money0(gasCard.biayaGasDryerPerLoad) + '</div></div>' : '') +
+      (gasCard.hasSetrikaRef ? '<div class="gas-result-cell highlight"><div class="label">Biaya Gas Setrika Per Jam</div><div class="val">' + money0(gasCard.biayaGasSetrikaPerJam) + '</div></div>' : '');
+    var bothHighlights = gasCard.hasDryerRef && gasCard.hasSetrikaRef;
+    var highlightHtml = highlightCellsHtml
+      ? '<div class="gas-result-grid"' + (bothHighlights ? '' : ' style="grid-template-columns:1fr;"') + '>' + highlightCellsHtml + '</div>'
+      : '';
 
     var moreNoteHtml = gasCard.moreCount > 0
       ? '<div class="mb-desktop-more-note">+' + gasCard.moreCount + ' tabung lain (total sudah termasuk di atas)</div>'
