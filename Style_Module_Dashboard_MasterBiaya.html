@@ -148,19 +148,20 @@ utama & DesktopDensity (scoped); file ini gaya dasar (dipakai bareng HP).
 
   @media (min-width: 1100px) {
     #screenMasterBiaya .masterbiaya-mobile-only { display: none; }
-    #screenMasterBiaya .masterbiaya-desktop { display: flex; flex-direction: column; gap: 14px; }
+    #screenMasterBiaya .masterbiaya-desktop { display: flex; flex-direction: column; gap: 10px; }
 
     body:has(#screenMasterBiaya.active) .app-header { display: none !important; }
     body:has(#screenMasterBiaya.active) { padding-top: 4px; }
-    body:has(#screenMasterBiaya.active) .wrap { width: min(100%, 1200px); }
+    body:has(#screenMasterBiaya.active) .wrap { width: min(100%, 1280px); }
 
     #screenMasterBiaya .dashboard-header {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 10px 18px;
+      padding: 9px 18px;
       margin-bottom: 0;
       box-shadow: 0 1px 2px rgba(17,24,39,0.03);
+      flex-shrink: 0;
     }
     #screenMasterBiaya .dashboard-header-top { align-items: center; }
     #screenMasterBiaya .dashboard-title { font-size: 16px; margin-bottom: 0; letter-spacing: -0.01em; }
@@ -174,34 +175,48 @@ utama & DesktopDensity (scoped); file ini gaya dasar (dipakai bareng HP).
       border-radius: 999px; padding: 2px 8px; margin: 0 2px; white-space: nowrap; flex-shrink: 0;
     }
 
-    #screenMasterBiaya .masterbiaya-desktop-panel { padding: 22px 24px; }
-
-    /* Baris total biaya per load - ringkasan cepat di atas 6 kartu. */
-    .mb-desktop-total-row {
+    /* Tinggi panel ini DIKUNCI via JS (fitDesktopDashboardToViewport_ di
+       Script_Fitur_Dashboard.html, teknik SAMA dgn Dashboard) supaya layar
+       ini tidak bisa discroll - CSS di sini cuma menyiapkan strukturnya:
+       overflow:hidden + flex-column, grid 6 kartu di dalamnya menyesuaikan
+       tinggi lewat grid-auto-rows:1fr, TIDAK PERNAH memicu scrollbar. */
+    #screenMasterBiaya .masterbiaya-desktop-panel {
+      padding: 16px 18px;
       display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      padding-bottom: 16px;
-      margin-bottom: 16px;
-      border-bottom: 1px solid var(--border);
+      flex-direction: column;
+      overflow: hidden;
     }
-    .mb-desktop-total-row .k { font-size: 13px; color: var(--text-dim); font-weight: 500; }
-    .mb-desktop-total-row .v { font-size: 22px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+    #masterBiayaDesktopGrid { flex: 1; min-height: 0; overflow: hidden; }
 
-    /* Grid 6 kartu komponen - 3 kolom, muat 1 layar tanpa scroll. Tiap
+    /* Grid 6 kartu komponen - 3 kolom x 2 baris, tinggi baris menyesuaikan
+       ruang tersedia (grid-auto-rows:1fr) supaya selalu muat 1 layar. Tiap
        kartu ADALAH .gas-card apa adanya (dipakai ulang persis, bukan
-       ditiru-tiru) - satu-satunya tambahan di sini adalah titik warna
-       kategori (.dot) & varian warna highlight per kategori, supaya
-       bahasa visual "ringkasan fitur" konsisten di seluruh aplikasi
-       (lihat KONTEKS_PROYEK.md, standar Hyper-Premium FinTech). */
+       ditiru-tiru) - tambahan di sini cuma titik warna kategori (.dot) &
+       varian warna highlight per kategori, supaya bahasa visual "ringkasan
+       fitur" konsisten di seluruh aplikasi (lihat KONTEKS_PROYEK.md,
+       standar Hyper-Premium FinTech). */
     .mb-desktop-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
+      grid-auto-rows: 1fr;
+      gap: 12px;
+      height: 100%;
     }
-    .mb-desktop-card.gas-card { margin-bottom: 0; }
+    .mb-desktop-card.gas-card {
+      margin-bottom: 0;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
     .mb-desktop-card.is-empty { opacity: 0.78; }
-    .mb-desktop-card .gas-card-result { margin-top: 12px; padding-top: 12px; }
+    .mb-desktop-card .gas-card-top { margin-bottom: 8px; }
+    .mb-desktop-card .meta-row { padding: 3px 0; font-size: 11.5px; }
+    .mb-desktop-card .gas-card-result { margin-top: 8px; padding-top: 8px; flex: 1; min-height: 0; }
+    .mb-desktop-card .gas-result-cell { padding: 10px 12px; }
+    .mb-desktop-card .gas-result-cell .label { font-size: 10px; }
+    .mb-desktop-card .gas-result-cell.highlight .val { font-size: 17px; display: flex; align-items: baseline; gap: 6px; }
 
     /* Titik warna kategori - pengganti .flame-dot yang khusus Gas, di sini
        digeneralisasi per tone lewat variabel --dot-color pada wrapper. */

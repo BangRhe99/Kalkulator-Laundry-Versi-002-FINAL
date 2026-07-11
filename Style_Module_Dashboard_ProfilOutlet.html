@@ -343,17 +343,27 @@ divider, mesin, okupansi + tooltip).
       border-radius: 999px; padding: 2px 8px; margin: 0 2px; white-space: nowrap; flex-shrink: 0;
     }
 
-    /* Satu kartu besar penampung profil outlet. */
-    #screenList .profil-outlet-desktop-panel { padding: 22px 24px; }
-    #screenList .profil-outlet-card { gap: 16px; }
+    /* Satu kartu besar penampung profil outlet. Tinggi panel ini DIKUNCI
+       via JS (fitDesktopDashboardToViewport_ di Script_Fitur_Dashboard.html,
+       teknik SAMA dgn Dashboard) supaya layar ini tidak bisa discroll - CSS
+       di sini cuma menyiapkan strukturnya: overflow:hidden + flex-column,
+       kartu profil jadi flex:1 (elastis mengisi ruang di atas baris
+       tombol yang flex-shrink:0 di bawahnya). */
+    #screenList .profil-outlet-desktop-panel { padding: 20px 22px; display: flex; flex-direction: column; overflow: hidden; }
+    #profilOutletDesktopCard { flex: 1; min-height: 0; overflow: hidden; }
+    #screenList .profil-outlet-card { gap: 14px; height: 100%; overflow: hidden; }
+    #screenList .profil-outlet-meta { flex-shrink: 0; }
 
     /* Grid rincian: cuci/pengering/setrika berdampingan (auto-fit -> 1 kolom
        kalau cuma setrika, 2 kolom cuci+kering, 3 kolom kalau ada setrika).
-       Muat 1 layar tanpa scroll di lebar >=1100px. */
+       Muat 1 layar tanpa scroll di lebar >=1100px - flex:1 mengisi ruang
+       yang tersisa di bawah header (.profil-outlet-meta). */
     #screenList .profil-outlet-detail-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
       gap: 14px;
+      flex: 1;
+      min-height: 0;
     }
     #screenList .profil-detail-panel {
       background: var(--panel-2);
@@ -362,6 +372,7 @@ divider, mesin, okupansi + tooltip).
       padding: 16px 16px 14px;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
       gap: 12px;
       min-width: 0;
     }
@@ -429,6 +440,7 @@ divider, mesin, okupansi + tooltip).
     #screenList .profil-outlet-desktop-actions {
       display: flex; gap: 10px; justify-content: flex-end; align-items: center;
       margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);
+      flex-shrink: 0;
     }
     #screenList .profil-outlet-desktop-actions .btn-primary { flex: 0 0 auto; min-width: 150px; }
   }

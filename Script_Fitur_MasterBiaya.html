@@ -130,6 +130,7 @@ menjalankan bootApp().
 
     if (!current) {
       host.innerHTML = '<div class="dashboard-empty">Belum ada outlet. Tambahkan outlet dulu di menu Profil Outlet.</div>';
+      if (typeof window.fitDesktopDashboardToViewport_ === "function") requestAnimationFrame(window.fitDesktopDashboardToViewport_);
       return;
     }
 
@@ -149,14 +150,19 @@ menjalankan bootApp().
 
       if (!res || !res.ok) {
         if (!fromCache) host.innerHTML = '<div class="dashboard-empty">' + escapeHtml(res && res.error ? res.error : "Data master biaya belum bisa dibaca.") + '</div>';
+        if (typeof window.fitDesktopDashboardToViewport_ === "function") requestAnimationFrame(window.fitDesktopDashboardToViewport_);
         return;
       }
       var data = res.data || {};
       var row = Array.isArray(data.rows) && data.rows.length ? data.rows[0] : null;
       host.innerHTML = buildMasterBiayaDesktopHtml_(cId, row);
+      // Konten baru bisa mengubah tinggi kartu - kunci ulang 1 layar (lihat
+      // fitDesktopDashboardToViewport_ di Script_Fitur_Dashboard.html).
+      if (typeof window.fitDesktopDashboardToViewport_ === "function") requestAnimationFrame(window.fitDesktopDashboardToViewport_);
     }, function (err, hadCache) {
       if (hadCache) return;
       host.innerHTML = '<div class="dashboard-empty">' + escapeHtml(err && err.message ? err.message : String(err)) + '</div>';
+      if (typeof window.fitDesktopDashboardToViewport_ === "function") requestAnimationFrame(window.fitDesktopDashboardToViewport_);
     });
   }
 
@@ -169,17 +175,33 @@ menjalankan bootApp().
    * visual baru untuk "ringkasan fitur" - satu komponen kartu premium yang
    * sudah disetujui dipakai konsisten di semua tempat.
    */
+  // Baris "Item tercatat" (Chemical) bisa panjang - kartu ini padat (6
+  // kartu 1 layar), jadi teks detail dipotong supaya tidak mendorong tinggi
+  // kartu. Daftar lengkapnya tetap ada di layar Chemical sendiri (Kelola).
+  function truncateDetailText_(text, maxLen) {
+    if (!text || text.length <= maxLen) return text;
+    return text.slice(0, maxLen - 1) + '…';
+  }
+
+  function buildMasterBiayaDetailRowsHtml_(detail) {
+    if (!Array.isArray(detail) || !detail.length) return '';
+    return detail.map(function (d) {
+      var valText = (d.amount !== undefined && d.amount !== null) ? money0(d.amount) : truncateDetailText_(d.text || '-', 34);
+      return '<div class="meta-row"><span class="meta-label">' + escapeHtml(d.label) + '</span><span class="meta-val">' + escapeHtml(valText) + '</span></div>';
+    }).join('');
+  }
+
   function buildMasterBiayaDesktopHtml_(cabangId, row) {
     var komponen = row && Array.isArray(row.komponenBiaya) ? row.komponenBiaya : [];
     var byKey = {};
     komponen.forEach(function (k) { byKey[k.key] = k; });
-    var totalPerLoad = row ? (row.totalBiayaPerLoad || 0) : 0;
 
     var cardsHtml = MASTERBIAYA_KATEGORI_META.map(function (meta) {
       var k = byKey[meta.key];
       var hasValue = !!k && Number(k.biayaPerLoad) > 0;
       var hasEntry = !!k;
       var unitLabel = (k && k.unitSuffix) ? k.unitSuffix.replace(/^\//, '') : 'load';
+      var detailRowsHtml = hasEntry ? buildMasterBiayaDetailRowsHtml_(k.detail) : '';
       var resultHtml;
 
       if (hasEntry) {
@@ -187,13 +209,7 @@ menjalankan bootApp().
           '<div class="gas-result-grid" style="grid-template-columns:1fr;">' +
             '<div class="gas-result-cell highlight">' +
               '<div class="label">Biaya ' + escapeHtml(meta.label) + ' Per ' + escapeHtml(unitLabel.charAt(0).toUpperCase() + unitLabel.slice(1)) + '</div>' +
-              '<div class="val">' + money0(k.biayaPerLoad) + '</div>' +
-            '</div>' +
-          '</div>' +
-          '<div class="gas-result-grid" style="grid-template-columns:1fr;">' +
-            '<div class="gas-result-cell">' +
-              '<div class="label">Kontribusi dari total biaya</div>' +
-              '<div class="val">' + escapeHtml(String(Number(k.persen || 0))) + '<span class="unit">%</span></div>' +
+              '<div class="val">' + money0(k.biayaPerLoad) + '<span class="unit">' + escapeHtml(String(Number(k.persen || 0))) + '% dari total</span></div>' +
             '</div>' +
           '</div>';
       } else {
@@ -217,17 +233,12 @@ menjalankan bootApp().
               '<button class="icon-btn" type="button" aria-label="' + (hasEntry ? 'Kelola' : 'Isi data') + ' ' + escapeHtml(meta.label) + '" onclick="' + meta.open + '(\'' + escapeJsAttr(cabangId) + '\')">' + (hasEntry ? '&#9998;' : '&#43;') + '</button>' +
             '</div>' +
           '</div>' +
+          detailRowsHtml +
           '<div class="gas-card-result">' + resultHtml + '</div>' +
         '</div>'
       );
     }).join('');
 
-    return (
-      '<div class="mb-desktop-total-row">' +
-        '<span class="k">Total biaya produksi per load</span>' +
-        '<span class="v">' + money0(totalPerLoad) + '</span>' +
-      '</div>' +
-      '<div class="mb-desktop-grid">' + cardsHtml + '</div>'
-    );
+    return '<div class="mb-desktop-grid">' + cardsHtml + '</div>';
   }
 </script>

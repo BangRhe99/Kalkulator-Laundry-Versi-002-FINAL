@@ -396,6 +396,40 @@ masuk/balik ke layar). HP/tablet (<1100px) TIDAK diubah - tetap pill kategori
 `Script_Fitur_MasterBiaya.html` (`renderMasterBiayaDesktop_`,
 `buildMasterBiayaDesktopHtml_`), `Style_Module_Dashboard_MasterBiaya.html`.
 
+**[2026-07-12] Update lanjutan Master Biaya + Profil Outlet desktop:**
+1. **Baris "Total biaya produksi per load" DIHAPUS** dari layar Master Biaya
+   desktop (user tidak mau) - `buildMasterBiayaDesktopHtml_` sekarang cuma
+   mengembalikan grid 6 kartu, tanpa header total.
+2. **Tiap kartu komponen (Gas/Listrik/Air/Chemical/Packing/Nota) sekarang
+   punya breakdown lebih lengkap**, bukan cuma 1 angka + persen. Field baru
+   `komponenBiaya[].detail[]` di `getDashboardMasterBiayaSummary`
+   (`Modul_Dashboard.gs`, ADITIF - tidak mengubah field lama/formula lama,
+   cuma expose angka yang MEMANG SUDAH dihitung di dalam fungsi itu): Gas =
+   jumlah data tabung; Listrik = breakdown Pompa Air/Washer/Dryer per load (3
+   angka nyata); Air = label sumber air; Nota = breakdown Biaya
+   Aplikasi/Kasir vs Biaya Nota/Kertas; Chemical = jumlah item + nama item
+   (dipotong via `truncateDetailText_` biar kartu tetap padat); Packing =
+   jumlah item yang dihitung (layanan kiloan). Dirender sbg baris `.meta-row`
+   (component GLOBAL yang sudah ada, reuse persis) di atas divider hasil.
+3. **Layar Master Biaya & Profil Outlet desktop sekarang TIDAK BISA
+   discroll** (1 layar penuh), pakai teknik JS yang SAMA dgn Dashboard
+   (`fitDesktopDashboardToViewport_` di `Script_Fitur_Dashboard.html` -
+   FUNGSI INI DIGENERALISASI dari khusus `#screenMenu` jadi daftar target
+   `SINGLE_SCREEN_FIT_TARGETS_` = `[screenMenu, screenList,
+   screenMasterBiaya]`, masing-masing dgn 1 panel target yang tingginya
+   diukur & dikunci ke `window.innerHeight - rect.top - gap` tiap ganti
+   layar/resize/render data baru). Struktur CSS panel (`.panel` masing-
+   masing layar) jadi `display:flex; flex-direction:column; overflow:hidden;`
+   dengan child konten `flex:1; min-height:0; overflow:hidden` supaya grid/
+   kartu di dalamnya menyesuaikan tinggi (`grid-auto-rows:1fr` utk Master
+   Biaya), BUKAN memicu scrollbar internal. Kalau nambah layar "satu-outlet"
+   baru yang butuh perilaku sama, TINGGAL tambah 1 entri ke
+   `SINGLE_SCREEN_FIT_TARGETS_`, jangan tulis fungsi fit terpisah lagi.
+4. Kepadatan kartu (padding/gap/font) dikecilkan scoped ke `.mb-desktop-card`
+   supaya 6 kartu + breakdown tambahan tetap muat 1 layar di laptop umum
+   (1366x768 ke atas) - kalau di window sangat kecil kontennya di-crop halus
+   (`overflow:hidden`, BUKAN error) drpd memaksa scrollbar muncul.
+
 ---
 
 ### PRIORITAS BERIKUTNYA
@@ -518,11 +552,22 @@ tidak menyertakan array `mesinCuci`/`mesinPengering`/`okupansi`.
 
 ### `getDashboardMasterBiayaSummary(cabangId)`:
 `cabangId`, `namaLaundry`, `lengkapCount`, `totalKomponen(4)`, `isComplete`,
-`missing[]`, `komponenBiaya[]{key, label, biayaPerLoad, persen}`, `totalBiayaPerLoad`.
+`missing[]`, `komponenBiaya[]{key, label, biayaPerLoad, persen, unitSuffix?,
+detail[]?}`, `totalBiayaPerLoad`.
 Komponen sekarang di-push berdasarkan flag "form pernah diisi"
 (`gasComplete`/`listrikComplete`/`airComplete`/`notaComplete`), BUKAN
 `biayaPerLoad > 0` — supaya komponen yang sengaja Rp0 (misal air sumur) tetap
 tampil, bukan hilang dari daftar.
+
+**[2026-07-12] Field `detail[]` ditambahkan** (aditif, tidak mengubah field
+lama) — array kecil `{label, amount?, text?}` berisi breakdown yang SUDAH
+dihitung di dalam fungsi ini (bukan hitungan baru): Gas = jumlah data tabung;
+Listrik = breakdown Pompa/Washer/Dryer per load (3 angka nyata, bukan cuma
+total); Air = label sumber air (PDAM/Tangki/Sumur); Nota = breakdown Biaya
+Aplikasi vs Biaya Nota/Kertas; Chemical = jumlah item + nama item; Packing =
+jumlah item yang dihitung (layanan kiloan). Dipakai kartu Master Biaya
+desktop (`buildMasterBiayaDesktopHtml_`) supaya "ringkasan fitur" lebih
+lengkap tanpa nambah roundtrip atau formula baru.
 
 ### `getDashboardHPPSummary(cabangId)`:
 `cabangId`, `namaLaundry`, `kategoriLayanan`, `isReady`, `hppMin`, `hppMax`,

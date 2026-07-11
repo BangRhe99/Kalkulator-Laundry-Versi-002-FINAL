@@ -115,6 +115,7 @@ menjalankan bootApp().
       host.innerHTML = '<div class="dashboard-empty">Belum ada outlet. Klik "+ Tambah Outlet" untuk membuat outlet pertama.</div>';
       if (delBtn) delBtn.style.display = "none";
       if (editBtn) editBtn.style.display = "none";
+      if (typeof window.fitDesktopDashboardToViewport_ === "function") requestAnimationFrame(window.fitDesktopDashboardToViewport_);
       return;
     }
 
@@ -122,6 +123,9 @@ menjalankan bootApp().
 
     if (delBtn) { delBtn.style.display = ""; delBtn.onclick = function () { openConfirmDelete(current.id); }; }
     if (editBtn) { editBtn.style.display = ""; editBtn.onclick = function () { openFormEdit(current.id); }; }
+    // Konten baru bisa mengubah tinggi kartu - kunci ulang 1 layar (lihat
+    // fitDesktopDashboardToViewport_ di Script_Fitur_Dashboard.html).
+    if (typeof window.fitDesktopDashboardToViewport_ === "function") requestAnimationFrame(window.fitDesktopDashboardToViewport_);
   }
 
   /**
