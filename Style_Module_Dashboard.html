@@ -1791,6 +1791,15 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
      supaya grafik tetap terbaca.
      ==================================================================== */
   @media (min-width: 1100px) {
+    /* Dashboard desktop dinaikkan: app-header disembunyikan di lebar ini
+       (lihat aturan di atas), jadi satu-satunya jarak dari atas layar
+       tinggal body padding-top:16px (Style_Base.html). Dipangkas KHUSUS
+       saat Dashboard aktif supaya konten mepet ke atas. DIBATASI ke
+       body:has(#screenMenu.active) + media query >=1100px -> HP (<1100px)
+       & layar lain (Profil Outlet dst, #screenMenu tidak .active) TIDAK
+       ikut berubah. Ikut menambah tinggi elastis panel via fit-JS krn
+       rect.top jadi lebih kecil. */
+    body:has(#screenMenu.active) { padding-top: 4px; }
     .desktop-dashboard-summary { gap: 10px; }
     #screenMenu .dashboard-header { padding: 7px 14px; margin-bottom: 0; }
     .desktop-kpi-row { gap: 12px; }
