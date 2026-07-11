@@ -103,4 +103,33 @@ Jika tampilan Fixed Cost atau ringkasan Fixed Cost di daftar outlet bermasalah, 
 .fc-list-empty-note { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
 @media (max-width: 520px) { .fc-list-summary-top { grid-template-columns: 1fr; } }
 @media (max-width: 520px) { .fc-grid-2, .fc-input-grid, .fc-input-grid.three, .fc-summary-grid { grid-template-columns: 1fr; } }
+
+/* === DESKTOP LAYOUT (>=1100px) - screenBiayaTetapList & screenBiayaTetapForm ===
+   Sebelumnya layar ini TIDAK PUNYA penyesuaian desktop sama sekali (beda
+   dgn Profil Outlet/Master Biaya/Struktur HPP/Harga Layanan yang sudah
+   dilebarkan) - .wrap global tetap 480px shg tampil versi HP walau di
+   layar PC/laptop lebar. Disamakan polanya di sini: .wrap dilebarkan
+   khusus 2 screen ini (aman tanpa @media krn width:min(100%,1080px)
+   otomatis balik ke 100% sendiri di HP), grid/masonry TETAP di dalam
+   @media supaya HP tidak berubah sama sekali. */
+body:has(#screenBiayaTetapList.active) .wrap,
+body:has(#screenBiayaTetapForm.active) .wrap { width: min(100%, 1080px); }
+
+@media (min-width: 1100px) {
+  /* Daftar outlet jadi grid 2 kolom, bukan ditumpuk 1 kolom panjang -
+     kartunya berisi ringkasan (fc-list-summary-top 2 kolom + breakdown)
+     jadi 2 kolom lebih presisi drpd 3 kolom yang bikin kartu terlalu
+     sempit. */
+  #biayaTetapOutletList { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  #biayaTetapOutletList .menu-card { margin-bottom: 0; }
+
+  /* Form: section-section (Sewa/Gaji/Internet/Depresiasi/Perawatan/Lain/
+     Ringkasan) dipakai masonry 2 kolom spt Struktur HPP - summary-hero &
+     warning box tetap selebar penuh di atasnya, tiap section tidak boleh
+     terpotong di tengah kolom. */
+  #biayaTetapContent { columns: 2; column-gap: 16px; }
+  #biayaTetapContent .summary-hero,
+  #biayaTetapContent .fc-warning-box { column-span: all; }
+  #biayaTetapContent .fc-section { break-inside: avoid; }
+}
 </style>
