@@ -1811,8 +1811,17 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     .desktop-panel-title { margin-bottom: 8px; }
     #desktopBepChart .bep-chart-wrap { padding: 10px 12px 6px; }
     #desktopBepChart .bep-chart-legend { margin-top: 6px; }
-    #desktopMasterBiaya .mb-komponen-list { gap: 6px; }
-    #desktopMasterBiaya .mb-komponen-row-desktop { gap: 4px; }
+    /* Master Biaya desktop: SEMUA komponen (Gas/Chemical/Listrik/Packing/
+       Air/Nota) harus tampil. Sebelumnya .mb-komponen-list pakai
+       justify-content:space-between (dari aturan dasar di atas) + flex:1 -
+       itu menyebar 4 item teratas dgn jarak lebar & mendorong 2 item
+       terbawah ke area panel yg ke-clip (overflow:hidden), jadi Air/Nota
+       terpotong. Diganti flex-start supaya semua baris dipadatkan dari
+       ATAS dgn jarak konsisten - ruang yg tadinya terbuang jadi gap lebar
+       kini menampung baris 5 & 6 di area yg sama. justify-content di-reset
+       eksplisit (bukan cuma gap) supaya menang atas aturan dasar. */
+    #desktopMasterBiaya .mb-komponen-list { justify-content: flex-start; gap: 11px; }
+    #desktopMasterBiaya .mb-komponen-row-desktop { gap: 5px; }
     #desktopHargaLayanan .hl-item { padding: 10px 12px; }
     #desktopHargaLayanan .hl-top { margin-bottom: 6px; }
     #desktopHargaLayanan .hl-name { font-size: 13px; }
