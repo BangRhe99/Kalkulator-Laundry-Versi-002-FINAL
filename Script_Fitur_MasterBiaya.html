@@ -36,6 +36,7 @@ menjalankan bootApp().
       }
       cabangListCache = res.data;
       renderBiayaPickCabangList();
+      renderMasterBiayaDesktop_();
     }, function (err, hadCache) {
       if (hadCache) return;
       handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listCabang(masterBiaya)" }, "memuat daftar cabang");
@@ -92,4 +93,105 @@ menjalankan bootApp().
    * cabang ringkas (untuk judul + dropdown dryer) dan seluruh record gas
    * dengan summary masing-masing ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â jadi cukup satu roundtrip.
    */
+
+  /**
+   * =========================================================================
+   * MASTER BIAYA - LAYAR DESKTOP (#screenMasterBiaya, >=1100px)
+   * -------------------------------------------------------------------------
+   * Satu kartu berisi ringkasan 6 komponen biaya (Gas/Listrik/Air/Chemical/
+   * Packing/Nota) utk outlet yang sedang dipilih (dashboardSelectedOutletId,
+   * dipakai bareng Dashboard & Profil Outlet), tiap komponen punya tombol
+   * kelola (CRUD) yang membuka layar kategori itu langsung utk outlet ini -
+   * pola sama dgn tombol Edit di layar Profil Outlet. Data diambil dari
+   * getDashboardMasterBiayaSummary(cabangId) (Modul_Dashboard.gs, SUDAH ada,
+   * dipakai bareng kartu ringkas Dashboard) lewat cachedServerRead_ (SWR).
+   * HP tidak pernah memuat elemen ini (guard host di bawah).
+   * =========================================================================
+   */
+  var MASTERBIAYA_KATEGORI_META = [
+    { key: "gas", label: "Gas LPG", tone: "flame", open: "openGasList" },
+    { key: "listrik", label: "Listrik", tone: "volt", open: "openListrikForm" },
+    { key: "air", label: "Air", tone: "sage", open: "openAirForm" },
+    { key: "chemical", label: "Chemical", tone: "indigo", open: "openChemicalList" },
+    { key: "packing", label: "Packing", tone: "clay", open: "openPackingList" },
+    { key: "nota", label: "Nota / Kasir", tone: "brass", open: "openNotaKasirForm" }
+  ];
+
+  function renderMasterBiayaDesktop_() {
+    var host = document.getElementById("masterBiayaDesktopGrid");
+    if (!host) return;
+
+    var rows = cabangListCache || [];
+    if (typeof ensureDashboardOutletSelection_ === "function") ensureDashboardOutletSelection_();
+    if (typeof updateOutletFilterPillText_ === "function") updateOutletFilterPillText_();
+
+    var selId = (typeof dashboardSelectedOutletId !== "undefined") ? dashboardSelectedOutletId : null;
+    var current = rows.find(function (c) { return c.id === selId; }) || rows[0] || null;
+
+    if (!current) {
+      host.innerHTML = '<div class="dashboard-empty">Belum ada outlet. Tambahkan outlet dulu di menu Profil Outlet.</div>';
+      return;
+    }
+
+    host.innerHTML = '<div class="dashboard-card-summary is-loading">Memuat data...</div>';
+    var cId = current.id;
+
+    // SWR: kartu tampil dari cache dulu (kalau ada) lalu direfresh - dipicu
+    // bareng data terbaru dari server, cache dibuang tiap ada simpan di
+    // salah satu kategori (lihat invalidateServerReadCache_ di masing-masing
+    // fitur Biaya*).
+    cachedServerRead_("getDashboardMasterBiayaSummary", cId, function (res, fromCache) {
+      // Kalau outlet sudah berpindah / layar sudah pindah sebelum respons
+      // datang, jangan timpa tampilan yang sedang aktif.
+      if (view.screen !== "masterBiaya") return;
+      var stillSelected = ((typeof dashboardSelectedOutletId !== "undefined") ? dashboardSelectedOutletId : null) === cId;
+      if (!stillSelected) return;
+
+      if (!res || !res.ok) {
+        if (!fromCache) host.innerHTML = '<div class="dashboard-empty">' + escapeHtml(res && res.error ? res.error : "Data master biaya belum bisa dibaca.") + '</div>';
+        return;
+      }
+      var data = res.data || {};
+      var row = Array.isArray(data.rows) && data.rows.length ? data.rows[0] : null;
+      host.innerHTML = buildMasterBiayaDesktopHtml_(cId, row);
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      host.innerHTML = '<div class="dashboard-empty">' + escapeHtml(err && err.message ? err.message : String(err)) + '</div>';
+    });
+  }
+
+  function buildMasterBiayaDesktopHtml_(cabangId, row) {
+    var komponen = row && Array.isArray(row.komponenBiaya) ? row.komponenBiaya : [];
+    var byKey = {};
+    komponen.forEach(function (k) { byKey[k.key] = k; });
+    var totalPerLoad = row ? (row.totalBiayaPerLoad || 0) : 0;
+
+    var cardsHtml = MASTERBIAYA_KATEGORI_META.map(function (meta) {
+      var k = byKey[meta.key];
+      var hasValue = !!k && Number(k.biayaPerLoad) > 0;
+      var valueHtml = k
+        ? (money0(k.biayaPerLoad) + (k.unitSuffix ? ' <span class="mb-desktop-unit">' + escapeHtml(k.unitSuffix) + '</span>' : ' <span class="mb-desktop-unit">/load</span>'))
+        : '<span class="mb-desktop-empty">Belum diisi</span>';
+      var persenHtml = k ? (Number(k.persen || 0) + '% dari total') : '';
+
+      return (
+        '<div class="mb-desktop-card tone-' + escapeHtml(meta.tone) + (hasValue ? '' : ' is-empty') + '">' +
+          '<div class="mb-desktop-card-top">' +
+            '<span class="mb-desktop-label">' + escapeHtml(meta.label) + '</span>' +
+            '<button type="button" class="mb-desktop-manage-btn" onclick="' + meta.open + '(\'' + escapeJsAttr(cabangId) + '\')">' + (hasValue ? 'Kelola' : 'Isi data') + '</button>' +
+          '</div>' +
+          '<div class="mb-desktop-value">' + valueHtml + '</div>' +
+          (persenHtml ? '<div class="mb-desktop-persen">' + escapeHtml(persenHtml) + '</div>' : '') +
+        '</div>'
+      );
+    }).join('');
+
+    return (
+      '<div class="mb-desktop-total-row">' +
+        '<span class="k">Total biaya produksi per load</span>' +
+        '<span class="v">' + money0(totalPerLoad) + '</span>' +
+      '</div>' +
+      '<div class="mb-desktop-grid">' + cardsHtml + '</div>'
+    );
+  }
 </script>

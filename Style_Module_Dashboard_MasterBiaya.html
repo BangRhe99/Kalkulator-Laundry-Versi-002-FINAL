@@ -134,4 +134,122 @@ utama & DesktopDensity (scoped); file ini gaya dasar (dipakai bareng HP).
   .mb-komponen-unit { font-size: 9.5px; font-weight: 500; color: var(--text-faint); }
 
   /* === END MASTER BIAYA CARD === */
+
+  /* ====================================================================
+     LAYAR MASTER BIAYA (#screenMasterBiaya) - KHUSUS DESKTOP (>=1100px).
+     Konsep sama dgn Dashboard & Profil Outlet: satu kartu besar utk outlet
+     terpilih, berisi 6 komponen biaya (Gas/Listrik/Air/Chemical/Packing/
+     Nota) sekaligus + tombol kelola (CRUD) per komponen. Brand "Kalkulator
+     Laundry" + tombol Back dibuang, cukup 1 layar. HP/tablet (<1100px)
+     TIDAK PERNAH masuk media query ini -> tetap pakai pill kategori +
+     pilih cabang lama (.masterbiaya-mobile-only), tidak berubah.
+     ==================================================================== */
+  .masterbiaya-desktop { display: none; }
+
+  @media (min-width: 1100px) {
+    #screenMasterBiaya .masterbiaya-mobile-only { display: none; }
+    #screenMasterBiaya .masterbiaya-desktop { display: flex; flex-direction: column; gap: 14px; }
+
+    body:has(#screenMasterBiaya.active) .app-header { display: none !important; }
+    body:has(#screenMasterBiaya.active) { padding-top: 4px; }
+    body:has(#screenMasterBiaya.active) .wrap { width: min(100%, 1200px); }
+
+    #screenMasterBiaya .dashboard-header {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 18px;
+      margin-bottom: 0;
+      box-shadow: 0 1px 2px rgba(17,24,39,0.03);
+    }
+    #screenMasterBiaya .dashboard-header-top { align-items: center; }
+    #screenMasterBiaya .dashboard-title { font-size: 16px; margin-bottom: 0; letter-spacing: -0.01em; }
+
+    body:has(#screenMasterBiaya.active) .outlet-filter-pill { max-width: none; }
+    body:has(#screenMasterBiaya.active) .outlet-kategori-badge {
+      display: inline-flex; align-items: center; font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em; color: var(--brass);
+      background: rgba(var(--brass-rgb, 180, 130, 60), 0.10);
+      border: 1px solid rgba(var(--brass-rgb, 180, 130, 60), 0.22);
+      border-radius: 999px; padding: 2px 8px; margin: 0 2px; white-space: nowrap; flex-shrink: 0;
+    }
+
+    #screenMasterBiaya .masterbiaya-desktop-panel { padding: 22px 24px; }
+
+    /* Baris total biaya per load - ringkasan cepat di atas 6 kartu. */
+    .mb-desktop-total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-bottom: 16px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .mb-desktop-total-row .k { font-size: 13px; color: var(--text-dim); font-weight: 500; }
+    .mb-desktop-total-row .v { font-size: 22px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+    /* Grid 6 kartu komponen - 3 kolom, muat 1 layar tanpa scroll. */
+    .mb-desktop-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .mb-desktop-card {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+      border-left: 3px solid var(--border);
+    }
+    .mb-desktop-card.tone-flame { border-left-color: var(--flame); }
+    .mb-desktop-card.tone-volt { border-left-color: var(--volt); }
+    .mb-desktop-card.tone-sage { border-left-color: var(--sage); }
+    .mb-desktop-card.tone-indigo { border-left-color: var(--indigo); }
+    .mb-desktop-card.tone-clay { border-left-color: var(--clay); }
+    .mb-desktop-card.tone-brass { border-left-color: var(--brass); }
+    .mb-desktop-card.is-empty { opacity: 0.72; }
+
+    .mb-desktop-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .mb-desktop-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-dim);
+    }
+    .mb-desktop-manage-btn {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 12px;
+      cursor: pointer;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .mb-desktop-manage-btn:hover { border-color: var(--brass); color: var(--brass); }
+
+    .mb-desktop-value {
+      font-size: 21px;
+      font-weight: 800;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.01em;
+      line-height: 1.1;
+    }
+    .mb-desktop-unit { font-size: 11px; font-weight: 500; color: var(--text-faint); }
+    .mb-desktop-empty { font-size: 13px; font-weight: 500; color: var(--text-faint); font-style: italic; }
+    .mb-desktop-persen { font-size: 11px; color: var(--text-faint); }
+  }
 </style>

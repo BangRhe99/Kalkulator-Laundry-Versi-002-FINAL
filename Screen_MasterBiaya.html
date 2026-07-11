@@ -12,25 +12,62 @@ tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
 ===============================================================================
 -->
     <section class="screen" id="screenMasterBiaya">
-      <div class="list-header">
-        <h1>Master Biaya</h1>
-      </div>
-      <div class="group-divider">Kategori biaya</div>
-      <div class="pill-group" id="kategoriBiayaPills" style="margin-bottom: 8px;">
-        <div class="pill active flame" data-val="gas" onclick="selectKategoriBiaya('gas')">Gas</div>
-        <div class="pill volt" data-val="listrik" onclick="selectKategoriBiaya('listrik')">Listrik</div>
-        <div class="pill sage" data-val="air" onclick="selectKategoriBiaya('air')">Air</div>
-        <div class="pill indigo" data-val="chemical" onclick="selectKategoriBiaya('chemical')">Chemical</div>
-        <div class="pill clay" data-val="packing" onclick="selectKategoriBiaya('packing')">Packing</div>
-        <div class="pill brass" data-val="notaKasir" onclick="selectKategoriBiaya('notaKasir')">Nota</div>
-      </div>
-      <div class="field-hint" style="margin-bottom: 18px;">Kategori laundry Self Service cukup isi Gas, Listrik, Air, dan Nota. Chemical &amp; Packing tetap bisa diisi kalau memang dipakai.</div>
+      <!-- =================================================================
+           DESKTOP (>=1100px): SATU kartu Master Biaya utk outlet terpilih -
+           ringkasan 6 komponen (Gas/Listrik/Air/Chemical/Packing/Nota)
+           sekaligus, masing-masing punya tombol kelola (CRUD) langsung ke
+           layar kategori tsb, pola sama dgn Dashboard & Profil Outlet.
+           Brand "Kalkulator Laundry" + tombol Back disembunyikan lewat CSS.
+           HP TIDAK PERNAH masuk media query ini -> tetap pakai pill kategori
+           + pilih cabang di bawah, tidak diubah sedikit pun.
+      ================================================================== -->
+      <div class="masterbiaya-desktop" id="masterBiayaDesktop">
+        <div class="dashboard-header">
+          <div class="dashboard-header-top">
+            <div class="dashboard-header-text">
+              <h1 class="dashboard-title">Master Biaya</h1>
+            </div>
+            <div class="dashboard-filter-right">
+              <button class="outlet-filter-pill" type="button" id="masterBiayaOutletFilter" onclick="openOutletPicker()">
+                <span class="outlet-filter-name">-</span>
+                <span class="outlet-kategori-badge" id="masterBiayaOutletKategori"></span>
+                <svg class="outlet-filter-arrow" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div class="outlet-count-label" id="masterBiayaOutletCountLabel"></div>
+            </div>
+          </div>
+        </div>
 
-      <div class="group-divider">Pilih cabang</div>
-      <div id="biayaPickCabangList"></div>
-      <div id="biayaPickCabangEmpty" class="empty-state" style="display:none;">
-        <div class="icon">&#127981;</div>
-        <p>Belum ada cabang. Tambahkan cabang dulu di menu "Profil Outlet" sebelum mengisi Master Biaya.</p>
+        <div class="panel masterbiaya-desktop-panel" id="masterBiayaDesktopPanel">
+          <div id="masterBiayaDesktopGrid"></div>
+        </div>
+      </div>
+
+      <!-- HP/tablet (<1100px): pill kategori + pilih cabang lama - TIDAK
+           DIUBAH, hanya disembunyikan saat desktop lewat CSS. -->
+      <div class="masterbiaya-mobile-only" id="masterBiayaMobile">
+        <div class="list-header">
+          <h1>Master Biaya</h1>
+        </div>
+        <div class="group-divider">Kategori biaya</div>
+        <div class="pill-group" id="kategoriBiayaPills" style="margin-bottom: 8px;">
+          <div class="pill active flame" data-val="gas" onclick="selectKategoriBiaya('gas')">Gas</div>
+          <div class="pill volt" data-val="listrik" onclick="selectKategoriBiaya('listrik')">Listrik</div>
+          <div class="pill sage" data-val="air" onclick="selectKategoriBiaya('air')">Air</div>
+          <div class="pill indigo" data-val="chemical" onclick="selectKategoriBiaya('chemical')">Chemical</div>
+          <div class="pill clay" data-val="packing" onclick="selectKategoriBiaya('packing')">Packing</div>
+          <div class="pill brass" data-val="notaKasir" onclick="selectKategoriBiaya('notaKasir')">Nota</div>
+        </div>
+        <div class="field-hint" style="margin-bottom: 18px;">Kategori laundry Self Service cukup isi Gas, Listrik, Air, dan Nota. Chemical &amp; Packing tetap bisa diisi kalau memang dipakai.</div>
+
+        <div class="group-divider">Pilih cabang</div>
+        <div id="biayaPickCabangList"></div>
+        <div id="biayaPickCabangEmpty" class="empty-state" style="display:none;">
+          <div class="icon">&#127981;</div>
+          <p>Belum ada cabang. Tambahkan cabang dulu di menu "Profil Outlet" sebelum mengisi Master Biaya.</p>
+        </div>
       </div>
     </section>
 

@@ -235,6 +235,23 @@ menjalankan bootApp().
       var pCount = document.getElementById("profilOutletCountLabel");
       if (pCount) pCount.textContent = rows.length > 1 ? rows.length + " outlet aktif" : "";
     }
+
+    // Pill kembar di LAYAR Master Biaya desktop (#screenMasterBiaya). Sama
+    // pola dgn pill Profil Outlet di atas - dilewati otomatis kalau elemen
+    // tidak ada (mis. sedang di layar lain).
+    var mName = document.querySelector("#masterBiayaOutletFilter .outlet-filter-name");
+    if (mName) {
+      mName.textContent = current ? (current.namaLaundry || "Outlet tanpa nama") : "Pilih outlet";
+      var mKat = document.getElementById("masterBiayaOutletKategori");
+      if (mKat) {
+        mKat.textContent = (current && current.kategoriLayanan && typeof KATEGORI_LABEL !== "undefined")
+          ? (KATEGORI_LABEL[current.kategoriLayanan] || "") : "";
+      }
+      var mPill = document.getElementById("masterBiayaOutletFilter");
+      if (mPill) mPill.classList.toggle("single-outlet", rows.length <= 1);
+      var mCount = document.getElementById("masterBiayaOutletCountLabel");
+      if (mCount) mCount.textContent = rows.length > 1 ? rows.length + " outlet aktif" : "";
+    }
   }
 
   function ensureDashboardOutletSelection_() {
@@ -292,6 +309,9 @@ menjalankan bootApp().
         // Kalau sedang di layar Profil Outlet (desktop), render ulang kartunya
         // ke outlet yang baru dipilih (fungsi ada di Script_Fitur_Cabang.html).
         if (typeof renderProfilOutletDesktop_ === "function") renderProfilOutletDesktop_();
+        // Sama utk layar Master Biaya (desktop) - fungsi ada di
+        // Script_Fitur_MasterBiaya.html.
+        if (typeof renderMasterBiayaDesktop_ === "function") renderMasterBiayaDesktop_();
       });
     });
   }
