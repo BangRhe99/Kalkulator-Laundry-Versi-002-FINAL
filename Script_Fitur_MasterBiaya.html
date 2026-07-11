@@ -26,17 +26,21 @@ menjalankan bootApp().
     listEl.innerHTML = "<div class=\"empty-hint\">Memuat daftar cabang...</div>";
     emptyEl.style.display = "none";
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) { handleBackendError(res, "memuat daftar cabang"); listEl.innerHTML = ""; return; }
-        cabangListCache = res.data;
-        renderBiayaPickCabangList();
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listCabang(masterBiaya)" }, "memuat daftar cabang");
-        listEl.innerHTML = "";
-      })
-      .listCabang();
+    // SWR: daftar cabang (listCabang, cache bersama) tampil INSTAN lalu
+    // refresh. Cache dibuang saat outlet ditambah/diubah/dihapus.
+    cachedServerRead_("listCabang", undefined, function (res, fromCache) {
+      if (view.screen !== "masterBiaya") return;
+      if (!res || !res.ok) {
+        if (!fromCache) { handleBackendError(res, "memuat daftar cabang"); listEl.innerHTML = ""; }
+        return;
+      }
+      cabangListCache = res.data;
+      renderBiayaPickCabangList();
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listCabang(masterBiaya)" }, "memuat daftar cabang");
+      listEl.innerHTML = "";
+    });
   }
 
   function renderBiayaPickCabangList() {

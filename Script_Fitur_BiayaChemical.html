@@ -28,26 +28,28 @@ menjalankan bootApp().
     document.getElementById("chemicalList").innerHTML = "";
     document.getElementById("chemicalListEmpty").style.display = "none";
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
+    // SWR: daftar chemical outlet ini tampil INSTAN dari cache lalu refresh.
+    cachedServerRead_("listBiayaChemical", cabangId, function (res, fromCache) {
+      if (view.chemicalCabangId !== cabangId || view.screen !== "chemicalList") return;
+      if (!res || !res.ok) {
+        if (!fromCache) {
           handleBackendError(res, "memuat data biaya chemical");
           showScreen("masterBiaya");
           refreshBiayaPickCabangList();
-          return;
         }
-        chemicalCabangCache = res.data.cabang;
-        chemicalItemsCache = res.data.items;
-        chemicalTotalCache = res.data.totalBiayaPerKg;
-        document.getElementById("chemicalListTitle").textContent = "Analisa Biaya Chemical · " + (chemicalCabangCache.namaLaundry || "(Tanpa nama)");
-        renderChemicalList();
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listBiayaChemical" }, "memuat data biaya chemical");
-        showScreen("masterBiaya");
-        refreshBiayaPickCabangList();
-      })
-      .listBiayaChemical(cabangId);
+        return;
+      }
+      chemicalCabangCache = res.data.cabang;
+      chemicalItemsCache = res.data.items;
+      chemicalTotalCache = res.data.totalBiayaPerKg;
+      document.getElementById("chemicalListTitle").textContent = "Analisa Biaya Chemical · " + (chemicalCabangCache.namaLaundry || "(Tanpa nama)");
+      renderChemicalList();
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listBiayaChemical" }, "memuat data biaya chemical");
+      showScreen("masterBiaya");
+      refreshBiayaPickCabangList();
+    });
   }
   window.openChemicalList = openChemicalList;
 
@@ -167,6 +169,8 @@ menjalankan bootApp().
         closeConfirm();
         if (!res || !res.ok) { handleBackendError(res, "menghapus data chemical"); return; }
         showToast("Data chemical berhasil dihapus.", "ok");
+        invalidateServerReadCache_("listBiayaChemical", view.chemicalCabangId);
+        invalidateServerReadCache_("getBiayaChemical");
         openChemicalList(view.chemicalCabangId);
       })
       .withFailureHandler(function (err) {
@@ -227,26 +231,32 @@ menjalankan bootApp().
     document.getElementById("chemicalFormTitle").textContent = "Edit Item Chemical";
     setSaveStatus("Memuat...", "busy");
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
+    // SWR "render sekali": instan dari cache, hasil server belakangan tidak
+    // menimpa form (chemicalRendered) supaya ketikan aman.
+    var chemicalRendered = false;
+    cachedServerRead_("getBiayaChemical", id, function (res, fromCache) {
+      if (view.chemicalEditingId !== id || view.screen !== "chemicalForm") return;
+      if (!res || !res.ok) {
+        if (!fromCache) {
           handleBackendError(res, "memuat data chemical untuk diedit");
           openChemicalList(view.chemicalCabangId);
-          return;
         }
-        chemicalFormState = res.data.record;
-        view.chemicalIsFixedNama = isChemicalFixedNama(chemicalFormState.nama);
-        if (view.chemicalIsFixedNama) {
-          document.getElementById("chemicalFormTitle").textContent = "Edit Data " + chemicalFormState.nama;
-        }
-        renderChemicalForm();
-        setSaveStatus("", "");
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaChemical" }, "memuat data chemical untuk diedit");
-        openChemicalList(view.chemicalCabangId);
-      })
-      .getBiayaChemical(id);
+        return;
+      }
+      if (!fromCache && chemicalRendered) return;
+      chemicalFormState = res.data.record;
+      view.chemicalIsFixedNama = isChemicalFixedNama(chemicalFormState.nama);
+      if (view.chemicalIsFixedNama) {
+        document.getElementById("chemicalFormTitle").textContent = "Edit Data " + chemicalFormState.nama;
+      }
+      renderChemicalForm();
+      setSaveStatus("", "");
+      chemicalRendered = true;
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaChemical" }, "memuat data chemical untuk diedit");
+      openChemicalList(view.chemicalCabangId);
+    });
   }
 
   function syncChemicalFormFieldsFromState() {
@@ -398,6 +408,8 @@ menjalankan bootApp().
       if (!res || !res.ok) { handleBackendError(res, actionLabel); return; }
       showToast("Data biaya chemical tersimpan.", "ok");
       setSaveStatus("Tersimpan", "ok");
+      invalidateServerReadCache_("listBiayaChemical", view.chemicalCabangId);
+      invalidateServerReadCache_("getBiayaChemical");
       showScreen("masterBiaya");
       refreshBiayaPickCabangList();
     }

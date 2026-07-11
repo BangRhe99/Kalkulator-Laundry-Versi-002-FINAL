@@ -31,26 +31,33 @@ menjalankan bootApp().
     renderNotaKasirForm();
     setSaveStatus("", "");
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
+    // SWR "render sekali": kalau data outlet ini sudah di cache, isi form
+    // INSTAN; hasil server belakangan tidak menimpa form (notaKasirRendered)
+    // supaya ketikan aman. (Default "mode cepat" sudah dirender di atas.)
+    var notaKasirRendered = false;
+    cachedServerRead_("getBiayaNotaKasir", cabangId, function (res, fromCache) {
+      if (view.notaKasirCabangId !== cabangId || view.screen !== "notaKasirForm") return;
+      if (!res || !res.ok) {
+        if (!fromCache) {
           showToast("Data nota/kasir belum bisa dimuat. Mode cepat digunakan.", "err");
           setSaveStatus("", "");
-          return;
         }
-        notaKasirCabangCache = res.data.cabang || notaKasirCabangCache;
-        notaKasirFormState = res.data.record || notaKasirFormState;
-        document.getElementById("notaKasirTitle").textContent =
-          "Nota" + (notaKasirCabangCache.namaLaundry ? " · " + notaKasirCabangCache.namaLaundry : "");
-        renderNotaKasirForm();
-        setSaveStatus("", "");
-      })
-      .withFailureHandler(function (err) {
-        console.error("[NotaKasir] Gagal memuat data:", err);
-        showToast("Data nota/kasir belum bisa dimuat. Mode cepat digunakan.", "err");
-        setSaveStatus("", "");
-      })
-      .getBiayaNotaKasir(cabangId);
+        return;
+      }
+      if (!fromCache && notaKasirRendered) return;
+      notaKasirCabangCache = res.data.cabang || notaKasirCabangCache;
+      notaKasirFormState = res.data.record || notaKasirFormState;
+      document.getElementById("notaKasirTitle").textContent =
+        "Nota" + (notaKasirCabangCache.namaLaundry ? " · " + notaKasirCabangCache.namaLaundry : "");
+      renderNotaKasirForm();
+      setSaveStatus("", "");
+      notaKasirRendered = true;
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      console.error("[NotaKasir] Gagal memuat data:", err);
+      showToast("Data nota/kasir belum bisa dimuat. Mode cepat digunakan.", "err");
+      setSaveStatus("", "");
+    });
   }
   window.openNotaKasirForm = openNotaKasirForm;
 
@@ -338,6 +345,7 @@ menjalankan bootApp().
           handleBackendError(res, "menyimpan data biaya nota kasir");
           return;
         }
+        invalidateServerReadCache_("getBiayaNotaKasir", view.notaKasirCabangId);
         notaKasirFormState = res.data.record || notaKasirFormState;
         // Hanya update ringkasan/pratinjau agar input tidak ter-reset
         renderNotaKasirPreview();

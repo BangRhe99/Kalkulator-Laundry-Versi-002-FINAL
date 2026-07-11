@@ -99,26 +99,32 @@ menjalankan bootApp().
     document.getElementById("listrikTitle").textContent = "Analisa Biaya Listrik";
     setSaveStatus("Memuat...", "busy");
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
+    // SWR "render sekali": instan dari cache, hasil server belakangan tidak
+    // menimpa form (listrikRendered) supaya ketikan aman.
+    var listrikRendered = false;
+    cachedServerRead_("getBiayaListrik", cabangId, function (res, fromCache) {
+      if (view.listrikCabangId !== cabangId || view.screen !== "listrikForm") return;
+      if (!res || !res.ok) {
+        if (!fromCache) {
           handleBackendError(res, "memuat data biaya listrik");
           showScreen("masterBiaya");
           refreshBiayaPickCabangList();
-          return;
         }
-        listrikCabangCache = res.data.cabang;
-        listrikFormState = res.data.record;
-        document.getElementById("listrikTitle").textContent = "Analisa Biaya Listrik · " + (listrikCabangCache.namaLaundry || "(Tanpa nama)");
-        renderListrikForm();
-        setSaveStatus("", "");
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaListrik" }, "memuat data biaya listrik");
-        showScreen("masterBiaya");
-        refreshBiayaPickCabangList();
-      })
-      .getBiayaListrik(cabangId);
+        return;
+      }
+      if (!fromCache && listrikRendered) return;
+      listrikCabangCache = res.data.cabang;
+      listrikFormState = res.data.record;
+      document.getElementById("listrikTitle").textContent = "Analisa Biaya Listrik · " + (listrikCabangCache.namaLaundry || "(Tanpa nama)");
+      renderListrikForm();
+      setSaveStatus("", "");
+      listrikRendered = true;
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaListrik" }, "memuat data biaya listrik");
+      showScreen("masterBiaya");
+      refreshBiayaPickCabangList();
+    });
   }
   window.openListrikForm = openListrikForm;
 
@@ -296,6 +302,7 @@ menjalankan bootApp().
       .withSuccessHandler(function (res) {
         if (btn) { btn.disabled = false; btn.textContent = "Simpan perubahan"; }
         if (!res || !res.ok) { handleBackendError(res, "menyimpan data biaya listrik"); return; }
+        invalidateServerReadCache_("getBiayaListrik", view.listrikCabangId);
         listrikFormState = res.data.record;
         showToast("Data biaya listrik tersimpan.", "ok");
         setSaveStatus("Tersimpan", "ok");

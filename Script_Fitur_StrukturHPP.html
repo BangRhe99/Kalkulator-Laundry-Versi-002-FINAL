@@ -98,37 +98,41 @@ menjalankan bootApp().
       return;
     }
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
+    // SWR: daftar outlet (listCabang, cache bersama lintas fitur) tampil
+    // INSTAN lalu refresh. Detail HPP (getStrukturBiayaHPP) SENGAJA tidak
+    // di-cache karena angkanya agregat dari semua biaya - selalu ambil fresh
+    // supaya tidak pernah menampilkan HPP basi.
+    cachedServerRead_("listCabang", undefined, function (res, fromCache) {
+      if (view.screen !== "strukturHPPList") return;
+      if (!res || !res.ok) {
+        if (!fromCache) {
           handleBackendError(res, "memuat daftar outlet Struktur Biaya HPP");
           listEl.innerHTML =
             '<div class="empty-state">' +
               '<div class="icon">&#9888;</div>' +
               '<p>Gagal memuat daftar outlet.</p>' +
             '</div>';
-          return;
         }
+        return;
+      }
+      cabangListCache = Array.isArray(res.data) ? res.data : [];
+      renderFromCache();
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError(
+        {
+          error: err && err.message ? err.message : String(err),
+          stage: "client:strukturHPP:listCabang"
+        },
+        "memuat daftar outlet Struktur Biaya HPP"
+      );
 
-        cabangListCache = Array.isArray(res.data) ? res.data : [];
-        renderFromCache();
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError(
-          {
-            error: err && err.message ? err.message : String(err),
-            stage: "client:strukturHPP:listCabang"
-          },
-          "memuat daftar outlet Struktur Biaya HPP"
-        );
-
-        listEl.innerHTML =
-          '<div class="empty-state">' +
-            '<div class="icon">&#9888;</div>' +
-            '<p>Gagal memuat daftar outlet.</p>' +
-          '</div>';
-      })
-      .listCabang();
+      listEl.innerHTML =
+        '<div class="empty-state">' +
+          '<div class="icon">&#9888;</div>' +
+          '<p>Gagal memuat daftar outlet.</p>' +
+        '</div>';
+    });
   };
 
   window.openStrukturHPPDetail = function (cabangId) {

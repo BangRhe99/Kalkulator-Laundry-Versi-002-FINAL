@@ -30,22 +30,23 @@ menjalankan bootApp().
     listEl.innerHTML = '<div class="empty-hint">Memuat rangkuman fixed cost outlet...</div>';
     if (countEl) countEl.textContent = "memuat...";
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
+    // SWR: rangkuman fixed cost outlet tampil INSTAN dari cache lalu refresh.
+    cachedServerRead_("listBiayaTetapOutletSummaries", undefined, function (res, fromCache) {
+      if (view.screen !== "biayaTetapList") return;
+      if (!res || !res.ok) {
+        if (!fromCache) {
           handleBackendError(res, "memuat rangkuman biaya tetap outlet");
           listEl.innerHTML = "";
-          return;
         }
-
-        cabangListCache = res.data || [];
-        renderBiayaTetapOutletList();
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listBiayaTetapOutletSummaries" }, "memuat rangkuman biaya tetap outlet");
-        listEl.innerHTML = "";
-      })
-      .listBiayaTetapOutletSummaries();
+        return;
+      }
+      cabangListCache = res.data || [];
+      renderBiayaTetapOutletList();
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listBiayaTetapOutletSummaries" }, "memuat rangkuman biaya tetap outlet");
+      listEl.innerHTML = "";
+    });
   };
 
   function renderBiayaTetapOutletList() {
@@ -105,25 +106,30 @@ menjalankan bootApp().
     contentEl.innerHTML = '<div class="hpp-loading">Memuat biaya tetap outlet...</div>';
     setSaveStatus("Memuat...", "busy");
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
+    // SWR "render sekali": instan dari cache, hasil server belakangan tidak
+    // menimpa form (biayaTetapRendered) supaya ketikan aman.
+    var biayaTetapRendered = false;
+    cachedServerRead_("getBiayaTetapOutlet", cabangId, function (res, fromCache) {
+      if (view.biayaTetapCabangId !== cabangId || view.screen !== "biayaTetapForm") return;
+      if (!res || !res.ok) {
+        if (!fromCache) {
           handleBackendError(res, "memuat biaya tetap outlet");
           contentEl.innerHTML = '<div class="empty-state"><div class="icon">&#9888;</div><p>' + escapeHtml(res && res.error ? res.error : "Gagal memuat biaya tetap outlet.") + '</p></div>';
-          return;
         }
-
-        biayaTetapCabangCache = res.data.cabang;
-        biayaTetapRecordCache = res.data.record;
-        biayaTetapSummaryCache = res.data.summary;
-        renderBiayaTetapOutletForm(res.data);
-        setSaveStatus("Tersimpan", "ok");
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaTetapOutlet" }, "memuat biaya tetap outlet");
-        contentEl.innerHTML = '<div class="empty-state"><div class="icon">&#9888;</div><p>Gagal memuat biaya tetap outlet.</p></div>';
-      })
-      .getBiayaTetapOutlet(cabangId);
+        return;
+      }
+      if (!fromCache && biayaTetapRendered) return;
+      biayaTetapCabangCache = res.data.cabang;
+      biayaTetapRecordCache = res.data.record;
+      biayaTetapSummaryCache = res.data.summary;
+      renderBiayaTetapOutletForm(res.data);
+      setSaveStatus("Tersimpan", "ok");
+      biayaTetapRendered = true;
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaTetapOutlet" }, "memuat biaya tetap outlet");
+      contentEl.innerHTML = '<div class="empty-state"><div class="icon">&#9888;</div><p>Gagal memuat biaya tetap outlet.</p></div>';
+    });
   };
 
   function renderBiayaTetapOutletForm(data) {
@@ -409,6 +415,8 @@ menjalankan bootApp().
         }
         biayaTetapRecordCache = res.data.record;
         biayaTetapSummaryCache = res.data.summary;
+        invalidateServerReadCache_("getBiayaTetapOutlet", view.biayaTetapCabangId);
+        invalidateServerReadCache_("listBiayaTetapOutletSummaries");
         showToast("Biaya tetap outlet tersimpan.", "ok");
         setSaveStatus("Tersimpan", "ok");
         renderBiayaTetapOutletForm(res.data);
@@ -432,6 +440,8 @@ menjalankan bootApp().
           handleBackendError(res, "reset biaya tetap outlet");
           return;
         }
+        invalidateServerReadCache_("getBiayaTetapOutlet", view.biayaTetapCabangId);
+        invalidateServerReadCache_("listBiayaTetapOutletSummaries");
         showToast("Data biaya tetap outlet di-reset.", "ok");
         openBiayaTetapOutletForm(view.biayaTetapCabangId);
       })
@@ -465,28 +475,31 @@ menjalankan bootApp().
     listEl.innerHTML = '<div class="hpp-loading">Memuat rangkuman harga layanan outlet...</div>';
     if (countEl) countEl.textContent = "memuat...";
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
+    // SWR: daftar outlet (listCabang, dipakai bareng fitur lain) tampil
+    // INSTAN dari cache lalu refresh. Cache dibuang saat outlet ditambah/
+    // diubah/dihapus (lihat Script_Fitur_Cabang.html).
+    cachedServerRead_("listCabang", undefined, function (res, fromCache) {
+      if (view.screen !== "hargaLayananList") return;
+      if (!res || !res.ok) {
+        if (!fromCache) {
           handleBackendError(res, "memuat daftar outlet Harga Layanan");
           listEl.innerHTML = "";
-          return;
         }
-
-        cabangListCache = res.data || [];
-        renderHargaLayananOutletList();
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError(
-          {
-            error: err && err.message ? err.message : String(err),
-            stage: "client:hargaLayanan:listCabang"
-          },
-          "memuat daftar outlet Harga Layanan"
-        );
-        listEl.innerHTML = "";
-      })
-      .listCabang();
+        return;
+      }
+      cabangListCache = res.data || [];
+      renderHargaLayananOutletList();
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError(
+        {
+          error: err && err.message ? err.message : String(err),
+          stage: "client:hargaLayanan:listCabang"
+        },
+        "memuat daftar outlet Harga Layanan"
+      );
+      listEl.innerHTML = "";
+    });
   };
 
 </script>

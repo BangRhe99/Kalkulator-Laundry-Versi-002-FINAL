@@ -22,16 +22,21 @@ menjalankan bootApp().
 "use strict";
   function refreshList() {
     document.getElementById("cabangCount").textContent = "memuat...";
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) { handleBackendError(res, "memuat daftar cabang"); return; }
-        cabangListCache = res.data;
-        renderList();
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listCabang" }, "memuat daftar cabang");
-      })
-      .listCabang();
+    // SWR: daftar cabang (listCabang, cache bersama lintas fitur) tampil
+    // INSTAN lalu refresh. Cache dibuang saat outlet ditambah/diubah/dihapus
+    // (invalidasi di deleteCabang & saveForm di bawah).
+    cachedServerRead_("listCabang", undefined, function (res, fromCache) {
+      if (view.screen !== "list") return;
+      if (!res || !res.ok) {
+        if (!fromCache) handleBackendError(res, "memuat daftar cabang");
+        return;
+      }
+      cabangListCache = res.data;
+      renderList();
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listCabang" }, "memuat daftar cabang");
+    });
   }
 
   function renderList() {
@@ -80,22 +85,25 @@ menjalankan bootApp().
     view.editingId = id;
     renderRingkasanLoading();
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
+    // SWR (read-only): ringkasan cabang tampil INSTAN dari cache lalu refresh.
+    // Kunci "getCabang::id" dipakai bareng form edit di bawah.
+    cachedServerRead_("getCabang", id, function (res, fromCache) {
+      if (view.editingId !== id || view.screen !== "ringkasan") return;
+      if (!res || !res.ok) {
+        if (!fromCache) {
           handleBackendError(res, "memuat ringkasan cabang");
           showScreen("list");
           refreshList();
-          return;
         }
-        renderRingkasan(res.data.cabang, res.data.summary);
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getCabang" }, "memuat ringkasan cabang");
-        showScreen("list");
-        refreshList();
-      })
-      .getCabang(id);
+        return;
+      }
+      renderRingkasan(res.data.cabang, res.data.summary);
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getCabang" }, "memuat ringkasan cabang");
+      showScreen("list");
+      refreshList();
+    });
   }
 
   function renderRingkasanLoading() {
@@ -219,6 +227,10 @@ menjalankan bootApp().
         closeConfirm();
         if (!res || !res.ok) { handleBackendError(res, "menghapus cabang"); return; }
         showToast("Cabang berhasil dihapus.", "ok");
+        // Daftar outlet berubah -> buang cache bersama supaya semua fitur
+        // menarik daftar terbaru.
+        invalidateServerReadCache_("listCabang");
+        invalidateServerReadCache_("getCabang");
         showScreen("list");
         refreshList();
       })
@@ -259,22 +271,28 @@ menjalankan bootApp().
     showScreen("form");
     setSaveStatus("Memuat...", "busy");
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
+    // SWR "render sekali": form edit tampil INSTAN dari cache; hasil server
+    // belakangan tidak menimpa form (cabangFormRendered) supaya edit aman.
+    var cabangFormRendered = false;
+    cachedServerRead_("getCabang", id, function (res, fromCache) {
+      if (view.editingId !== id || view.screen !== "form") return;
+      if (!res || !res.ok) {
+        if (!fromCache) {
           handleBackendError(res, "memuat data untuk diedit");
           openRingkasan(id);
-          return;
         }
-        formState = res.data.cabang;
-        renderForm();
-        setSaveStatus("", "");
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getCabang" }, "memuat data untuk diedit");
-        openRingkasan(id);
-      })
-      .getCabang(id);
+        return;
+      }
+      if (!fromCache && cabangFormRendered) return;
+      formState = res.data.cabang;
+      renderForm();
+      setSaveStatus("", "");
+      cabangFormRendered = true;
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getCabang" }, "memuat data untuk diedit");
+      openRingkasan(id);
+    });
   }
   window.openFormEdit = openFormEdit;
 
@@ -536,6 +554,10 @@ menjalankan bootApp().
       if (!res || !res.ok) { handleBackendError(res, actionLabel); return; }
       showToast("Data operasional tersimpan.", "ok");
       setSaveStatus("Tersimpan", "ok");
+      // Outlet baru/berubah -> buang cache daftar & detail cabang (dipakai
+      // bareng semua fitur) supaya menarik yang terbaru.
+      invalidateServerReadCache_("listCabang");
+      invalidateServerReadCache_("getCabang");
       view.editingId = res.data.cabang.id;
       view.isNew = false;
       renderRingkasan(res.data.cabang, res.data.summary);

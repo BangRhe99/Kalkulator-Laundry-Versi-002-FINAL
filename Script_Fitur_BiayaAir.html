@@ -26,26 +26,32 @@ menjalankan bootApp().
     document.getElementById("airTitle").textContent = "Analisa Biaya Air";
     setSaveStatus("Memuat...", "busy");
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
+    // SWR "render sekali": instan dari cache, hasil server belakangan tidak
+    // menimpa form (airRendered) supaya ketikan aman.
+    var airRendered = false;
+    cachedServerRead_("getBiayaAir", cabangId, function (res, fromCache) {
+      if (view.airCabangId !== cabangId || view.screen !== "airForm") return;
+      if (!res || !res.ok) {
+        if (!fromCache) {
           handleBackendError(res, "memuat data biaya air");
           showScreen("masterBiaya");
           refreshBiayaPickCabangList();
-          return;
         }
-        airCabangCache = res.data.cabang;
-        airFormState = res.data.record;
-        document.getElementById("airTitle").textContent = "Analisa Biaya Air · " + (airCabangCache.namaLaundry || "(Tanpa nama)");
-        renderAirForm();
-        setSaveStatus("", "");
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaAir" }, "memuat data biaya air");
-        showScreen("masterBiaya");
-        refreshBiayaPickCabangList();
-      })
-      .getBiayaAir(cabangId);
+        return;
+      }
+      if (!fromCache && airRendered) return;
+      airCabangCache = res.data.cabang;
+      airFormState = res.data.record;
+      document.getElementById("airTitle").textContent = "Analisa Biaya Air · " + (airCabangCache.namaLaundry || "(Tanpa nama)");
+      renderAirForm();
+      setSaveStatus("", "");
+      airRendered = true;
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaAir" }, "memuat data biaya air");
+      showScreen("masterBiaya");
+      refreshBiayaPickCabangList();
+    });
   }
   window.openAirForm = openAirForm;
 
@@ -263,6 +269,7 @@ function renderAirPreview() {
       showToast("Data biaya air berhasil disimpan.", "ok");
       setSaveStatus("Tersimpan", "ok");
 
+      invalidateServerReadCache_("getBiayaAir", view.airCabangId);
       airFormState = res.data.record;
       renderAirForm();
       showScreen("masterBiaya");

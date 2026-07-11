@@ -28,26 +28,28 @@ menjalankan bootApp().
     document.getElementById("packingList").innerHTML = "";
     document.getElementById("packingListEmpty").style.display = "none";
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
+    // SWR: daftar packing outlet ini tampil INSTAN dari cache lalu refresh.
+    cachedServerRead_("listBiayaPacking", cabangId, function (res, fromCache) {
+      if (view.packingCabangId !== cabangId || view.screen !== "packingList") return;
+      if (!res || !res.ok) {
+        if (!fromCache) {
           handleBackendError(res, "memuat data biaya packing");
           showScreen("masterBiaya");
           refreshBiayaPickCabangList();
-          return;
         }
-        packingCabangCache = res.data.cabang;
-        packingItemsCache = res.data.items;
-        packingTotalCache = res.data.totalBiayaPerKg;
-        document.getElementById("packingListTitle").textContent = "Analisa Biaya Packing · " + (packingCabangCache.namaLaundry || "(Tanpa nama)");
-        renderPackingList();
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listBiayaPacking" }, "memuat data biaya packing");
-        showScreen("masterBiaya");
-        refreshBiayaPickCabangList();
-      })
-      .listBiayaPacking(cabangId);
+        return;
+      }
+      packingCabangCache = res.data.cabang;
+      packingItemsCache = res.data.items;
+      packingTotalCache = res.data.totalBiayaPerKg;
+      document.getElementById("packingListTitle").textContent = "Analisa Biaya Packing · " + (packingCabangCache.namaLaundry || "(Tanpa nama)");
+      renderPackingList();
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listBiayaPacking" }, "memuat data biaya packing");
+      showScreen("masterBiaya");
+      refreshBiayaPickCabangList();
+    });
   }
   window.openPackingList = openPackingList;
 
@@ -168,6 +170,8 @@ menjalankan bootApp().
         closeConfirm();
         if (!res || !res.ok) { handleBackendError(res, "menghapus data packing"); return; }
         showToast("Data packing berhasil dihapus.", "ok");
+        invalidateServerReadCache_("listBiayaPacking", view.packingCabangId);
+        invalidateServerReadCache_("getBiayaPacking");
         openPackingList(view.packingCabangId);
       })
       .withFailureHandler(function (err) {
@@ -237,26 +241,32 @@ menjalankan bootApp().
     document.getElementById("packingFormTitle").textContent = "Edit Item Packing";
     setSaveStatus("Memuat...", "busy");
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
+    // SWR "render sekali": instan dari cache, hasil server belakangan tidak
+    // menimpa form (packingRendered) supaya ketikan aman.
+    var packingRendered = false;
+    cachedServerRead_("getBiayaPacking", id, function (res, fromCache) {
+      if (view.packingEditingId !== id || view.screen !== "packingForm") return;
+      if (!res || !res.ok) {
+        if (!fromCache) {
           handleBackendError(res, "memuat data packing untuk diedit");
           openPackingList(view.packingCabangId);
-          return;
         }
-        packingFormState = res.data.record;
-        view.packingIsFixedNama = isPackingFixedNama(packingFormState.nama);
-        if (view.packingIsFixedNama) {
-          document.getElementById("packingFormTitle").textContent = "Edit Data " + packingFormState.nama;
-        }
-        renderPackingForm();
-        setSaveStatus("", "");
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaPacking" }, "memuat data packing untuk diedit");
-        openPackingList(view.packingCabangId);
-      })
-      .getBiayaPacking(id);
+        return;
+      }
+      if (!fromCache && packingRendered) return;
+      packingFormState = res.data.record;
+      view.packingIsFixedNama = isPackingFixedNama(packingFormState.nama);
+      if (view.packingIsFixedNama) {
+        document.getElementById("packingFormTitle").textContent = "Edit Data " + packingFormState.nama;
+      }
+      renderPackingForm();
+      setSaveStatus("", "");
+      packingRendered = true;
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaPacking" }, "memuat data packing untuk diedit");
+      openPackingList(view.packingCabangId);
+    });
   }
 
   function syncPackingFormFieldsFromState() {
@@ -433,6 +443,8 @@ menjalankan bootApp().
       if (!res || !res.ok) { handleBackendError(res, actionLabel); return; }
       showToast("Data biaya packing tersimpan.", "ok");
       setSaveStatus("Tersimpan", "ok");
+      invalidateServerReadCache_("listBiayaPacking", view.packingCabangId);
+      invalidateServerReadCache_("getBiayaPacking");
       showScreen("masterBiaya");
       refreshBiayaPickCabangList();
     }

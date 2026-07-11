@@ -607,7 +607,13 @@ menjalankan bootApp().
         if (typeof onError === "function") onError(err, hadCache);
       });
 
-    runner[fnName](key);
+    // Endpoint tanpa argumen (mis. listCabang) dipanggil TANPA argumen -
+    // jangan kirim `undefined` ke google.script.run.
+    if (key === undefined || key === null) {
+      runner[fnName]();
+    } else {
+      runner[fnName](key);
+    }
     return hadCache;
   }
 

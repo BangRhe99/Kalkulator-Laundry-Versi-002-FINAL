@@ -28,25 +28,28 @@ menjalankan bootApp().
     document.getElementById("gasList").innerHTML = "";
     document.getElementById("gasListEmpty").style.display = "none";
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
+    // SWR: kalau daftar gas outlet ini sudah pernah dibuka sesi ini, tampil
+    // INSTAN dari cache lalu di-refresh di belakang.
+    cachedServerRead_("listBiayaGas", cabangId, function (res, fromCache) {
+      if (view.gasCabangId !== cabangId || view.screen !== "gasList") return;
+      if (!res || !res.ok) {
+        if (!fromCache) {
           handleBackendError(res, "memuat data biaya gas");
           showScreen("masterBiaya");
           refreshBiayaPickCabangList();
-          return;
         }
-        gasCabangCache = res.data.cabang;
-        gasItemsCache = res.data.items;
-        document.getElementById("gasListTitle").textContent = "Analisa Biaya Gas · " + (gasCabangCache.namaLaundry || "(Tanpa nama)");
-        renderGasList();
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listBiayaGas" }, "memuat data biaya gas");
-        showScreen("masterBiaya");
-        refreshBiayaPickCabangList();
-      })
-      .listBiayaGas(cabangId);
+        return;
+      }
+      gasCabangCache = res.data.cabang;
+      gasItemsCache = res.data.items;
+      document.getElementById("gasListTitle").textContent = "Analisa Biaya Gas · " + (gasCabangCache.namaLaundry || "(Tanpa nama)");
+      renderGasList();
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:listBiayaGas" }, "memuat data biaya gas");
+      showScreen("masterBiaya");
+      refreshBiayaPickCabangList();
+    });
   }
   window.openGasList = openGasList;
 
@@ -155,6 +158,8 @@ menjalankan bootApp().
         closeConfirm();
         if (!res || !res.ok) { handleBackendError(res, "menghapus data gas"); return; }
         showToast("Data gas berhasil dihapus.", "ok");
+        invalidateServerReadCache_("listBiayaGas", view.gasCabangId);
+        invalidateServerReadCache_("getBiayaGas");
         openGasList(view.gasCabangId);
       })
       .withFailureHandler(function (err) {
@@ -235,22 +240,28 @@ menjalankan bootApp().
     document.getElementById("gasFormTitle").textContent = "Edit Analisa Biaya Gas";
     setSaveStatus("Memuat...", "busy");
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
+    // SWR "render sekali": tampil INSTAN dari cache; hasil server yang datang
+    // belakangan TIDAK menimpa form supaya ketikan user aman (gasRendered).
+    var gasRendered = false;
+    cachedServerRead_("getBiayaGas", id, function (res, fromCache) {
+      if (view.gasEditingId !== id || view.screen !== "gasForm") return;
+      if (!res || !res.ok) {
+        if (!fromCache) {
           handleBackendError(res, "memuat data gas untuk diedit");
           openGasList(view.gasCabangId);
-          return;
         }
-        gasFormState = res.data.record;
-        renderGasForm();
-        setSaveStatus("", "");
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaGas" }, "memuat data gas untuk diedit");
-        openGasList(view.gasCabangId);
-      })
-      .getBiayaGas(id);
+        return;
+      }
+      if (!fromCache && gasRendered) return;
+      gasFormState = res.data.record;
+      renderGasForm();
+      setSaveStatus("", "");
+      gasRendered = true;
+    }, function (err, hadCache) {
+      if (hadCache) return;
+      handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:getBiayaGas" }, "memuat data gas untuk diedit");
+      openGasList(view.gasCabangId);
+    });
   }
 
   /**
@@ -553,6 +564,8 @@ function selectGasCustom() {
       if (!res || !res.ok) { handleBackendError(res, actionLabel); return; }
       showToast("Data biaya gas tersimpan.", "ok");
       setSaveStatus("Tersimpan", "ok");
+      invalidateServerReadCache_("listBiayaGas", view.gasCabangId);
+      invalidateServerReadCache_("getBiayaGas");
       showScreen("masterBiaya");
       refreshBiayaPickCabangList();
     }
