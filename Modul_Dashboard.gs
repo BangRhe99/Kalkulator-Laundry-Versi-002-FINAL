@@ -255,13 +255,38 @@ function getDashboardMasterBiayaSummary(cabangId) {
               gasTotalPerJam += dashboardNumber_(s.biayaGasSetrikaPerJam, 0);
               gasTotalPerLoad += dashboardNumber_(s.biayaPerLoad, 0);
             });
-            const gasDetail = [{ label: "Jumlah data tabung", text: gasItems.length + (gasItems.length === 1 ? " data" : " data") }];
+
+            // gasCard: field APA ADANYA persis kartu "Analisa Biaya Gas" per
+            // record (Harga per tabung/Estimasi pemakaian/Konversi
+            // waktu/Estimasi load/Biaya Gas Dryer Per Load/Biaya Gas Setrika
+            // Per Jam) - diambil dari tabung PERTAMA (mayoritas outlet cuma
+            // punya 1 konfigurasi tabung). Dua nominal Rp terakhir pakai
+            // TOTAL semua tabung (gasTotalPerLoad/gasTotalPerJam, SAMA PERSIS
+            // angka yang dipakai totalBiayaPerLoad di bawah, bukan hitungan
+            // baru) supaya konsisten kalau ada >1 tabung. moreCount dipakai
+            // frontend utk kasih catatan "+N tabung lain" kalau lebih dari 1.
+            const gasPrimary = gasItems.length ? gasItems[0] : null;
+            const gasPrimaryRecord = (gasPrimary && gasPrimary.record) || {};
+            const gasPrimarySummary = (gasPrimary && gasPrimary.summary) || {};
+            const gasCard = gasPrimary ? {
+              kapasitasLabel: String(gasPrimaryRecord.kapasitasLabel || ""),
+              hargaPerTabung: dashboardNumber_(gasPrimaryRecord.hargaPerTabung, 0),
+              estimasiPemakaianJam: dashboardNumber_(gasPrimaryRecord.estimasiPemakaianJam, 0),
+              konversiMenit: dashboardRound2_(dashboardNumber_(gasPrimarySummary.konversiMenit, 0)),
+              hasDryerRef: !!gasPrimaryRecord.dryerRefId,
+              estimasiLoadPemakaian: dashboardRound2_(dashboardNumber_(gasPrimarySummary.estimasiLoadPemakaian, 0)),
+              biayaGasDryerPerLoad: dashboardRound2_(gasTotalPerLoad),
+              hasSetrikaRef: !!gasPrimaryRecord.setrikaRefId,
+              biayaGasSetrikaPerJam: dashboardRound2_(gasTotalPerJam),
+              moreCount: Math.max(0, gasItems.length - 1)
+            } : null;
+
             if (gasComplete) {
               if (isJasaSetrika) {
-                komponenBiaya.push({ key: "gas", label: "Gas LPG", biayaPerLoad: dashboardRound2_(gasTotalPerJam), unitSuffix: "/jam", detail: gasDetail });
+                komponenBiaya.push({ key: "gas", label: "Gas LPG", biayaPerLoad: dashboardRound2_(gasTotalPerJam), unitSuffix: "/jam", gasCard: gasCard });
                 totalBiayaPerLoad += gasTotalPerJam;
               } else {
-                komponenBiaya.push({ key: "gas", label: "Gas LPG", biayaPerLoad: dashboardRound2_(gasTotalPerLoad), detail: gasDetail });
+                komponenBiaya.push({ key: "gas", label: "Gas LPG", biayaPerLoad: dashboardRound2_(gasTotalPerLoad), gasCard: gasCard });
                 totalBiayaPerLoad += gasTotalPerLoad;
               }
             }

@@ -191,6 +191,43 @@ menjalankan bootApp().
     }).join('');
   }
 
+  /**
+   * buildGasCardBodyHtml_: kartu Gas di Master Biaya desktop dirender PERSIS
+   * spt kartu "Analisa Biaya Gas" per record (screenshot acuan user,
+   * 2026-07-12) - Harga per tabung, Estimasi pemakaian, Konversi waktu,
+   * Estimasi load, Biaya Gas Dryer Per Load, Biaya Gas Setrika Per Jam.
+   * Sumber: field gasCard dari getDashboardMasterBiayaSummary (Modul_
+   * Dashboard.gs) - config 4 field pertama dari tabung PERTAMA outlet ini,
+   * 2 nominal Rp terakhir dari TOTAL semua tabung (sama persis angka yang
+   * dipakai utk kontribusi %, bukan hitungan baru).
+   */
+  function buildGasCardBodyHtml_(gasCard) {
+    var metaRowsHtml =
+      '<div class="meta-row"><span class="meta-label">Harga per tabung</span><span class="meta-val">' + money0(gasCard.hargaPerTabung) + '</span></div>' +
+      '<div class="meta-row"><span class="meta-label">Estimasi pemakaian</span><span class="meta-val">' + escapeHtml(formatNum(gasCard.estimasiPemakaianJam)) + ' jam</span></div>';
+
+    var gridCellsHtml =
+      '<div class="gas-result-cell"><div class="label">Konversi waktu</div><div class="val">' + escapeHtml(formatNum(gasCard.konversiMenit)) + '<span class="unit">menit</span></div></div>' +
+      (gasCard.hasDryerRef ? '<div class="gas-result-cell"><div class="label">Estimasi load</div><div class="val">' + escapeHtml(formatNum(gasCard.estimasiLoadPemakaian)) + '<span class="unit">load</span></div></div>' : '');
+
+    var highlightHtml =
+      (gasCard.hasDryerRef ? '<div class="gas-result-grid" style="grid-template-columns:1fr;"><div class="gas-result-cell highlight"><div class="label">Biaya Gas Dryer Per Load</div><div class="val">' + money0(gasCard.biayaGasDryerPerLoad) + '</div></div></div>' : '') +
+      (gasCard.hasSetrikaRef ? '<div class="gas-result-grid" style="grid-template-columns:1fr;"><div class="gas-result-cell highlight"><div class="label">Biaya Gas Setrika Per Jam</div><div class="val">' + money0(gasCard.biayaGasSetrikaPerJam) + '</div></div></div>' : '');
+
+    var moreNoteHtml = gasCard.moreCount > 0
+      ? '<div class="mb-desktop-more-note">+' + gasCard.moreCount + ' tabung lain (total sudah termasuk di atas)</div>'
+      : '';
+
+    return (
+      metaRowsHtml +
+      '<div class="gas-card-result">' +
+        '<div class="gas-result-grid">' + gridCellsHtml + '</div>' +
+        highlightHtml +
+        moreNoteHtml +
+      '</div>'
+    );
+  }
+
   function buildMasterBiayaDesktopHtml_(cabangId, row) {
     var komponen = row && Array.isArray(row.komponenBiaya) ? row.komponenBiaya : [];
     var byKey = {};
@@ -201,23 +238,28 @@ menjalankan bootApp().
       var hasValue = !!k && Number(k.biayaPerLoad) > 0;
       var hasEntry = !!k;
       var unitLabel = (k && k.unitSuffix) ? k.unitSuffix.replace(/^\//, '') : 'load';
-      var detailRowsHtml = hasEntry ? buildMasterBiayaDetailRowsHtml_(k.detail) : '';
-      var resultHtml;
+      var bodyHtml;
 
-      if (hasEntry) {
-        resultHtml =
+      if (meta.key === 'gas' && hasEntry && k.gasCard) {
+        bodyHtml = buildGasCardBodyHtml_(k.gasCard);
+      } else if (hasEntry) {
+        var detailRowsHtml = buildMasterBiayaDetailRowsHtml_(k.detail);
+        var resultHtml =
           '<div class="gas-result-grid" style="grid-template-columns:1fr;">' +
             '<div class="gas-result-cell highlight">' +
               '<div class="label">Biaya ' + escapeHtml(meta.label) + ' Per ' + escapeHtml(unitLabel.charAt(0).toUpperCase() + unitLabel.slice(1)) + '</div>' +
               '<div class="val">' + money0(k.biayaPerLoad) + '<span class="unit">' + escapeHtml(String(Number(k.persen || 0))) + '% dari total</span></div>' +
             '</div>' +
           '</div>';
+        bodyHtml = detailRowsHtml + '<div class="gas-card-result">' + resultHtml + '</div>';
       } else {
-        resultHtml =
-          '<div class="gas-result-grid" style="grid-template-columns:1fr;">' +
-            '<div class="gas-result-cell">' +
-              '<div class="label">Status</div>' +
-              '<div class="val mb-desktop-empty-val">Belum diisi</div>' +
+        bodyHtml =
+          '<div class="gas-card-result">' +
+            '<div class="gas-result-grid" style="grid-template-columns:1fr;">' +
+              '<div class="gas-result-cell">' +
+                '<div class="label">Status</div>' +
+                '<div class="val mb-desktop-empty-val">Belum diisi</div>' +
+              '</div>' +
             '</div>' +
           '</div>';
       }
@@ -233,8 +275,7 @@ menjalankan bootApp().
               '<button class="icon-btn" type="button" aria-label="' + (hasEntry ? 'Kelola' : 'Isi data') + ' ' + escapeHtml(meta.label) + '" onclick="' + meta.open + '(\'' + escapeJsAttr(cabangId) + '\')">' + (hasEntry ? '&#9998;' : '&#43;') + '</button>' +
             '</div>' +
           '</div>' +
-          detailRowsHtml +
-          '<div class="gas-card-result">' + resultHtml + '</div>' +
+          bodyHtml +
         '</div>'
       );
     }).join('');
