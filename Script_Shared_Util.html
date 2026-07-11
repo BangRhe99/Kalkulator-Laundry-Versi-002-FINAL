@@ -558,6 +558,70 @@ menjalankan bootApp().
     return pad2(h) + "." + pad2(m);
   }
 
+  /**
+   * =========================================================================
+   * CACHE SWR (stale-while-revalidate) UNTUK PEMBACAAN SERVER
+   * -------------------------------------------------------------------------
+   * Tujuan: bikin pindah fitur / ganti outlet terasa INSTAN (< 1 detik) -
+   * pola yang sama dengan dashboard (dashboardFullSummaryCache_), tapi
+   * digeneralisasi supaya bisa dipakai fitur mana pun.
+   *
+   * cachedServerRead_(fnName, key, onData, onError):
+   *  - fnName : nama fungsi server (mis. "getHargaLayanan")
+   *  - key    : argumen (mis. cabangId) - juga dipakai sebagai kunci cache
+   *  - onData(res, fromCache): dipanggil SEGERA dgn data cache (fromCache=true)
+   *    kalau ada, lalu SEKALI LAGI dgn data server terbaru (fromCache=false).
+   *    Untuk layar read-only cukup render ulang; untuk form yang bisa diedit,
+   *    caller WAJIB menjaga agar render fromCache=false tidak menimpa ketikan
+   *    user (lihat contoh di Script_Fitur_HargaLayanan.html).
+   *  - onError(err, hadCache): dipanggil kalau server gagal. hadCache=true
+   *    berarti data cache sudah tampil, jadi error boleh diabaikan diam-diam.
+   *
+   * Hanya respons {ok:true} yang disimpan supaya error tidak "ngendon".
+   * Panggil invalidateServerReadCache_(fnName, key) setelah SIMPAN/UBAH data
+   * supaya pembacaan berikutnya menarik yang terbaru.
+   * =========================================================================
+   */
+  var serverReadCache_ = {};
+
+  function serverReadCacheKey_(fnName, key) {
+    return fnName + "::" + (key === undefined || key === null ? "" : String(key));
+  }
+
+  function cachedServerRead_(fnName, key, onData, onError) {
+    var cacheKey = serverReadCacheKey_(fnName, key);
+    var hadCache = Object.prototype.hasOwnProperty.call(serverReadCache_, cacheKey);
+
+    if (hadCache && typeof onData === "function") {
+      try { onData(serverReadCache_[cacheKey], true); } catch (e) {}
+    }
+
+    var runner = google.script.run
+      .withSuccessHandler(function (res) {
+        if (res && res.ok) serverReadCache_[cacheKey] = res;
+        if (typeof onData === "function") {
+          try { onData(res, false); } catch (e) {}
+        }
+      })
+      .withFailureHandler(function (err) {
+        if (typeof onError === "function") onError(err, hadCache);
+      });
+
+    runner[fnName](key);
+    return hadCache;
+  }
+
+  function invalidateServerReadCache_(fnName, key) {
+    if (key === undefined) {
+      var prefix = fnName + "::";
+      Object.keys(serverReadCache_).forEach(function (k) {
+        if (k.indexOf(prefix) === 0) delete serverReadCache_[k];
+      });
+      return;
+    }
+    delete serverReadCache_[serverReadCacheKey_(fnName, key)];
+  }
+
   var KATEGORI_LABEL = { self_service: "Self Service", jasa_setrika: "Jasa Setrika", drop_off: "Drop off / kiloan", hybrid: "Hybrid" };
   var JENIS_MESIN_LABEL = { rumah_tangga: "Rumah tangga", konversi: "Konversi", komersial: "Komersial" };
 

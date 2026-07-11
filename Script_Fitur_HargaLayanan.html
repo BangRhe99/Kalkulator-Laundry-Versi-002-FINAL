@@ -20,6 +20,10 @@ menjalankan bootApp().
 -->
 <script>
 "use strict";
+  // Penanda user sudah mengetik di form detail -> dipakai agar refresh cache
+  // SWR di belakang layar TIDAK menimpa ketikan (lihat openHargaLayananDetail).
+  var hargaLayananFormDirty = false;
+
   function renderHargaLayananOutletList() {
     var listEl = document.getElementById("hargaLayananOutletList");
     var countEl = document.getElementById("hargaLayananOutletCount");
@@ -81,25 +85,29 @@ menjalankan bootApp().
       var cabangId = getOutletId_(cabang);
       if (!cabangId) return;
 
-      google.script.run
-        .withSuccessHandler(function (res) {
-          var target = document.getElementById("hargaLayananSummary_" + cabangId);
-          if (!target) return;
+      // SWR: kalau outlet ini sudah pernah dibuka sesi ini (mis. dari
+      // dashboard/detail), rangkuman tampil INSTAN dari cache lalu di-refresh
+      // di belakang. Kunci cache "getHargaLayanan::cabangId" dipakai bareng
+      // openHargaLayananDetail -> buka daftar lalu klik outlet = tanpa tunggu.
+      cachedServerRead_("getHargaLayanan", cabangId, function (res, fromCache) {
+        var target = document.getElementById("hargaLayananSummary_" + cabangId);
+        if (!target) return;
 
-          if (!res || !res.ok || !res.data) {
-            target.innerHTML = '<div class="fc-list-empty-note">Rangkuman belum bisa dimuat. Klik outlet untuk membuka detail.</div>';
-            return;
-          }
-
-          target.innerHTML = renderHargaLayananSummaryHtml(res.data);
-        })
-        .withFailureHandler(function () {
-          var target = document.getElementById("hargaLayananSummary_" + cabangId);
-          if (target) {
+        if (!res || !res.ok || !res.data) {
+          if (!fromCache) {
             target.innerHTML = '<div class="fc-list-empty-note">Rangkuman belum bisa dimuat. Klik outlet untuk membuka detail.</div>';
           }
-        })
-        .getHargaLayanan(cabangId);
+          return;
+        }
+
+        target.innerHTML = renderHargaLayananSummaryHtml(res.data);
+      }, function (err, hadCache) {
+        if (hadCache) return;
+        var target = document.getElementById("hargaLayananSummary_" + cabangId);
+        if (target) {
+          target.innerHTML = '<div class="fc-list-empty-note">Rangkuman belum bisa dimuat. Klik outlet untuk membuka detail.</div>';
+        }
+      });
     });
   }
 
@@ -155,29 +163,38 @@ menjalankan bootApp().
 
   window.openHargaLayananDetail = function (cabangId) {
     hargaLayananCurrentCabangId = cabangId;
+    hargaLayananFormDirty = false;
     showScreen("hargaLayananDetail");
     renderHargaLayananLoading();
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
-          handleBackendError(res, "memuat Harga Layanan");
-          return;
-        }
+    // SWR: kalau data outlet ini sudah di cache (mis. barusan tampil di
+    // daftar rangkuman), detail tampil INSTAN lalu di-refresh diam-diam.
+    cachedServerRead_("getHargaLayanan", cabangId, function (res, fromCache) {
+      // User mungkin sudah pindah ke outlet lain sebelum data datang.
+      if (hargaLayananCurrentCabangId !== cabangId) return;
 
-        renderHargaLayananDetail(res.data);
-        setSaveStatus("", "");
-      })
-      .withFailureHandler(function (err) {
-        handleBackendError(
-          {
-            error: err && err.message ? err.message : String(err),
-            stage: "client:hargaLayanan:getHargaLayanan"
-          },
-          "memuat Harga Layanan"
-        );
-      })
-      .getHargaLayanan(cabangId);
+      if (!res || !res.ok) {
+        if (!fromCache) handleBackendError(res, "memuat Harga Layanan");
+        return;
+      }
+
+      // Refresh server (fromCache=false) JANGAN menimpa kalau user sudah
+      // mulai mengetik harga - isi cache & server utk detail yg baru dibuka
+      // sama saja, jadi menahannya aman & mencegah ketikan hilang.
+      if (!fromCache && hargaLayananFormDirty) return;
+
+      renderHargaLayananDetail(res.data);
+      setSaveStatus("", "");
+    }, function (err, hadCache) {
+      if (hadCache) return; // data cache sudah tampil, abaikan error diam-diam
+      handleBackendError(
+        {
+          error: err && err.message ? err.message : String(err),
+          stage: "client:hargaLayanan:getHargaLayanan"
+        },
+        "memuat Harga Layanan"
+      );
+    });
   };
 
   function renderHargaLayananLoading() {
@@ -204,6 +221,9 @@ menjalankan bootApp().
 
   function renderHargaLayananDetail(data) {
     data = data || {};
+
+    // Render bersih dari data server -> anggap form belum diedit lagi.
+    hargaLayananFormDirty = false;
 
     var cabang = data.cabang || {};
     var layanan = Array.isArray(data.layanan) ? data.layanan : [];
@@ -316,6 +336,7 @@ menjalankan bootApp().
   }
 
   function onHargaLayananInput(evt) {
+    hargaLayananFormDirty = true;
     var input = evt && evt.target;
     if (input) {
       var digitsOnly = input.value.replace(/[^0-9]/g, "");
@@ -419,6 +440,10 @@ menjalankan bootApp().
 
         setSaveStatus("Tersimpan", "ok");
         showToast("Harga layanan tersimpan.", "ok");
+        // Data berubah -> buang cache outlet ini supaya daftar & detail
+        // berikutnya menarik angka terbaru (bukan cache lama).
+        invalidateServerReadCache_("getHargaLayanan", hargaLayananCurrentCabangId);
+        hargaLayananFormDirty = false;
         openHargaLayananOutletList();
       })
       .withFailureHandler(function (err) {
