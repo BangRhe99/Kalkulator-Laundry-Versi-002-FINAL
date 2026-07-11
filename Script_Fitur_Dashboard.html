@@ -218,6 +218,23 @@ menjalankan bootApp().
     if (countEl) {
       countEl.textContent = rows.length > 1 ? rows.length + " outlet aktif" : "";
     }
+
+    // Pill kembar di LAYAR Profil Outlet desktop (#screenList). Elemen ini
+    // hanya ada di layar itu; kalau tidak ada (mis. di Dashboard) blok ini
+    // otomatis dilewati. Data & aturan identik dgn pill Dashboard di atas.
+    var pName = document.querySelector("#profilOutletFilter .outlet-filter-name");
+    if (pName) {
+      pName.textContent = current ? (current.namaLaundry || "Outlet tanpa nama") : "Pilih outlet";
+      var pKat = document.getElementById("profilOutletKategori");
+      if (pKat) {
+        pKat.textContent = (current && current.kategoriLayanan && typeof KATEGORI_LABEL !== "undefined")
+          ? (KATEGORI_LABEL[current.kategoriLayanan] || "") : "";
+      }
+      var pPill = document.getElementById("profilOutletFilter");
+      if (pPill) pPill.classList.toggle("single-outlet", rows.length <= 1);
+      var pCount = document.getElementById("profilOutletCountLabel");
+      if (pCount) pCount.textContent = rows.length > 1 ? rows.length + " outlet aktif" : "";
+    }
   }
 
   function ensureDashboardOutletSelection_() {
@@ -272,6 +289,9 @@ menjalankan bootApp().
         renderOutletPickerList_();
         closeOutletPicker();
         if (changed) refreshDashboardFast();
+        // Kalau sedang di layar Profil Outlet (desktop), render ulang kartunya
+        // ke outlet yang baru dipilih (fungsi ada di Script_Fitur_Cabang.html).
+        if (typeof renderProfilOutletDesktop_ === "function") renderProfilOutletDesktop_();
       });
     });
   }
@@ -547,8 +567,19 @@ menjalankan bootApp().
           return;
         }
 
-        var shown = rows.slice(0, 3);
-        var html = rows.slice(0, 1).map(function (row) {
+        var html = rows.slice(0, 1).map(buildProfilOutletCardHtml_).join('');
+        setDashboardCardHtml("dashboardCabangSummary", html);
+  }
+
+  /**
+   * buildProfilOutletCardHtml_: pembangun markup ".profil-outlet-card" (kartu
+   * premium: kategori + jam, KPI cuci/kering/setrika, blok mesin). Dipakai
+   * bareng oleh kartu Profil Outlet di Dashboard (renderDashboardCabangCard)
+   * DAN layar Profil Outlet desktop (renderProfilOutletDesktop_ di
+   * Script_Fitur_Cabang.html) supaya tampilannya identik & satu sumber.
+   * Argumen "row" = hasil map ke bentuk ringkasan (mapCabangRowToProfilSummary_).
+   */
+  function buildProfilOutletCardHtml_(row) {
           var jamBuka = row.jamBukaMenit != null ? row.jamBukaMenit : 0;
           var jamTutup = row.jamTutupMenit != null ? row.jamTutupMenit : 0;
           var totalMenit = jamTutup > jamBuka ? jamTutup - jamBuka : (jamTutup + 1440 - jamBuka);
@@ -672,8 +703,6 @@ menjalankan bootApp().
               mesinBlockHtml +
             '</div>'
           );
-        }).join('');
-        setDashboardCardHtml('dashboardCabangSummary', html);
   }
 
   function renderDashboardMasterBiayaCard(res, targetId) {

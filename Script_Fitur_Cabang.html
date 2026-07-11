@@ -47,6 +47,11 @@ menjalankan bootApp().
     countEl.textContent = cabangListCache.length + " cabang";
     listEl.innerHTML = "";
 
+    // Sinkronkan kartu Profil Outlet DESKTOP (satu outlet terpilih). Fungsi
+    // ini menangani sendiri kondisi kosong, jadi dipanggil sebelum guard di
+    // bawah (yang hanya mengurus daftar versi HP - tidak diubah).
+    renderProfilOutletDesktop_();
+
     if (cabangListCache.length === 0) { emptyEl.style.display = "block"; return; }
     emptyEl.style.display = "none";
 
@@ -76,6 +81,47 @@ menjalankan bootApp().
         "</div>";
       listEl.appendChild(card);
     });
+  }
+
+  /**
+   * renderProfilOutletDesktop_: mengisi kartu Profil Outlet versi DESKTOP
+   * (#screenList, >=1100px) dari outlet yang sedang dipilih di picker global
+   * (dashboardSelectedOutletId). Markup kartunya identik dgn Dashboard karena
+   * memakai buildProfilOutletCardHtml_ + mapCabangRowToProfilSummary_ (dua-
+   * duanya di Script_Fitur_Dashboard.html). Semua render lokal dari
+   * cabangListCache -> instan, tanpa roundtrip. Aman di HP: elemen desktop
+   * tidak pernah tampil di <1100px, tapi guard host tetap ada.
+   */
+  function renderProfilOutletDesktop_() {
+    var host = document.getElementById("profilOutletDesktopCard");
+    if (!host) return;
+
+    var rows = cabangListCache || [];
+
+    // Pastikan ada outlet terpilih & pill (nama + kategori) tersinkron.
+    if (typeof ensureDashboardOutletSelection_ === "function") ensureDashboardOutletSelection_();
+    if (typeof updateOutletFilterPillText_ === "function") updateOutletFilterPillText_();
+
+    var selId = (typeof dashboardSelectedOutletId !== "undefined") ? dashboardSelectedOutletId : null;
+    var current = rows.find(function (c) { return c.id === selId; }) || rows[0] || null;
+
+    var actions = document.getElementById("profilOutletDesktopActions");
+
+    if (!current) {
+      host.innerHTML = '<div class="dashboard-empty">Belum ada outlet. Tambahkan outlet lebih dulu.</div>';
+      if (actions) actions.style.display = "none";
+      return;
+    }
+    if (actions) actions.style.display = "";
+
+    host.innerHTML = (typeof buildProfilOutletCardHtml_ === "function")
+      ? buildProfilOutletCardHtml_(mapCabangRowToProfilSummary_(current))
+      : "";
+
+    var delBtn = document.getElementById("profilOutletDeleteBtn");
+    var editBtn = document.getElementById("profilOutletEditBtn");
+    if (delBtn) delBtn.onclick = function () { openConfirmDelete(current.id); };
+    if (editBtn) editBtn.onclick = function () { openFormEdit(current.id); };
   }
 
   /* Fungsi umum tahap 5 dipindahkan ke file Script_Shared_*.html. */

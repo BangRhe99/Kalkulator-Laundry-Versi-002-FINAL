@@ -298,4 +298,65 @@ divider, mesin, okupansi + tooltip).
     letter-spacing: 0.02em;
   }
 
+  /* ====================================================================
+     LAYAR PROFIL OUTLET (#screenList) - KHUSUS DESKTOP (>=1100px).
+     Konsep: satu kartu besar berisi profil 1 outlet terpilih (pola sama
+     dgn Dashboard), header kanan-atas = nama outlet + badge kategori,
+     brand "Kalkulator Laundry" + tombol Back dibuang, cukup 1 layar.
+     HP/tablet (<1100px) TIDAK PERNAH masuk media query ini -> tetap pakai
+     daftar outlet lama (.profil-outlet-mobile-only), tidak berubah.
+     ==================================================================== */
+  .profil-outlet-desktop { display: none; }
+
+  @media (min-width: 1100px) {
+    /* Daftar HP disembunyikan, kartu tunggal desktop dipakai. */
+    #screenList .profil-outlet-mobile-only { display: none; }
+    #screenList .profil-outlet-desktop { display: flex; flex-direction: column; gap: 14px; }
+
+    /* Brand + tombol Back dibuang di layar ini (branding sudah ada di
+       sidebar). DIBATASI ke #screenList.active -> layar lain tetap punya
+       header. HP tak pernah masuk sini. */
+    body:has(#screenList.active) .app-header { display: none !important; }
+    body:has(#screenList.active) { padding-top: 4px; }
+    body:has(#screenList.active) .wrap { width: min(100%, 1100px); }
+
+    /* Topbar tipis (pola sama dgn Dashboard desktop). */
+    #screenList .dashboard-header {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 18px;
+      margin-bottom: 0;
+      box-shadow: 0 1px 2px rgba(17,24,39,0.03);
+    }
+    #screenList .dashboard-header-top { align-items: center; }
+    #screenList .dashboard-title { font-size: 16px; margin-bottom: 0; letter-spacing: -0.01em; }
+
+    /* Pill nama outlet + badge kategori (aktifkan badge & buka lebar pill,
+       sama spt Dashboard yg discope ke #screenMenu.active). */
+    body:has(#screenList.active) .outlet-filter-pill { max-width: none; }
+    body:has(#screenList.active) .outlet-kategori-badge {
+      display: inline-flex; align-items: center; font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em; color: var(--brass);
+      background: rgba(var(--brass-rgb, 180, 130, 60), 0.10);
+      border: 1px solid rgba(var(--brass-rgb, 180, 130, 60), 0.22);
+      border-radius: 999px; padding: 2px 8px; margin: 0 2px; white-space: nowrap; flex-shrink: 0;
+    }
+
+    /* Satu kartu besar penampung profil outlet + sedikit diperbesar supaya
+       lega di layar lebar (bukan sekecil kartu ringkas HP). */
+    #screenList .profil-outlet-desktop-panel { padding: 22px 24px; }
+    #screenList .profil-outlet-card { gap: 16px; }
+    #screenList .profil-outlet-kpi { padding: 18px 22px; }
+    #screenList .profil-kpi-value { font-size: 26px; }
+    #screenList .profil-mesin-count { font-size: 22px; }
+
+    /* Baris tombol Edit/Hapus di dalam kartu (menggantikan footer bar). */
+    #screenList .profil-outlet-desktop-actions {
+      display: flex; gap: 10px; justify-content: flex-end; align-items: center;
+      margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);
+    }
+    #screenList .profil-outlet-desktop-actions .btn-primary { flex: 0 0 auto; min-width: 150px; }
+  }
+
 </style>

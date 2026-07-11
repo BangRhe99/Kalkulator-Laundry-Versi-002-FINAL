@@ -12,16 +12,55 @@ tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
 ===============================================================================
 -->
     <section class="screen" id="screenList">
-      <div class="list-header">
-        <h1>Profil Outlet</h1>
-        <span class="count" id="cabangCount">0 cabang</span>
+      <!-- =================================================================
+           DESKTOP (>=1100px): SATU kartu Profil Outlet dari outlet yang
+           sedang dipilih (pola tampilan sama persis dgn Dashboard). Brand
+           "Kalkulator Laundry" + tombol Back global disembunyikan lewat CSS
+           (body:has(#screenList.active)). HP TIDAK PERNAH masuk media query
+           ini -> tetap pakai daftar outlet di bawah, tidak diubah sedikit pun.
+      ================================================================== -->
+      <div class="profil-outlet-desktop" id="profilOutletDesktop">
+        <div class="dashboard-header">
+          <div class="dashboard-header-top">
+            <div class="dashboard-header-text">
+              <h1 class="dashboard-title">Profil Outlet</h1>
+            </div>
+            <div class="dashboard-filter-right">
+              <button class="outlet-filter-pill" type="button" id="profilOutletFilter" onclick="openOutletPicker()">
+                <span class="outlet-filter-name">-</span>
+                <span class="outlet-kategori-badge" id="profilOutletKategori"></span>
+                <svg class="outlet-filter-arrow" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div class="outlet-count-label" id="profilOutletCountLabel"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel profil-outlet-desktop-panel" id="profilOutletDesktopPanel">
+          <div id="profilOutletDesktopCard"></div>
+          <div class="profil-outlet-desktop-actions" id="profilOutletDesktopActions">
+            <button type="button" class="btn-danger" id="profilOutletDeleteBtn" aria-label="Hapus outlet">&#128465;</button>
+            <button type="button" class="btn-primary" id="profilOutletEditBtn">Edit data</button>
+          </div>
+        </div>
       </div>
-      <div id="cabangListEmpty" class="empty-state" style="display:none;">
-        <div class="icon">&#128465;</div>
-        <p>Belum ada data operasional.<br>Tambahkan cabang pertama untuk mulai menghitung kapasitas.</p>
+
+      <!-- HP/tablet (<1100px): daftar outlet lama - TIDAK DIUBAH, hanya
+           disembunyikan saat desktop lewat CSS .profil-outlet-mobile-only. -->
+      <div class="profil-outlet-mobile-only" id="profilOutletMobile">
+        <div class="list-header">
+          <h1>Profil Outlet</h1>
+          <span class="count" id="cabangCount">0 cabang</span>
+        </div>
+        <div id="cabangListEmpty" class="empty-state" style="display:none;">
+          <div class="icon">&#128465;</div>
+          <p>Belum ada data operasional.<br>Tambahkan cabang pertama untuk mulai menghitung kapasitas.</p>
+        </div>
+        <div class="list-grid" id="cabangList"></div>
+        <button class="add-cabang-btn" onclick="openFormNew()">+ Tambah cabang baru</button>
       </div>
-      <div class="list-grid" id="cabangList"></div>
-      <button class="add-cabang-btn" onclick="openFormNew()">+ Tambah cabang baru</button>
     </section>
 
     <section class="screen" id="screenRingkasan">
