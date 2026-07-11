@@ -1820,8 +1820,17 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
        ATAS dgn jarak konsisten - ruang yg tadinya terbuang jadi gap lebar
        kini menampung baris 5 & 6 di area yg sama. justify-content di-reset
        eksplisit (bukan cuma gap) supaya menang atas aturan dasar. */
-    #desktopMasterBiaya .mb-komponen-list { justify-content: flex-start; gap: 11px; }
-    #desktopMasterBiaya .mb-komponen-row-desktop { gap: 5px; }
+    #desktopMasterBiaya .mb-komponen-list { justify-content: flex-start; gap: 6px; }
+    #desktopMasterBiaya .mb-komponen-row-desktop { gap: 2px; }
+    /* Tinggi panel (dikunci fit-JS) hanya cukup utk ~4 baris pada ukuran
+       lama, jadi Air & Nota jatuh di area yg ke-clip. Tiap baris dipadatkan
+       (font 12px + line-height rapat, bar 5px) supaya 6 komponen muat dalam
+       tinggi panel yg sama. Semua discope #desktopMasterBiaya -> kartu HP
+       (#dashboardMasterBiayaSummary) & panel lain tidak tersentuh. */
+    #desktopMasterBiaya .mb-komponen-line1 .mb-komponen-label { font-size: 12px; line-height: 1.2; }
+    #desktopMasterBiaya .mb-komponen-line1 .mb-komponen-value { font-size: 12px; line-height: 1.2; }
+    #desktopMasterBiaya .mb-komponen-line2 .mb-progress-bar { height: 5px; }
+    #desktopMasterBiaya .mb-komponen-line2 .mb-komponen-persen { font-size: 10px; }
     #desktopHargaLayanan .hl-item { padding: 10px 12px; }
     #desktopHargaLayanan .hl-top { margin-bottom: 6px; }
     #desktopHargaLayanan .hl-name { font-size: 13px; }
