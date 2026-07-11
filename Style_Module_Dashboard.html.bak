@@ -69,7 +69,7 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
        DALAM tinggi yang sudah dikunci JS tsb. */
     .desktop-dashboard-summary { display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
     .desktop-kpi-row { flex-shrink: 0; }
-    .desktop-summary-row { flex: 1; min-height: 340px; }
+    .desktop-summary-row { flex: 1; min-height: 0; }
     .desktop-summary-full { flex-shrink: 0; }
 
     /* Topbar tipis khusus desktop: header dashboard jadi strip putih (var
@@ -178,7 +178,6 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       padding: 24px 22px 20px;
-      overflow: hidden;
       min-width: 0;
       display: flex;
       flex-direction: column;
@@ -1635,7 +1634,7 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     }
   }
   /* === MOBILE_DASHBOARD_OVERFLOW_FIX_END === */
-  /* === CARD HARGA LAYANAN â€” Financial Decision Card === */
+  /* === CARD HARGA LAYANAN — Financial Decision Card === */
   .hl-item {
     background: var(--panel-2);
     border: 1px solid var(--border);
