@@ -30,6 +30,15 @@ menjalankan bootApp().
     if (name === "menu" && typeof refreshDashboard === "function") {
       refreshDashboard();
     }
+    // Kunci/lepas tinggi panel ringkasan Dashboard desktop ke 1 layar penuh
+    // (lihat fitDesktopDashboardToViewport_ di Script_Fitur_Dashboard.html) -
+    // dipanggil di SETIAP ganti layar (bukan cuma "menu") supaya begitu
+    // pindah ke layar lain, kunci scroll & tinggi paksa tadi otomatis
+    // dilepas lagi. requestAnimationFrame supaya layout sudah settle dulu
+    // sebelum diukur. HP/layar lain aman krn fungsi ini early-return sendiri.
+    if (typeof window.fitDesktopDashboardToViewport_ === "function") {
+      requestAnimationFrame(window.fitDesktopDashboardToViewport_);
+    }
     if (typeof updateSidebarActive_ === "function") {
       updateSidebarActive_(name);
     }

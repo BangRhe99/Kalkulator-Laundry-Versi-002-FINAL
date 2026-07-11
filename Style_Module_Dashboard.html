@@ -54,45 +54,20 @@ Master Biaya/HPP/FixedCost/HargaLayanan, tapi isinya sudah kemasukan itu semua.
     body:has(#screenMenu.active) .app-header { display: none !important; }
 
     /* === PAKSA 1 LAYAR PENUH TANPA SCROLL (khusus Dashboard desktop) ===
-       Seluruh #screenMenu dikunci setinggi viewport (dikurangi padding
-       body atas/bawah) lalu disusun sbg flex column: topbar & baris KPI
-       tetap tinggi natural (flex-shrink:0), baris BEP+Master Biaya jadi
-       elemen "elastis" (flex:1) yg otomatis menyesuaikan ke sisa ruang -
-       jadi TIDAK PERNAH overflow ke bawah di layar manapun (laptop kecil
-       s/d monitor besar), tanpa perlu redesign ulang tiap kali. DIBATASI
-       ke body:has(#screenMenu.active) - HP TIDAK PERNAH masuk breakpoint
-       ini & layar lain (Master Biaya dst) TIDAK ikut jadi fixed-height. */
-    /* html sudah punya overflow-x:clip eksplisit (Style_Base.html) - begitu
-       html men-declare overflow apapun (bukan "visible" bawaan), browser
-       BERHENTI mem-propagate overflow:hidden dari body ke viewport (aturan
-       spec CSS overflow propagation). Makanya body overflow:hidden SAJA
-       tidak cukup menghentikan scroll halaman - overflow-y wajib diset
-       eksplisit juga di html supaya benar-benar tidak ada scrollbar
-       halaman. HP tidak pernah masuk breakpoint ini. */
-    html:has(#screenMenu.active) { overflow-y: hidden; }
-    body:has(#screenMenu.active) {
-      height: 100vh;
-      overflow: hidden;
-    }
-    body:has(#screenMenu.active) .wrap { height: 100%; display: flex; flex-direction: column; }
-    /* #appRoot dapat inline style="display:block" dari JS (Script_Fitur_
-       Auth.html) begitu user login - !important WAJIB di sini supaya CSS
-       flex:1 bisa menang atas inline style itu, HP tidak pernah masuk
-       breakpoint ini jadi tidak terpengaruh. */
-    body:has(#screenMenu.active) #appRoot {
-      display: flex !important;
-      flex-direction: column;
-      flex: 1;
-      min-height: 0;
-    }
-    body:has(#screenMenu.active) #screenMenu.active {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-height: 0;
-    }
-    #screenMenu .dashboard-header { flex-shrink: 0; }
-    .desktop-dashboard-summary { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px; }
+       Percobaan sebelumnya pakai rantai CSS murni (html/body/.wrap/#appRoot
+       height:100vh + overflow:hidden berantai) TERBUKTI RAPUH - ada aturan
+       spec CSS "overflow propagation" yang bikin body:overflow:hidden saja
+       tidak selalu menghentikan scroll viewport begitu html sudah punya
+       overflow-x sendiri (lihat Style_Base.html), plus konteks Apps Script
+       kadang beda perilaku. Diganti total: tinggi panel ini sekarang
+       DIUKUR & DIKUNCI langsung via JavaScript (fitDesktopDashboardToViewport_
+       di Script_Fitur_Dashboard.html, dipanggil tiap ganti layar & resize)
+       pakai window.innerHeight yang selalu akurat - jauh lebih pasti drpd
+       vh/overflow CSS. CSS di sini cuma menyiapkan strukturnya: topbar &
+       baris KPI tetap tinggi natural (flex-shrink:0), baris BEP+Master
+       Biaya jadi elemen elastis (flex:1) yg menyesuaikan ke sisa ruang
+       DALAM tinggi yang sudah dikunci JS tsb. */
+    .desktop-dashboard-summary { display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
     .desktop-kpi-row { flex-shrink: 0; }
     .desktop-summary-row { flex: 1; min-height: 0; }
     .desktop-summary-full { flex-shrink: 0; }

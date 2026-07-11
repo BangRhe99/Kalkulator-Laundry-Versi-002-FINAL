@@ -20,6 +20,57 @@ menjalankan bootApp().
 -->
 <script>
 "use strict";
+  /**
+   * =========================================================================
+   * FIT DASHBOARD DESKTOP KE 1 LAYAR PENUH (TANPA SCROLL)
+   * -----------------------------------------------------------------------
+   * Percobaan sebelumnya pakai CSS murni (vh + overflow:hidden berantai di
+   * html/body) TIDAK selalu bekerja krn aturan "overflow propagation" di
+   * spec CSS bisa membatalkan efeknya secara diam-diam. Diganti pakai JS:
+   * window.innerHeight SELALU akurat terlepas dari propagation/iframe apa
+   * pun, jadi tinggi panel ringkasan desktop (#desktopDashboardSummary)
+   * diukur & dikunci LANGSUNG di sini, dipanggil ulang tiap ganti layar &
+   * tiap resize. KHUSUS desktop (>=1100px) DAN cuma saat Dashboard aktif -
+   * di HP atau layar lain fungsi ini tidak melakukan apa-apa (early return),
+   * jadi tidak pernah mengubah tampilan HP atau layar lain sama sekali.
+   * =========================================================================
+   */
+  var DASHBOARD_FIT_MIN_WIDTH_ = 1100;
+  var dashboardFitResizeTimer_ = null;
+
+  function lockDashboardViewportScroll_(lock) {
+    document.documentElement.style.overflowY = lock ? "hidden" : "";
+    document.body.style.overflow = lock ? "hidden" : "";
+  }
+
+  window.fitDesktopDashboardToViewport_ = function () {
+    var screenEl = document.getElementById("screenMenu");
+    var summaryEl = document.getElementById("desktopDashboardSummary");
+    if (!screenEl || !summaryEl) return;
+
+    var isDashboardActive = screenEl.classList.contains("active");
+    var isDesktopWidth = window.innerWidth >= DASHBOARD_FIT_MIN_WIDTH_;
+
+    if (!isDashboardActive || !isDesktopWidth) {
+      lockDashboardViewportScroll_(false);
+      summaryEl.style.height = "";
+      return;
+    }
+
+    lockDashboardViewportScroll_(true);
+    summaryEl.style.height = "";
+    var rect = summaryEl.getBoundingClientRect();
+    var bottomGap = 20;
+    var available = Math.round(window.innerHeight - rect.top - bottomGap);
+    if (available < 320) available = 320;
+    summaryEl.style.height = available + "px";
+  };
+
+  window.addEventListener("resize", function () {
+    clearTimeout(dashboardFitResizeTimer_);
+    dashboardFitResizeTimer_ = setTimeout(window.fitDesktopDashboardToViewport_, 120);
+  });
+
   function setDashboardCardHtml(id, html) {
     var el = document.getElementById(id);
     if (!el) return;
@@ -255,6 +306,12 @@ menjalankan bootApp().
       renderDesktopBepChart_(d.bep);
       renderDashboardMasterBiayaCard(d.masterBiaya, "desktopMasterBiaya");
       renderDashboardHargaLayananCard(d.hargaLayanan, "desktopHargaLayanan");
+      // Data baru bisa mengubah tinggi konten (mis. jumlah komponen Master
+      // Biaya) - ukur ulang kunci 1 layar setelah render selesai supaya
+      // tetap presisi, bukan cuma sekali saat showScreen("menu").
+      if (typeof window.fitDesktopDashboardToViewport_ === "function") {
+        requestAnimationFrame(window.fitDesktopDashboardToViewport_);
+      }
     }
   }
 
