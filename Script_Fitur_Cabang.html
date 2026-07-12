@@ -86,11 +86,12 @@ menjalankan bootApp().
   /**
    * renderProfilOutletDesktop_: mengisi kartu Profil Outlet versi DESKTOP
    * (#screenList, >=1100px) dari outlet yang sedang dipilih di picker global
-   * (dashboardSelectedOutletId). Markup kartunya identik dgn Dashboard karena
-   * memakai buildProfilOutletCardHtml_ + mapCabangRowToProfilSummary_ (dua-
-   * duanya di Script_Fitur_Dashboard.html). Semua render lokal dari
-   * cabangListCache -> instan, tanpa roundtrip. Aman di HP: elemen desktop
-   * tidak pernah tampil di <1100px, tapi guard host tetap ada.
+   * (dashboardSelectedOutletId, ada di Script_Fitur_Dashboard_OutletPicker.html).
+   * Markup kartunya identik dgn Dashboard karena memakai
+   * buildProfilOutletCardHtml_ (Script_Fitur_Dashboard_Kartu.html) +
+   * mapCabangRowToProfilSummary_ (Script_Fitur_Dashboard.html). Semua render
+   * lokal dari cabangListCache -> instan, tanpa roundtrip. Aman di HP: elemen
+   * desktop tidak pernah tampil di <1100px, tapi guard host tetap ada.
    */
   function renderProfilOutletDesktop_() {
     var host = document.getElementById("profilOutletDesktopCard");

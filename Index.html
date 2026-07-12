@@ -72,8 +72,17 @@ SCRIPT (logic JS, urutan include = urutan daftar ini):
                                 computeGroupLoad, computeGroupSetrika).
   Script_Shared_Navigasi.html    showScreen, goBack, SCREEN_ELEMENT_ID -- pusat
                                 pindah layar dipakai SEMUA fitur.
-  Script_Fitur_Dashboard.html    render 6 kartu dashboard, outlet picker/filter,
-                                footer.
+  Script_Fitur_Dashboard.html    inti/orkestrasi layar Dashboard: fit 1-layar
+                                desktop, fetch/cache getDashboardFullSummary,
+                                ringkasan KPI desktop, footer tombol aksi.
+  Script_Fitur_Dashboard_OutletPicker.html  outlet picker/filter
+                                (dashboardSelectedOutletId) dipakai bareng
+                                Dashboard/Profil Outlet/Master Biaya/HPP/
+                                Harga Layanan/Biaya Tetap Outlet.
+  Script_Fitur_Dashboard_Kartu.html  render 6 kartu ringkasan dashboard
+                                (Profil Outlet, Master Biaya, HPP, Harga
+                                Layanan, Fixed Cost, BEP+Potensi Omset) +
+                                modal "Atur %" mix BEP.
   Script_Fitur_Cabang.html       list/ringkasan/form cabang & mesin.
   Script_Fitur_MasterBiaya.html  menu pilih kategori biaya per cabang.
   Script_Fitur_BiayaGas.html     CRUD & preview biaya gas (multi-record).
@@ -92,7 +101,11 @@ SCRIPT (logic JS, urutan include = urutan daftar ini):
 
 CARA MENCARI SESUATU DI PROJECT INI (sisi frontend):
   - "Saya mau ubah tampilan kartu dashboard"
-      -> Screen_Menu.html (markup) + Script_Fitur_Dashboard.html (logic)
+      -> Screen_Menu.html (markup) + Script_Fitur_Dashboard_Kartu.html
+         (logic render 6 kartu) - fetch/orkestrasinya tetap di
+         Script_Fitur_Dashboard.html.
+  - "Saya mau ubah outlet picker/pill filter outlet"
+      -> Script_Fitur_Dashboard_OutletPicker.html
   - "Saya mau ubah rumus preview biaya gas di form (sebelum simpan)"
       -> Script_Fitur_BiayaGas.html, cari computeBiayaGasSummaryClient
          (rumus resminya ada di backend Modul_BiayaGas.gs, JANGAN beda rumus)
@@ -114,6 +127,14 @@ RIWAYAT PEMECAHAN FILE INI:
   Ada juga 1 script debug (alert() popup info viewport, muncul ke semua user
   4 detik setelah load) yang dihapus permanen karena itu sisa debugging
   developer, bukan fitur.
+
+  [2026-07-12] Script_Fitur_Dashboard.html (1.485 baris, file JS terbesar di
+  project) dipecah jadi 3 file supaya lebih mudah dirawat, murni potong-tempel
+  (TIDAK ada rumus/perilaku yang berubah):
+    - Script_Fitur_Dashboard.html               -> inti/orkestrasi (fit
+      1-layar, fetch/cache getDashboardFullSummary, KPI desktop, footer)
+    - Script_Fitur_Dashboard_OutletPicker.html   -> outlet picker/filter
+    - Script_Fitur_Dashboard_Kartu.html          -> 6 render kartu + BEP mix
 ===============================================================================
 -->
 
@@ -255,6 +276,8 @@ RIWAYAT PEMECAHAN FILE INI:
 <?!= include('Script_Shared_Util') ?>
 <?!= include('Script_Shared_Navigasi') ?>
 <?!= include('Script_Fitur_Dashboard') ?>
+<?!= include('Script_Fitur_Dashboard_OutletPicker') ?>
+<?!= include('Script_Fitur_Dashboard_Kartu') ?>
 <?!= include('Script_Fitur_Cabang') ?>
 <?!= include('Script_Fitur_MasterBiaya') ?>
 <?!= include('Script_Fitur_BiayaGas') ?>
