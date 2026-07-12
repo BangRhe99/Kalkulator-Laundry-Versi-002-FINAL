@@ -46,7 +46,9 @@ menjalankan bootApp().
     { screenId: "screenMenu", panelId: "desktopDashboardSummary", minHeight: 320 },
     { screenId: "screenList", panelId: "profilOutletDesktopPanel", minHeight: 280 },
     { screenId: "screenMasterBiaya", panelId: "masterBiayaDesktopPanel", minHeight: 280 },
-    { screenId: "screenStrukturHPPList", panelId: "strukturHPPDesktopPanel", minHeight: 280 }
+    { screenId: "screenStrukturHPPList", panelId: "strukturHPPDesktopPanel", minHeight: 280 },
+    { screenId: "screenHargaLayananList", panelId: "hargaLayananDesktopPanel", minHeight: 280 },
+    { screenId: "screenBiayaTetapList", panelId: "biayaTetapDesktopPanel", minHeight: 280 }
   ];
 
   function lockDashboardViewportScroll_(lock) {
@@ -213,7 +215,7 @@ menjalankan bootApp().
   // kategori + jumlah outlet), semuanya menunjuk outlet yang SAMA
   // (dashboardSelectedOutletId). Didaftarkan di satu tempat spy nambah pill
   // baru cukup 1 baris, bukan menyalin ulang blok yang sama.
-  var OUTLET_FILTER_PILL_IDS_ = ["dashboardOutletFilter", "profilOutletFilter", "masterBiayaOutletFilter", "strukturHPPOutletFilter"];
+  var OUTLET_FILTER_PILL_IDS_ = ["dashboardOutletFilter", "profilOutletFilter", "masterBiayaOutletFilter", "strukturHPPOutletFilter", "hargaLayananOutletFilter", "biayaTetapOutletFilter"];
 
   function updateOutletFilterPillText_() {
     var rows = cabangListCache || [];
@@ -301,6 +303,11 @@ menjalankan bootApp().
         // Sama utk layar Struktur Biaya HPP (desktop) - fungsi ada di
         // Script_Fitur_StrukturHPP.html.
         if (typeof renderStrukturHPPDesktop_ === "function") renderStrukturHPPDesktop_();
+        // Sama utk layar Harga Layanan & Biaya Tetap Outlet (desktop) -
+        // fungsi ada di Script_Fitur_HargaLayanan.html &
+        // Script_Fitur_BiayaTetapOutlet.html.
+        if (typeof renderHargaLayananDesktop_ === "function") renderHargaLayananDesktop_();
+        if (typeof renderBiayaTetapDesktop_ === "function") renderBiayaTetapDesktop_();
       });
     });
   }
@@ -980,15 +987,16 @@ menjalankan bootApp().
         setDashboardCardHtml(targetId, html);
   }
 
-  function renderDashboardFixedCostCard(res) {
+  function renderDashboardFixedCostCard(res, targetId) {
+        targetId = targetId || "dashboardFixedCostSummary";
         if (!res || !res.ok) {
-          setDashboardCardError("dashboardFixedCostSummary", res && res.error ? res.error : "Data fixed cost belum bisa dibaca.");
+          setDashboardCardError(targetId, res && res.error ? res.error : "Data fixed cost belum bisa dibaca.");
           return;
         }
         var data = res.data || {};
         var rows = Array.isArray(data.rows) ? data.rows : [];
         if (!rows.length) {
-          setDashboardCardHtml("dashboardFixedCostSummary", '<div class="dashboard-empty">Belum ada outlet untuk fixed cost.</div>');
+          setDashboardCardHtml(targetId, '<div class="dashboard-empty">Belum ada outlet untuk fixed cost.</div>');
           return;
         }
         var d = rows[0];
@@ -1017,7 +1025,7 @@ menjalankan bootApp().
             '</div>' +
             (detailHtml ? '<div class="fc-detail">' + detailHtml + '</div>' : '') +
           '</div>';
-        setDashboardCardHtml('dashboardFixedCostSummary', html);
+        setDashboardCardHtml(targetId, html);
   }
   function renderDashboardBEPCard(res) {
         if (!res || !res.ok) {

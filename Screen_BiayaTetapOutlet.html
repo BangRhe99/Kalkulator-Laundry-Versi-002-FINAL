@@ -12,16 +12,57 @@ tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
 ===============================================================================
 -->
     <section class="screen" id="screenBiayaTetapList">
-      <div class="list-header">
-        <h1>Biaya Tetap Outlet</h1>
-        <span class="count" id="biayaTetapOutletCount">0 outlet</span>
+      <!-- =================================================================
+           DESKTOP (>=1100px): SATU panel Biaya Tetap Outlet utk outlet yang
+           sedang dipilih (pola sama dgn Dashboard/Profil Outlet/Master
+           Biaya/Struktur HPP/Harga Layanan) - pill nama+kategori outlet
+           kanan atas, tombol Edit ke form isi biaya tetap, brand
+           "Kalkulator Laundry" + tombol Back dibuang, 1 layar tanpa scroll.
+           Kartu REUSE komponen ".fc-card" (collapsible) yang sudah dipakai
+           Dashboard, bukan komponen baru. HP TIDAK PERNAH masuk media query
+           ini -> tetap daftar outlet di bawah, tidak berubah.
+      ================================================================== -->
+      <div class="biayatetap-desktop" id="biayaTetapDesktop">
+        <div class="dashboard-header">
+          <div class="dashboard-header-top">
+            <div class="dashboard-header-text">
+              <h1 class="dashboard-title">Biaya Tetap Outlet</h1>
+            </div>
+            <div class="dashboard-filter-right">
+              <button class="outlet-filter-pill" type="button" id="biayaTetapOutletFilter" onclick="openOutletPicker()">
+                <span class="outlet-filter-name">-</span>
+                <span class="outlet-kategori-badge" id="biayaTetapOutletKategori"></span>
+                <svg class="outlet-filter-arrow" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div class="outlet-count-label" id="biayaTetapOutletCountLabel"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel biayatetap-desktop-panel" id="biayaTetapDesktopPanel">
+          <div id="biayaTetapDesktopContent"></div>
+          <div class="biayatetap-desktop-actions">
+            <button type="button" class="btn-primary" id="biayaTetapDesktopEditBtn">Edit biaya tetap</button>
+          </div>
+        </div>
       </div>
 
-      <div class="fc-desc" style="margin-bottom: 14px;">
-        Pilih outlet untuk mencatat fixed cost bulanan seperti sewa, gaji, internet, penyusutan mesin, perawatan dan biaya rutin lainnya.
-      </div>
+      <!-- HP/tablet (<1100px): daftar outlet lama - TIDAK DIUBAH, hanya
+           disembunyikan saat desktop lewat CSS. -->
+      <div class="biayatetap-mobile-only" id="biayaTetapMobile">
+        <div class="list-header">
+          <h1>Biaya Tetap Outlet</h1>
+          <span class="count" id="biayaTetapOutletCount">0 outlet</span>
+        </div>
 
-      <div id="biayaTetapOutletList" class="menu-grid"></div>
+        <div class="fc-desc" style="margin-bottom: 14px;">
+          Pilih outlet untuk mencatat fixed cost bulanan seperti sewa, gaji, internet, penyusutan mesin, perawatan dan biaya rutin lainnya.
+        </div>
+
+        <div id="biayaTetapOutletList" class="menu-grid"></div>
+      </div>
     </section>
 
     <!-- ===================================================================

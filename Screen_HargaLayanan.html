@@ -12,16 +12,57 @@ tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
 ===============================================================================
 -->
     <section class="screen" id="screenHargaLayananList">
-      <div class="list-header">
-        <h1>Harga Layanan</h1>
-        <span class="count" id="hargaLayananOutletCount">0 outlet</span>
+      <!-- =================================================================
+           DESKTOP (>=1100px): SATU panel Harga Layanan utk outlet yang
+           sedang dipilih (pola sama dgn Dashboard/Profil Outlet/Master
+           Biaya/Struktur HPP) - pill nama+kategori outlet kanan atas,
+           tombol Edit ke layar isi harga, brand "Kalkulator Laundry" +
+           tombol Back dibuang, 1 layar tanpa scroll. Kartu layanan REUSE
+           komponen ".hl-item" (collapsible) yang sudah dipakai Dashboard,
+           bukan komponen baru. HP TIDAK PERNAH masuk media query ini ->
+           tetap daftar outlet di bawah, tidak berubah.
+      ================================================================== -->
+      <div class="hargalayanan-desktop" id="hargaLayananDesktop">
+        <div class="dashboard-header">
+          <div class="dashboard-header-top">
+            <div class="dashboard-header-text">
+              <h1 class="dashboard-title">Harga Layanan</h1>
+            </div>
+            <div class="dashboard-filter-right">
+              <button class="outlet-filter-pill" type="button" id="hargaLayananOutletFilter" onclick="openOutletPicker()">
+                <span class="outlet-filter-name">-</span>
+                <span class="outlet-kategori-badge" id="hargaLayananOutletKategori"></span>
+                <svg class="outlet-filter-arrow" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div class="outlet-count-label" id="hargaLayananOutletCountLabel"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel hargalayanan-desktop-panel" id="hargaLayananDesktopPanel">
+          <div id="hargaLayananDesktopContent"></div>
+          <div class="hargalayanan-desktop-actions">
+            <button type="button" class="btn-primary" id="hargaLayananDesktopEditBtn">Edit harga layanan</button>
+          </div>
+        </div>
       </div>
 
-      <div class="hl-desc" style="margin-bottom: 14px;">
-        Tentukan harga jual dan cek margin tiap layanan. Margin bukan laba bersih.
-      </div>
+      <!-- HP/tablet (<1100px): daftar outlet lama - TIDAK DIUBAH, hanya
+           disembunyikan saat desktop lewat CSS. -->
+      <div class="hargalayanan-mobile-only" id="hargaLayananMobile">
+        <div class="list-header">
+          <h1>Harga Layanan</h1>
+          <span class="count" id="hargaLayananOutletCount">0 outlet</span>
+        </div>
 
-      <div id="hargaLayananOutletList" class="menu-grid"></div>
+        <div class="hl-desc" style="margin-bottom: 14px;">
+          Tentukan harga jual dan cek margin tiap layanan. Margin bukan laba bersih.
+        </div>
+
+        <div id="hargaLayananOutletList" class="menu-grid"></div>
+      </div>
     </section>
 
     <!-- ===================================================================

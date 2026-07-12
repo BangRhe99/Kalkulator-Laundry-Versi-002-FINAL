@@ -132,4 +132,73 @@ body:has(#screenBiayaTetapForm.active) .wrap { width: min(100%, 1080px); }
   #biayaTetapContent .fc-warning-box { column-span: all; }
   #biayaTetapContent .fc-section { break-inside: avoid; }
 }
+
+/* ====================================================================
+   LAYAR BIAYA TETAP OUTLET (#screenBiayaTetapList) - KHUSUS DESKTOP
+   (>=1100px). Konsep sama dgn Dashboard/Profil Outlet/Master Biaya/
+   Struktur HPP/Harga Layanan: satu panel utk outlet terpilih + tombol
+   Edit ke form isi biaya (screenBiayaTetapForm, TIDAK diubah), brand
+   "Kalkulator Laundry" + tombol Back dibuang, cukup 1 layar. Kartu REUSE
+   ".fc-card" (collapsible, "Progressive Disclosure") - komponen yang
+   SUDAH ADA & dipakai Dashboard, bukan bahasa visual baru (standar
+   Hyper-Premium FinTech, KONTEKS_PROYEK.md). HP/tablet (<1100px) TIDAK
+   PERNAH masuk media query ini -> tetap daftar outlet lama
+   (.biayatetap-mobile-only), tidak berubah.
+   ==================================================================== */
+.biayatetap-desktop { display: none; }
+
+@media (min-width: 1100px) {
+  #screenBiayaTetapList .biayatetap-mobile-only { display: none; }
+  #screenBiayaTetapList .biayatetap-desktop { display: flex; flex-direction: column; gap: 10px; }
+
+  body:has(#screenBiayaTetapList.active) .app-header { display: none !important; }
+  body:has(#screenBiayaTetapList.active) { padding-top: 4px; }
+  body:has(#screenBiayaTetapList.active) .wrap { width: min(100%, 900px); }
+
+  #screenBiayaTetapList .dashboard-header {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 9px 18px;
+    margin-bottom: 0;
+    box-shadow: 0 1px 2px rgba(17,24,39,0.03);
+    flex-shrink: 0;
+  }
+  #screenBiayaTetapList .dashboard-header-top { align-items: center; }
+  #screenBiayaTetapList .dashboard-title { font-size: 16px; margin-bottom: 0; letter-spacing: -0.01em; }
+
+  body:has(#screenBiayaTetapList.active) .outlet-filter-pill { max-width: none; }
+  body:has(#screenBiayaTetapList.active) .outlet-kategori-badge {
+    display: inline-flex; align-items: center; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em; color: var(--brass);
+    background: rgba(var(--brass-rgb, 180, 130, 60), 0.10);
+    border: 1px solid rgba(var(--brass-rgb, 180, 130, 60), 0.22);
+    border-radius: 999px; padding: 2px 8px; margin: 0 2px; white-space: nowrap; flex-shrink: 0;
+  }
+
+  /* Tinggi panel ini DIKUNCI via JS (fitDesktopDashboardToViewport_ di
+     Script_Fitur_Dashboard.html, teknik SAMA dgn 5 layar lain) supaya
+     layar ini tidak bisa discroll - CSS di sini cuma menyiapkan
+     strukturnya: overflow:hidden + flex-column. Kontennya cuma 1 kartu
+     ".fc-card" (bukan daftar banyak item spt Harga Layanan/Struktur HPP),
+     jadi tidak perlu grid multi-kolom - center vertikal saja supaya rapi
+     kalau kartu lebih pendek dari tinggi panel yang tersedia. */
+  #screenBiayaTetapList .biayatetap-desktop-panel { padding: 18px 20px; display: flex; flex-direction: column; overflow: hidden; }
+  #biayaTetapDesktopContent {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  #biayaTetapDesktopContent .fc-card { max-width: 520px; width: 100%; margin: 0 auto; }
+
+  #screenBiayaTetapList .biayatetap-desktop-actions {
+    display: flex; justify-content: flex-end; align-items: center;
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #screenBiayaTetapList .biayatetap-desktop-actions .btn-primary { flex: 0 0 auto; min-width: 180px; }
+}
 </style>

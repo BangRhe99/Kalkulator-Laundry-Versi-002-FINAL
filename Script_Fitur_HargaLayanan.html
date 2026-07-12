@@ -65,6 +65,57 @@ menjalankan bootApp().
     hydrateHargaLayananSummaryCards(cabangs);
   }
 
+  /**
+   * =========================================================================
+   * HARGA LAYANAN - LAYAR DESKTOP (#screenHargaLayananList, >=1100px)
+   * -------------------------------------------------------------------------
+   * Panel harga layanan utk outlet yang sedang dipilih (dashboardSelectedOutletId,
+   * dipakai bareng Dashboard/Profil Outlet/Master Biaya/Struktur HPP/Biaya
+   * Tetap desktop). REUSE renderDashboardHargaLayananCard(res, targetId) apa
+   * adanya (komponen ".hl-item" collapsible yang sudah dipakai Dashboard) -
+   * bukan komponen baru.
+   * =========================================================================
+   */
+  function renderHargaLayananDesktop_() {
+    var host = document.getElementById("hargaLayananDesktopContent");
+    if (!host) return;
+
+    if (typeof ensureDashboardOutletSelection_ === "function") ensureDashboardOutletSelection_();
+    if (typeof updateOutletFilterPillText_ === "function") updateOutletFilterPillText_();
+
+    var rows = cabangListCache || [];
+    var selId = (typeof dashboardSelectedOutletId !== "undefined") ? dashboardSelectedOutletId : null;
+    var current = rows.find(function (c) { return c.id === selId; }) || rows[0] || null;
+
+    var editBtn = document.getElementById("hargaLayananDesktopEditBtn");
+
+    if (!current) {
+      host.innerHTML = '<div class="dashboard-empty">Belum ada outlet. Tambahkan outlet dulu di menu Profil Outlet.</div>';
+      if (editBtn) editBtn.style.display = "none";
+      if (typeof window.fitDesktopDashboardToViewport_ === "function") requestAnimationFrame(window.fitDesktopDashboardToViewport_);
+      return;
+    }
+    if (editBtn) { editBtn.style.display = ""; editBtn.onclick = function () { openHargaLayananDetail(current.id); }; }
+
+    host.innerHTML = '<div class="dashboard-card-summary is-loading">Memuat data...</div>';
+    var cId = current.id;
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (view.screen !== "hargaLayananList") return;
+        var stillSelected = ((typeof dashboardSelectedOutletId !== "undefined") ? dashboardSelectedOutletId : null) === cId;
+        if (!stillSelected) return;
+        renderDashboardHargaLayananCard(res, "hargaLayananDesktopContent");
+        if (typeof window.fitDesktopDashboardToViewport_ === "function") requestAnimationFrame(window.fitDesktopDashboardToViewport_);
+      })
+      .withFailureHandler(function (err) {
+        if (view.screen !== "hargaLayananList") return;
+        host.innerHTML = '<div class="dashboard-empty">' + escapeHtml(err && err.message ? err.message : String(err)) + '</div>';
+        if (typeof window.fitDesktopDashboardToViewport_ === "function") requestAnimationFrame(window.fitDesktopDashboardToViewport_);
+      })
+      .getDashboardHargaLayananSummary(cId);
+  }
+
   function getCabangNamaHargaLayanan(cabang) {
     return cabang && cabang.profil && cabang.profil.namaLaundry
       ? cabang.profil.namaLaundry
