@@ -72,6 +72,7 @@ menjalankan bootApp().
             '<div class="icon">&#127981;</div>' +
             '<p>Belum ada outlet. Silakan buat Profil Outlet terlebih dahulu.</p>' +
           '</div>';
+        renderStrukturHPPDesktop_();
         return;
       }
 
@@ -91,6 +92,10 @@ menjalankan bootApp().
           '</div>'
         );
       }).join("");
+
+      // Panel desktop (satu outlet terpilih) - dirender terpisah dari daftar
+      // HP di atas, lihat renderStrukturHPPDesktop_ di bawah.
+      renderStrukturHPPDesktop_();
     }
 
     if (Array.isArray(cabangListCache) && cabangListCache.length) {
@@ -134,6 +139,99 @@ menjalankan bootApp().
         '</div>';
     });
   };
+
+  /**
+   * =========================================================================
+   * STRUKTUR BIAYA HPP - LAYAR DESKTOP (#screenStrukturHPPList, >=1100px)
+   * -------------------------------------------------------------------------
+   * Panel HPP utk outlet yang sedang dipilih (dashboardSelectedOutletId,
+   * dipakai bareng Dashboard/Profil Outlet/Master Biaya). Kartu layanan
+   * REUSE komponen ".hpp-mini-card" (collapsible, "Progressive Disclosure")
+   * yang sudah dipakai Dashboard - bukan komponen baru. Data dari
+   * getStrukturBiayaHPP(cabangId) SENGAJA TIDAK di-cache (sama spt jalur HP
+   * di atas) supaya angkanya selalu segar. Read-only (tanpa tombol toggle
+   * Bed Cover) - toggle itu tetap cuma ada di kartu Dashboard supaya tidak
+   * ada 2 tempat yang bisa jadi tidak sinkron satu sama lain.
+   * =========================================================================
+   */
+  function renderStrukturHPPDesktop_() {
+    var host = document.getElementById("strukturHPPDesktopContent");
+    if (!host) return;
+
+    var rows = cabangListCache || [];
+    if (typeof ensureDashboardOutletSelection_ === "function") ensureDashboardOutletSelection_();
+    if (typeof updateOutletFilterPillText_ === "function") updateOutletFilterPillText_();
+
+    var selId = (typeof dashboardSelectedOutletId !== "undefined") ? dashboardSelectedOutletId : null;
+    var current = rows.find(function (c) { return getOutletId_(normalizeOutletRow_(c)) === selId; }) || rows[0] || null;
+
+    if (!current) {
+      host.innerHTML = '<div class="dashboard-empty">Belum ada outlet. Tambahkan outlet dulu di menu Profil Outlet.</div>';
+      if (typeof window.fitDesktopDashboardToViewport_ === "function") requestAnimationFrame(window.fitDesktopDashboardToViewport_);
+      return;
+    }
+
+    var cId = getOutletId_(normalizeOutletRow_(current));
+    host.innerHTML = '<div class="dashboard-card-summary is-loading">Memuat data...</div>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (view.screen !== "strukturHPPList") return;
+        var stillSelected = ((typeof dashboardSelectedOutletId !== "undefined") ? dashboardSelectedOutletId : null) === cId;
+        if (!stillSelected) return;
+
+        if (!res || !res.ok) {
+          host.innerHTML = '<div class="dashboard-empty">' + escapeHtml(res && res.error ? res.error : "Gagal memuat Struktur Biaya HPP.") + '</div>';
+          if (typeof window.fitDesktopDashboardToViewport_ === "function") requestAnimationFrame(window.fitDesktopDashboardToViewport_);
+          return;
+        }
+        host.innerHTML = buildStrukturHPPDesktopHtml_(res.data);
+        if (typeof window.fitDesktopDashboardToViewport_ === "function") requestAnimationFrame(window.fitDesktopDashboardToViewport_);
+      })
+      .withFailureHandler(function (err) {
+        if (view.screen !== "strukturHPPList") return;
+        host.innerHTML = '<div class="dashboard-empty">' + escapeHtml(err && err.message ? err.message : String(err)) + '</div>';
+        if (typeof window.fitDesktopDashboardToViewport_ === "function") requestAnimationFrame(window.fitDesktopDashboardToViewport_);
+      })
+      .getStrukturBiayaHPP(cId);
+  }
+
+  function buildStrukturHPPDesktopHtml_(data) {
+    data = data || {};
+    var layanan = Array.isArray(data.layanan) ? data.layanan : [];
+    var warnings = Array.isArray(data.warnings) ? data.warnings : [];
+
+    if (!layanan.length) {
+      return '<div class="dashboard-empty">HPP belum siap dihitung untuk outlet ini.</div>';
+    }
+
+    var miniHtml = layanan.map(function (svc) {
+      var components = Array.isArray(svc.components) ? svc.components : [];
+      var rowsHtml = components.map(function (c) {
+        return '<div class="hpp-mini-row">' +
+          '<span class="hpp-mini-row-label">' + escapeHtml(c.label || '') + '</span>' +
+          '<span class="hpp-mini-row-percent">' + String(c.percent || 0) + '%</span>' +
+          '<span class="hpp-mini-row-amount">' + money0(c.amount) + '</span>' +
+        '</div>';
+      }).join('');
+      return '<div class="hpp-mini-card">' +
+        '<div class="hpp-mini-head" onclick="toggleHppDetail(this, event)">' +
+          '<span class="hpp-mini-title">' + escapeHtml(svc.title || '') + '</span>' +
+          '<span class="hpp-mini-total">' + money0(svc.total) + '</span>' +
+          '<span class="hpp-mini-arrow">&#9662;</span>' +
+        '</div>' +
+        (rowsHtml ? '<div class="hpp-mini-detail">' + rowsHtml + '</div>' : '') +
+      '</div>';
+    }).join('');
+
+    var warningHtml = warnings.length
+      ? '<div class="hpp-warning-box"><div class="hpp-warning-title">Catatan Data</div><ul>' +
+          warnings.map(function (w) { return '<li>' + escapeHtml(w) + '</li>'; }).join('') +
+        '</ul></div>'
+      : '';
+
+    return '<div class="hpp-mini-list">' + miniHtml + '</div>' + warningHtml;
+  }
 
   window.openStrukturHPPDetail = function (cabangId) {
     if (!cabangId) {

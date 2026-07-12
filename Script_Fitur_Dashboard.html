@@ -45,7 +45,8 @@ menjalankan bootApp().
   var SINGLE_SCREEN_FIT_TARGETS_ = [
     { screenId: "screenMenu", panelId: "desktopDashboardSummary", minHeight: 320 },
     { screenId: "screenList", panelId: "profilOutletDesktopPanel", minHeight: 280 },
-    { screenId: "screenMasterBiaya", panelId: "masterBiayaDesktopPanel", minHeight: 280 }
+    { screenId: "screenMasterBiaya", panelId: "masterBiayaDesktopPanel", minHeight: 280 },
+    { screenId: "screenStrukturHPPList", panelId: "strukturHPPDesktopPanel", minHeight: 280 }
   ];
 
   function lockDashboardViewportScroll_(lock) {
@@ -207,65 +208,36 @@ menjalankan bootApp().
     } catch (e) {}
   }
 
-  function updateOutletFilterPillText_() {
-    var nameEl = document.querySelector("#dashboardOutletFilter .outlet-filter-name");
-    if (!nameEl) return;
+  // Tiap layar "satu-outlet, satu-layar" (Dashboard, Profil Outlet, Master
+  // Biaya, Struktur Biaya HPP) punya pill kembar sendiri (nama + badge
+  // kategori + jumlah outlet), semuanya menunjuk outlet yang SAMA
+  // (dashboardSelectedOutletId). Didaftarkan di satu tempat spy nambah pill
+  // baru cukup 1 baris, bukan menyalin ulang blok yang sama.
+  var OUTLET_FILTER_PILL_IDS_ = ["dashboardOutletFilter", "profilOutletFilter", "masterBiayaOutletFilter", "strukturHPPOutletFilter"];
 
+  function updateOutletFilterPillText_() {
     var rows = cabangListCache || [];
     var current = rows.find(function (c) { return c.id === dashboardSelectedOutletId; });
-    nameEl.textContent = current ? (current.namaLaundry || "Outlet tanpa nama") : "Pilih outlet";
+    var nameText = current ? (current.namaLaundry || "Outlet tanpa nama") : "Pilih outlet";
+    var katLabel = (current && current.kategoriLayanan && typeof KATEGORI_LABEL !== "undefined")
+      ? (KATEGORI_LABEL[current.kategoriLayanan] || "") : "";
+    var countText = rows.length > 1 ? rows.length + " outlet aktif" : "";
 
-    // Kategori laundry (mis. "Hybrid") tampil di sebelah nama outlet - cuma
-    // di desktop (badge disembunyikan di HP via CSS). KATEGORI_LABEL global
-    // dari Script_Shared_Util.html.
-    var katEl = document.getElementById("dashboardOutletKategori");
-    if (katEl) {
-      var katLabel = (current && current.kategoriLayanan && typeof KATEGORI_LABEL !== "undefined")
-        ? (KATEGORI_LABEL[current.kategoriLayanan] || "") : "";
-      katEl.textContent = katLabel;
-    }
+    OUTLET_FILTER_PILL_IDS_.forEach(function (pillId) {
+      var pillEl = document.getElementById(pillId);
+      if (!pillEl) return; // elemen ini hanya ada di layarnya sendiri
 
-    var pillEl = document.getElementById("dashboardOutletFilter");
-    if (pillEl) pillEl.classList.toggle("single-outlet", rows.length <= 1);
+      var nameEl = pillEl.querySelector(".outlet-filter-name");
+      if (nameEl) nameEl.textContent = nameText;
 
-    var countEl = document.getElementById("dashboardOutletCountLabel");
-    if (countEl) {
-      countEl.textContent = rows.length > 1 ? rows.length + " outlet aktif" : "";
-    }
+      var katEl = document.getElementById(pillId.replace(/Filter$/, "Kategori"));
+      if (katEl) katEl.textContent = katLabel;
 
-    // Pill kembar di LAYAR Profil Outlet desktop (#screenList). Elemen ini
-    // hanya ada di layar itu; kalau tidak ada (mis. di Dashboard) blok ini
-    // otomatis dilewati. Data & aturan identik dgn pill Dashboard di atas.
-    var pName = document.querySelector("#profilOutletFilter .outlet-filter-name");
-    if (pName) {
-      pName.textContent = current ? (current.namaLaundry || "Outlet tanpa nama") : "Pilih outlet";
-      var pKat = document.getElementById("profilOutletKategori");
-      if (pKat) {
-        pKat.textContent = (current && current.kategoriLayanan && typeof KATEGORI_LABEL !== "undefined")
-          ? (KATEGORI_LABEL[current.kategoriLayanan] || "") : "";
-      }
-      var pPill = document.getElementById("profilOutletFilter");
-      if (pPill) pPill.classList.toggle("single-outlet", rows.length <= 1);
-      var pCount = document.getElementById("profilOutletCountLabel");
-      if (pCount) pCount.textContent = rows.length > 1 ? rows.length + " outlet aktif" : "";
-    }
+      pillEl.classList.toggle("single-outlet", rows.length <= 1);
 
-    // Pill kembar di LAYAR Master Biaya desktop (#screenMasterBiaya). Sama
-    // pola dgn pill Profil Outlet di atas - dilewati otomatis kalau elemen
-    // tidak ada (mis. sedang di layar lain).
-    var mName = document.querySelector("#masterBiayaOutletFilter .outlet-filter-name");
-    if (mName) {
-      mName.textContent = current ? (current.namaLaundry || "Outlet tanpa nama") : "Pilih outlet";
-      var mKat = document.getElementById("masterBiayaOutletKategori");
-      if (mKat) {
-        mKat.textContent = (current && current.kategoriLayanan && typeof KATEGORI_LABEL !== "undefined")
-          ? (KATEGORI_LABEL[current.kategoriLayanan] || "") : "";
-      }
-      var mPill = document.getElementById("masterBiayaOutletFilter");
-      if (mPill) mPill.classList.toggle("single-outlet", rows.length <= 1);
-      var mCount = document.getElementById("masterBiayaOutletCountLabel");
-      if (mCount) mCount.textContent = rows.length > 1 ? rows.length + " outlet aktif" : "";
-    }
+      var countEl = document.getElementById(pillId.replace(/Filter$/, "CountLabel"));
+      if (countEl) countEl.textContent = countText;
+    });
   }
 
   function ensureDashboardOutletSelection_() {
@@ -326,6 +298,9 @@ menjalankan bootApp().
         // Sama utk layar Master Biaya (desktop) - fungsi ada di
         // Script_Fitur_MasterBiaya.html.
         if (typeof renderMasterBiayaDesktop_ === "function") renderMasterBiayaDesktop_();
+        // Sama utk layar Struktur Biaya HPP (desktop) - fungsi ada di
+        // Script_Fitur_StrukturHPP.html.
+        if (typeof renderStrukturHPPDesktop_ === "function") renderStrukturHPPDesktop_();
       });
     });
   }

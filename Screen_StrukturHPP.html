@@ -12,16 +12,53 @@ tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
 ===============================================================================
 -->
     <section class="screen" id="screenStrukturHPPList">
-      <div class="list-header">
-        <h1>Struktur Biaya HPP</h1>
-        <span class="count" id="strukturHPPOutletCount">0 outlet</span>
+      <!-- =================================================================
+           DESKTOP (>=1100px): SATU panel Struktur Biaya HPP utk outlet yang
+           sedang dipilih (pola sama dgn Dashboard/Profil Outlet/Master
+           Biaya) - pill nama+kategori outlet kanan atas, brand "Kalkulator
+           Laundry" + tombol Back dibuang, 1 layar tanpa scroll. Kartu HPP
+           REUSE komponen ".hpp-mini-card" (collapsible) yang sudah ada &
+           dipakai Dashboard, bukan komponen baru. HP TIDAK PERNAH masuk
+           media query ini -> tetap daftar outlet di bawah, tidak berubah.
+      ================================================================== -->
+      <div class="strukturhpp-desktop" id="strukturHPPDesktop">
+        <div class="dashboard-header">
+          <div class="dashboard-header-top">
+            <div class="dashboard-header-text">
+              <h1 class="dashboard-title">Struktur Biaya HPP</h1>
+            </div>
+            <div class="dashboard-filter-right">
+              <button class="outlet-filter-pill" type="button" id="strukturHPPOutletFilter" onclick="openOutletPicker()">
+                <span class="outlet-filter-name">-</span>
+                <span class="outlet-kategori-badge" id="strukturHPPOutletKategori"></span>
+                <svg class="outlet-filter-arrow" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div class="outlet-count-label" id="strukturHPPOutletCountLabel"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel strukturhpp-desktop-panel" id="strukturHPPDesktopPanel">
+          <div id="strukturHPPDesktopContent"></div>
+        </div>
       </div>
 
-      <div class="hpp-structure-desc" style="margin-bottom: 14px;">
-        Pilih outlet untuk melihat rincian HPP cuci, kering, dan cuci kering.
-      </div>
+      <!-- HP/tablet (<1100px): daftar outlet lama - TIDAK DIUBAH, hanya
+           disembunyikan saat desktop lewat CSS. -->
+      <div class="strukturhpp-mobile-only" id="strukturHPPMobile">
+        <div class="list-header">
+          <h1>Struktur Biaya HPP</h1>
+          <span class="count" id="strukturHPPOutletCount">0 outlet</span>
+        </div>
 
-      <div id="strukturHPPOutletList" class="menu-grid"></div>
+        <div class="hpp-structure-desc" style="margin-bottom: 14px;">
+          Pilih outlet untuk melihat rincian HPP cuci, kering, dan cuci kering.
+        </div>
+
+        <div id="strukturHPPOutletList" class="menu-grid"></div>
+      </div>
     </section>
 
     <!-- ===================================================================
