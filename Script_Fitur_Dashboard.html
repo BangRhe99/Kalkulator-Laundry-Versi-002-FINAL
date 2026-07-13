@@ -336,17 +336,18 @@ DAFTAR ISI (cari nama fungsi ini kalau butuh mengubah/memahami):
       setDesktopKpiMoney_("desktopKpiProfit", !!potensi, profitVal);
     }
 
-    // Keterangan Estimasi Profit: margin (% dari omset) + rumus singkat
-    // supaya jelas profit ini dari mana (Omset - Fixed Cost - Variable Cost).
+    // [2026-07-13] Keterangan Estimasi Profit: margin (% dari omset) + rumus
+    // singkat - diubah jadi "Omset - Target BEP Omset" (keputusan user),
+    // BUKAN lagi "Omset - Fixed Cost - Variable Cost".
     if (potensi && omsetVal > 0) {
       var margin = profitVal / omsetVal * 100;
       var mStr = (margin >= 0 ? "+" : "") + margin.toFixed(1).replace(".", ",") + "%";
       setDesktopKpiNote_("desktopKpiProfitNote",
-        '<span class="kpi-note-status">Margin ' + mStr + '</span><span class="kpi-note-sub">Omset &minus; Fixed Cost &minus; Variable Cost</span>',
+        '<span class="kpi-note-status">Margin ' + mStr + '</span><span class="kpi-note-sub">Omset &minus; Target BEP Omset</span>',
         profitVal >= 0 ? "note-untung" : "note-rugi");
     } else {
       setDesktopKpiNote_("desktopKpiProfitNote",
-        '<span class="kpi-note-sub">Omset &minus; Fixed Cost &minus; Variable Cost</span>', "");
+        '<span class="kpi-note-sub">Omset &minus; Target BEP Omset</span>', "");
     }
 
     setDesktopKpiUnitValue_("desktopKpiBepLoad", bepOk, bepOk ? formatNum(bep.bepLoadPerBulan, 0) : "", "load");

@@ -627,8 +627,7 @@ DIPAKAI OLEH FILE LAIN:
           html = '<div class="potensi-card">' +
             '<div class="potensi-estimate">' +
               '<div class="potensi-estimate-row"><span class="potensi-estimate-label">Estimasi Omset</span><span class="potensi-estimate-value">' + money0(d.estimasiOmsetPerBulan) + '</span></div>' +
-              '<div class="potensi-estimate-row"><span class="potensi-estimate-label">Biaya Produksi (Variable Cost)</span><span class="potensi-estimate-value potensi-estimate-minus">&minus; ' + money0(d.estimasiBiayaProduksiPerBulan) + '</span></div>' +
-              '<div class="potensi-estimate-row"><span class="potensi-estimate-label">Biaya Operasional (Fixed Cost)</span><span class="potensi-estimate-value potensi-estimate-minus">&minus; ' + money0(d.fixedCostPerBulan) + '</span></div>' +
+              '<div class="potensi-estimate-row"><span class="potensi-estimate-label">Target BEP Omset</span><span class="potensi-estimate-value potensi-estimate-minus">&minus; ' + money0(d.targetBepOmsetPerBulan) + '</span></div>' +
               '<div class="potensi-estimate-row potensi-estimate-row-profit"><span class="potensi-estimate-label">Estimasi Profit</span><span class="potensi-estimate-value ' + (d.estimasiProfitPerBulan >= 0 ? 'potensi-profit-pos' : 'potensi-profit-neg') + '">' + money0(d.estimasiProfitPerBulan) + '</span></div>' +
             '</div>' +
             (mixListHtml ? '<div class="potensi-mix-list">' +
@@ -645,7 +644,7 @@ DIPAKAI OLEH FILE LAIN:
                 '<span class="potensi-basis-arrow">&#9662;</span>' +
               '</div>' +
               '<div class="potensi-basis-text">' +
-                'Outlet ini diperkirakan sanggup melayani maksimal <b>' + formatNum(d.maksimalTransaksiPerBulan, 0) + ' transaksi/bulan</b>, dibatasi mesin (cuci/pengering/setrika) yang paling cepat penuh sesuai campuran Kontribusi % tiap layanan. Jumlah transaksi itu dibagi ke tiap layanan sesuai Kontribusi %-nya, dikonversi ke Kg pakai Minimum Order (utk layanan Kiloan), lalu dikalikan Harga Layanan (jadi Estimasi Omset) dan HPP (jadi Estimasi Biaya Produksi). Estimasi Profit = Omset &minus; Biaya Produksi &minus; Biaya Operasional.' +
+                'Outlet ini diperkirakan sanggup melayani maksimal <b>' + formatNum(d.maksimalTransaksiPerBulan, 0) + ' transaksi/bulan</b>, dibatasi mesin (cuci/pengering/setrika) yang paling cepat penuh sesuai campuran Kontribusi % tiap layanan. Jumlah transaksi itu dibagi ke tiap layanan sesuai Kontribusi %-nya, dikonversi ke Kg pakai Minimum Order (utk layanan Kiloan), lalu dikalikan Harga Layanan (jadi Estimasi Omset). Estimasi Profit = Estimasi Omset &minus; Target BEP Omset (target omset yang harus dicapai supaya balik modal, dari kartu BEP).' +
               '</div>' +
             '</div>' +
           '</div>';

@@ -1159,6 +1159,7 @@ function getDashboardPotensiOmsetSummary_impl_(cabangId) {
   try {
     var fixedCostRes = getDashboardFixedCostSummary_impl_(cabangId);
     var cabangRes = getDashboardCabangSummary_impl_(cabangId);
+    var bepRes = getDashboardBEPSummary_impl_(cabangId);
 
     var warnings = [];
     var fixedCostPerBulan = 0;
@@ -1167,6 +1168,10 @@ function getDashboardPotensiOmsetSummary_impl_(cabangId) {
     } else {
       warnings.push("Fixed cost belum diisi.");
     }
+
+    // [2026-07-13] Estimasi Profit dipakai versi "Omset - Target BEP Omset"
+    // (keputusan user) - BUKAN lagi "Omset - Variable Cost - Fixed Cost".
+    var targetBepOmsetPerBulan = (bepRes && bepRes.ok && bepRes.data) ? dashboardNumber_(bepRes.data.bepOmsetPerBulan, 0) : 0;
 
     // weighted dipakai HANYA utk daftar layanan aktif + Kontribusi % (mix
     // BEP) + validasi kelengkapan (total mix 100%, harga/HPP terisi) - SATU-
@@ -1286,7 +1291,7 @@ function getDashboardPotensiOmsetSummary_impl_(cabangId) {
 
     var estimasiOmsetPerBulan = totalOmzet;
     var estimasiBiayaProduksiPerBulan = totalBiaya;
-    var estimasiProfitPerBulan = estimasiOmsetPerBulan - estimasiBiayaProduksiPerBulan - fixedCostPerBulan;
+    var estimasiProfitPerBulan = estimasiOmsetPerBulan - targetBepOmsetPerBulan;
 
     var isComplete = bisaHitung && totalTransaksiPerBulan > 0;
     if (weighted.ok && !incompleteCapacity.length && !candidates.length) {
@@ -1302,6 +1307,7 @@ function getDashboardPotensiOmsetSummary_impl_(cabangId) {
         fixedCostPerBulan: fixedCostPerBulan,
         estimasiOmsetPerBulan: dashboardRound2_(estimasiOmsetPerBulan),
         estimasiBiayaProduksiPerBulan: dashboardRound2_(estimasiBiayaProduksiPerBulan),
+        targetBepOmsetPerBulan: dashboardRound2_(targetBepOmsetPerBulan),
         estimasiProfitPerBulan: dashboardRound2_(estimasiProfitPerBulan),
         serviceMix: activeServices.map(function (s) {
           var d = serviceDetailByKey[s.key] || null;
