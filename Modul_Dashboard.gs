@@ -369,13 +369,25 @@ function getDashboardMasterBiayaSummary_impl_(cabangId) {
         if (typeof getBiayaAir_impl_ === "function") {
           const airRes = getBiayaAir_impl_(cabangId);
           if (airRes && airRes.ok && airRes.data && airRes.data.summary) {
-            const airPerLoad = dashboardNumber_(airRes.data.summary.biayaPerLoad, 0);
+            const airRecord = airRes.data.record || {};
+            const airSummary = airRes.data.summary || {};
+            // [Jasa Setrika + Setrika Uap] "kebutuhan air per load" tidak
+            // relevan (kategori ini tidak punya mesin cuci) - ganti total ke
+            // "kebutuhan air setrika uap/jam" (computeBiayaAirSummary_ di
+            // Modul_BiayaAir.gs SUDAH menghitung ini, tinggal dipakai di sini,
+            // bukan rumus baru). Berlaku HP & desktop sekaligus (array sama).
+            const isJasaSetrika = String(item.kategoriLayanan || "") === "jasa_setrika";
+            const pakaiAirSetrikaUap_ = isJasaSetrika && !!airSummary.adaSetrikaUap;
+            const airPerLoad = pakaiAirSetrikaUap_
+              ? dashboardNumber_(airSummary.biayaAirSetrikaUapPerJam, 0)
+              : dashboardNumber_(airSummary.biayaPerLoad, 0);
             if (airComplete) {
-              const airRecord = airRes.data.record || {};
-              const airSummary = airRes.data.summary || {};
               const sumberAirLabel_ = { pdam: "PDAM / Meteran", tangki: "Tangki / Toren", sumur: "Sumur Bor" }[airSummary.sumberAir] || "-";
               const airDetail = [{ label: "Sumber air", text: sumberAirLabel_ }];
-              if (airSummary.sumberAir === "pdam") {
+              if (pakaiAirSetrikaUap_) {
+                airDetail.push({ label: "Harga per m³", amount: dashboardRound2_(dashboardNumber_(airRecord.hargaPerM3, 0)) });
+                airDetail.push({ label: "Kebutuhan air setrika uap/jam", text: dashboardNumber_(airRecord.kebutuhanAirSetrikaUapPerJam, 0) + " liter" });
+              } else if (airSummary.sumberAir === "pdam") {
                 airDetail.push({ label: "Harga per m³", amount: dashboardRound2_(dashboardNumber_(airRecord.hargaPerM3, 0)) });
                 airDetail.push({ label: "Kebutuhan air/load", text: dashboardNumber_(airRecord.kebutuhanAirPerLoad, 0) + " liter" });
               } else if (airSummary.sumberAir === "tangki") {
@@ -383,7 +395,13 @@ function getDashboardMasterBiayaSummary_impl_(cabangId) {
                 airDetail.push({ label: "Kapasitas tangki", text: dashboardNumber_(airRecord.kapasitasTangkiLiter, 0) + " liter" });
                 airDetail.push({ label: "Kebutuhan air/load", text: dashboardNumber_(airRecord.kebutuhanAirPerLoad, 0) + " liter" });
               }
-              komponenBiaya.push({ key: "air", label: "Air", biayaPerLoad: dashboardRound2_(airPerLoad), detail: airDetail });
+              komponenBiaya.push({
+                key: "air",
+                label: "Air",
+                biayaPerLoad: dashboardRound2_(airPerLoad),
+                unitSuffix: pakaiAirSetrikaUap_ ? "/jam" : undefined,
+                detail: airDetail
+              });
               totalBiayaPerLoad += airPerLoad;
             }
           }
