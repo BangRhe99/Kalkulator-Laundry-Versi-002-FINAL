@@ -39,7 +39,8 @@ SEBELUM Script_Boot_Main.html.
     listrikForm: "masterBiaya", airForm: "masterBiaya", notaKasirForm: "masterBiaya",
     strukturHPPList: "strukturHPP", strukturHPPDetail: "strukturHPP",
     hargaLayananList: "hargaLayanan", hargaLayananDetail: "hargaLayanan",
-    biayaTetapList: "biayaTetap", biayaTetapForm: "biayaTetap"
+    biayaTetapList: "biayaTetap", biayaTetapForm: "biayaTetap",
+    adminAfiliator: "afiliator"
   };
 
   window.sidebarGoTo = function (section) {
@@ -50,6 +51,7 @@ SEBELUM Script_Boot_Main.html.
       case "strukturHPP": if (typeof openStrukturHPPOutletList === "function") openStrukturHPPOutletList(); break;
       case "hargaLayanan": if (typeof openHargaLayananOutletList === "function") openHargaLayananOutletList(); break;
       case "biayaTetap": if (typeof openBiayaTetapOutletList === "function") openBiayaTetapOutletList(); break;
+      case "afiliator": if (typeof openScreenAdminAfiliator === "function") openScreenAdminAfiliator(); break;
     }
   };
 

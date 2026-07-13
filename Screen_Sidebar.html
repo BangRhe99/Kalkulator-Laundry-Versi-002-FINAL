@@ -59,6 +59,13 @@ Di-include dari Index.html. Jangan tambah tag <script>/<style> di file ini.
       <span class="sidebar-nav-icon">&#128179;</span>
       <span class="sidebar-nav-label">Biaya Tetap Outlet</span>
     </button>
+    <!-- Item ini SECARA UI cuma dimunculkan utk email admin (lihat
+         authApplyAdminUI_ di Script_Fitur_Auth.html) - sama seperti kartu
+         "Buat Akun Afiliator" di Screen_Menu.html (versi HP). -->
+    <button type="button" class="sidebar-nav-item" id="adminAfiliatorSidebarItem" style="display:none;" data-sidebar-section="afiliator" onclick="sidebarGoTo('afiliator')">
+      <span class="sidebar-nav-icon">&#128101;</span>
+      <span class="sidebar-nav-label">Buat Akun Afiliator</span>
+    </button>
   </div>
 
   <div class="sidebar-bottom">

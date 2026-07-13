@@ -263,14 +263,20 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
     showScreen("menu");
   }
 
-  // [ADMIN UI] Tampilkan kartu "Buat Akun Afiliator" HANYA kalau email yang
-  // login sama dengan AUTH_ADMIN_EMAIL_CLIENT_ - murni kosmetik, lihat
-  // catatan di deklarasi AUTH_ADMIN_EMAIL_CLIENT_ di atas.
+  // [ADMIN UI] Tampilkan kartu "Buat Akun Afiliator" (HP, screenMenu) DAN
+  // item sidebar (desktop, Screen_Sidebar.html - navigasi desktop TERPISAH
+  // dari kartu menu HP, makanya dua-duanya perlu di-toggle di sini) HANYA
+  // kalau email yang login sama dengan AUTH_ADMIN_EMAIL_CLIENT_ - murni
+  // kosmetik, lihat catatan di deklarasi AUTH_ADMIN_EMAIL_CLIENT_ di atas.
   function authApplyAdminUI_() {
-    var cardEl = document.getElementById("adminAfiliatorMenuCard");
-    if (!cardEl) return;
     var email = "";
     try { email = window.localStorage.getItem(AUTH_STORAGE_KEY_) || ""; } catch (e) {}
-    cardEl.style.display = (email.trim().toLowerCase() === AUTH_ADMIN_EMAIL_CLIENT_) ? "flex" : "none";
+    var isAdmin = email.trim().toLowerCase() === AUTH_ADMIN_EMAIL_CLIENT_;
+
+    var cardEl = document.getElementById("adminAfiliatorMenuCard");
+    if (cardEl) cardEl.style.display = isAdmin ? "flex" : "none";
+
+    var sidebarItemEl = document.getElementById("adminAfiliatorSidebarItem");
+    if (sidebarItemEl) sidebarItemEl.style.display = isAdmin ? "flex" : "none";
   }
 </script>
