@@ -106,6 +106,17 @@ function resolveSession_(token) {
  * Keluar.
  */
 function logoutUser(sessionToken) {
+  // [2026-07-13] RAPIKAN SPREADSHEET SEMENTARA - taruh di sini krn dropdown
+  // fungsi di editor Apps Script user tidak mau menampilkan fungsi baru (bug
+  // UI) - logoutUser kebetulan sudah otomatis terpilih di dropdown mereka.
+  // HAPUS blok ini setelah dijalankan sekali - jangan biarkan tertinggal.
+  try {
+    rapikanSpreadsheetSekali_();
+  } catch (rapiErr) {
+    Logger.log("[RAPIKAN] ERROR: " + (rapiErr && rapiErr.message ? rapiErr.message : String(rapiErr)));
+  }
+  // ===== akhir blok rapikan sementara =====
+
   try {
     var sheet = ensureDataSheet_();
     deleteKeyRow_(sheet, authKeySession_(String(sessionToken || "").trim()));
@@ -113,6 +124,63 @@ function logoutUser(sessionToken) {
   } catch (err) {
     return errorResponse_(err, "logoutUser");
   }
+}
+
+/**
+ * [2026-07-13] SEKALI-PAKAI: (1) hapus sheet peninggalan template kalkulator
+ * manual lama yang TIDAK dibaca/ditulis aplikasi web ini sama sekali, (2)
+ * rapikan tampilan 3 sheet yang BENAR dipakai aplikasi (_data_operasional,
+ * BiayaNotaKasir, BiayaTetapOutlet) - HANYA visual (warna header, bold,
+ * freeze baris judul, lebar kolom), TIDAK mengubah nama sheet/kolom/urutan
+ * data sama sekali (nama-nama itu tertulis di kode, mengubahnya akan
+ * merusak aplikasi). Boleh dihapus dari kode setelah dijalankan sekali.
+ */
+function rapikanSpreadsheetSekali_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  var sheetLamaTidakDipakai_ = [
+    "TUTORIAL", "Depresiasi", "PaybackPeriod", "LapLabaSelfService",
+    "LapLabaKiloan", "BEPSelfService", "BEPKiloan", "HPPSelfService",
+    "HPPKiloan", "Nota", "Bahan Baku", "Packing", "Air", "Listrik", "Gas"
+  ];
+  sheetLamaTidakDipakai_.forEach(function (nama) {
+    var sh = ss.getSheetByName(nama);
+    if (sh) {
+      ss.deleteSheet(sh);
+      Logger.log("[RAPIKAN] Dihapus (sheet lama tidak terpakai): " + nama);
+    }
+  });
+
+  rapikanTampilanSheetAktif_(ss.getSheetByName(DATA_SHEET_NAME));
+  rapikanTampilanSheetAktif_(ss.getSheetByName("BiayaNotaKasir"));
+  rapikanTampilanSheetAktif_(ss.getSheetByName("BiayaTetapOutlet"));
+
+  Logger.log("[RAPIKAN] Selesai - sheet aktif dirapikan tanpa mengubah nama/kolom/urutan data.");
+}
+
+function rapikanTampilanSheetAktif_(sheet) {
+  if (!sheet) return;
+
+  var lastCol = Math.max(sheet.getLastColumn(), 1);
+  var headerRange = sheet.getRange(1, 1, 1, lastCol);
+
+  headerRange.setFontWeight("bold");
+  headerRange.setBackground("#2E5E4E");
+  headerRange.setFontColor("#FFFFFF");
+  headerRange.setHorizontalAlignment("center");
+  headerRange.setVerticalAlignment("middle");
+
+  sheet.setFrozenRows(1);
+  sheet.setRowHeight(1, 32);
+
+  for (var c = 1; c <= lastCol; c++) {
+    sheet.autoResizeColumn(c);
+    var w = sheet.getColumnWidth(c);
+    if (w < 110) sheet.setColumnWidth(c, 110);
+    if (w > 260) sheet.setColumnWidth(c, 260);
+  }
+
+  Logger.log("[RAPIKAN] Sheet '" + sheet.getName() + "' dirapikan (" + lastCol + " kolom).");
 }
 
 /**
