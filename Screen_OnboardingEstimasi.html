@@ -1,0 +1,68 @@
+<!--
+===============================================================================
+FILE: Screen_OnboardingEstimasi.html
+PROJECT: Kalkulator Laundry Versi 002
+ISI: Layar "Template Estimasi Cepat" - onboarding 3-input (sewa/gaji/gas)
+
+FUNGSI:
+Pilih kategori bisnis (4 pilihan, sesuai 4 outlet Template admin) + isi 3
+input paling penting -> backend cloneOnboardingTemplate (Modul_OnboardingEstimasi.gs)
+mengloning template jadi outlet SUNGGUHAN milik user, lalu tampilkan hasil
+estimasi (Estimasi Omset/Profit/BEP, reuse ringkasan Dashboard). Sama untuk
+HP & desktop (layar sederhana, tidak butuh versi desktop terpisah).
+
+Di-include dari Index.html lewat include('Screen_OnboardingEstimasi'). Jangan
+tambah tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
+===============================================================================
+-->
+    <section class="screen" id="screenOnboardingEstimasi">
+      <div class="list-header">
+        <h1>Template Estimasi Cepat</h1>
+      </div>
+
+      <div id="onbFormWrap">
+        <div class="field">
+          <label>Kategori Bisnis</label>
+          <div class="pill-group" id="onbKategoriPills"></div>
+        </div>
+
+        <div class="field">
+          <label for="onbSewa">Sewa Outlet per Tahun (Rp)</label>
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="onbSewa" placeholder="Contoh: 25.000.000">
+          <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-weight:400;">
+            <input type="checkbox" id="onbSewaMilikSendiri" onchange="onOnbSewaMilikSendiriChange()"> Milik pribadi (tidak sewa)
+          </label>
+        </div>
+
+        <div class="field">
+          <label for="onbGaji">Gaji Karyawan per Bulan (Rp)</label>
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="onbGaji" placeholder="Contoh: 2.500.000">
+        </div>
+
+        <div class="field">
+          <label for="onbGas">Harga Gas LPG per Tabung (Rp)</label>
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="onbGas" placeholder="Contoh: 21.000">
+        </div>
+
+        <div class="auth-error" id="onbError" style="display:none;"></div>
+
+        <button class="btn-primary" id="onbSubmitBtn" onclick="submitOnboardingEstimasi()" style="width:100%; margin-top:10px;">Buat Estimasi</button>
+        <p class="field-hint" style="margin-top:10px;">Hasilnya jadi outlet pertama Anda (bisa terus diedit) - data mesin, listrik, air, chemical, packing, dan harga jual ikut acuan tipikal kategori ini, cuma sewa/gaji/gas yang pakai angka Anda sendiri.</p>
+      </div>
+
+      <div id="onbResultWrap" style="display:none;">
+        <div class="gas-card">
+          <div class="gas-card-top">
+            <div class="title-group"><span class="flame-dot" style="background:var(--sage);"></span><h3 id="onbResultNama">Outlet</h3></div>
+          </div>
+          <div class="gas-card-result">
+            <div class="gas-result-grid" style="grid-template-columns:1fr 1fr;">
+              <div class="gas-result-cell"><div class="label">Estimasi Omset / bulan</div><div class="val" id="onbResultOmset">Rp 0</div></div>
+              <div class="gas-result-cell highlight"><div class="label">Estimasi Profit / bulan</div><div class="val" id="onbResultProfit">Rp 0</div></div>
+            </div>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="finishOnboardingEstimasi()" style="width:100%; margin-top:14px;">Lihat di Dashboard</button>
+      </div>
+    </section>
+

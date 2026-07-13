@@ -1,0 +1,141 @@
+<!--
+===============================================================================
+FILE: Script_Fitur_OnboardingEstimasi.html
+PROJECT: Kalkulator Laundry Versi 002
+ISI: Fitur "Template Estimasi Cepat" (screenOnboardingEstimasi)
+
+FUNGSI:
+Pilih kategori (4 pill) + isi 3 input -> callServer_("cloneOnboardingTemplate", ...)
+-> tampilkan Estimasi Omset/Profit hasil kloning. Sama untuk HP & desktop.
+
+Include SEBELUM Script_Boot_Main.html.
+===============================================================================
+-->
+<script>
+"use strict";
+  var onbSelectedKategori_ = "";
+  var onbLastCabangId_ = "";
+
+  window.openScreenOnboardingEstimasi = function () {
+    onbSelectedKategori_ = "";
+    onbLastCabangId_ = "";
+    document.getElementById("onbFormWrap").style.display = "";
+    document.getElementById("onbResultWrap").style.display = "none";
+    document.getElementById("onbSewa").value = "";
+    document.getElementById("onbGaji").value = "";
+    document.getElementById("onbGas").value = "";
+    document.getElementById("onbSewaMilikSendiri").checked = false;
+    document.getElementById("onbError").style.display = "none";
+    showScreen("onboardingEstimasi");
+    renderOnbKategoriPills_();
+  };
+
+  function renderOnbKategoriPills_() {
+    var host = document.getElementById("onbKategoriPills");
+    if (!host) return;
+    host.innerHTML = '<div class="empty-hint">Memuat kategori...</div>';
+
+    callServer_("getOnboardingCategories", [], function (res) {
+      if (!res || !res.ok) {
+        host.innerHTML = '<div class="empty-hint">Gagal memuat kategori.</div>';
+        return;
+      }
+      var categories = (res.data && res.data.categories) || [];
+      host.innerHTML = categories.map(function (c) {
+        var active = c.key === onbSelectedKategori_ ? " active" : "";
+        return '<div class="pill' + active + '" data-val="' + escapeJsAttr(c.key) + '" onclick="selectOnbKategori(\'' + escapeJsAttr(c.key) + '\')">' + escapeHtml(c.title) + '</div>';
+      }).join("");
+    }, function (err) {
+      host.innerHTML = '<div class="empty-hint">' + escapeHtml(err && err.message ? err.message : String(err)) + '</div>';
+    });
+  }
+
+  window.selectOnbKategori = function (key) {
+    onbSelectedKategori_ = key;
+    document.querySelectorAll("#onbKategoriPills .pill").forEach(function (el) {
+      el.classList.toggle("active", el.getAttribute("data-val") === key);
+    });
+  };
+
+  window.onOnbSewaMilikSendiriChange = function () {
+    var checked = document.getElementById("onbSewaMilikSendiri").checked;
+    var sewaInput = document.getElementById("onbSewa");
+    sewaInput.disabled = checked;
+    if (checked) sewaInput.value = "";
+  };
+
+  function onbParseNominal_(val) {
+    var n = Number(String(val || "0").replace(/[^0-9]/g, ""));
+    return isFinite(n) ? n : 0;
+  }
+
+  window.submitOnboardingEstimasi = function () {
+    var errEl = document.getElementById("onbError");
+    errEl.style.display = "none";
+
+    if (!onbSelectedKategori_) {
+      errEl.textContent = "Pilih kategori bisnis dulu.";
+      errEl.style.display = "block";
+      return;
+    }
+    var sewaMilikSendiri = document.getElementById("onbSewaMilikSendiri").checked;
+    var sewa = sewaMilikSendiri ? 0 : onbParseNominal_(document.getElementById("onbSewa").value);
+    var gaji = onbParseNominal_(document.getElementById("onbGaji").value);
+    var gas = onbParseNominal_(document.getElementById("onbGas").value);
+
+    if (!sewaMilikSendiri && sewa <= 0) {
+      errEl.textContent = "Isi sewa outlet per tahun, atau centang \"Milik pribadi\".";
+      errEl.style.display = "block";
+      return;
+    }
+    if (gaji <= 0) {
+      errEl.textContent = "Isi gaji karyawan per bulan.";
+      errEl.style.display = "block";
+      return;
+    }
+    if (gas <= 0) {
+      errEl.textContent = "Isi harga gas LPG per tabung.";
+      errEl.style.display = "block";
+      return;
+    }
+
+    var btn = document.getElementById("onbSubmitBtn");
+    btn.disabled = true;
+    btn.textContent = "Memproses...";
+
+    callServer_("cloneOnboardingTemplate", [onbSelectedKategori_, sewa, gaji, gas], function (res) {
+      btn.disabled = false;
+      btn.textContent = "Buat Estimasi";
+      if (!res || !res.ok) {
+        errEl.textContent = (res && res.error) || "Gagal membuat estimasi.";
+        errEl.style.display = "block";
+        return;
+      }
+      onbLastCabangId_ = res.data.cabangId;
+      var summary = res.data.summary || {};
+      var potensi = (summary.potensiOmset && summary.potensiOmset.ok && summary.potensiOmset.data) ? summary.potensiOmset.data : null;
+
+      document.getElementById("onbResultNama").textContent = res.data.namaLaundry || "Outlet Pertama Saya";
+      document.getElementById("onbResultOmset").textContent = potensi ? money0(potensi.estimasiOmsetPerBulan) : "-";
+      document.getElementById("onbResultProfit").textContent = potensi ? money0(potensi.estimasiProfitPerBulan) : "-";
+
+      document.getElementById("onbFormWrap").style.display = "none";
+      document.getElementById("onbResultWrap").style.display = "";
+      if (typeof invalidateServerReadCache_ === "function") invalidateServerReadCache_("listCabang");
+      if (typeof showToast === "function") showToast("Outlet pertama Anda berhasil dibuat.", "ok");
+    }, function (err) {
+      btn.disabled = false;
+      btn.textContent = "Buat Estimasi";
+      errEl.textContent = err && err.message ? err.message : String(err);
+      errEl.style.display = "block";
+    });
+  };
+
+  window.finishOnboardingEstimasi = function () {
+    if (onbLastCabangId_) {
+      dashboardSelectedOutletId = onbLastCabangId_;
+      if (typeof setStoredOutletId_ === "function") setStoredOutletId_(onbLastCabangId_);
+    }
+    showScreen("menu");
+  };
+</script>
