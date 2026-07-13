@@ -158,7 +158,7 @@ function saveBiayaAir_impl_(cabangId, payload) {
     clean.createdAt = (existing && existing.createdAt) || now;
     clean.updatedAt = now;
 
-    const validation = validateBiayaAir_(clean);
+    const validation = validateBiayaAir_(clean, cabang);
     if (!validation.valid) {
       return { ok: false, error: validation.message, stage: "saveBiayaAir:validate_business_rules" };
     }
@@ -205,7 +205,7 @@ function sanitizeBiayaAir_(input) {
   return out;
 }
 
-function validateBiayaAir_(data) {
+function validateBiayaAir_(data, cabang) {
   if (!data.cabangId) {
     return { valid: false, message: "Cabang belum ditentukan." };
   }
@@ -213,12 +213,21 @@ function validateBiayaAir_(data) {
     return { valid: false, message: "Sumber air tidak valid." };
   }
 
+  // [Jasa Setrika + Setrika Uap] "Kebutuhan air per load" sengaja
+  // disembunyikan di form (Script_Fitur_BiayaAir.html) karena kategori ini
+  // tidak punya mesin cuci - jangan wajibkan field yang memang tidak
+  // ditampilkan ke user, supaya tidak gagal simpan "harus lebih dari 0"
+  // untuk field yang tidak bisa mereka isi.
+  const mesinSetrikaCabang_ = (cabang && cabang.mesinSetrika) || [];
+  const adaSetrikaUapCabang_ = mesinSetrikaCabang_.some(function (m) { return m.jenis === "uap"; });
+  const lewatiKebutuhanPerLoad_ = cabang && String(cabang.kategoriLayanan || "") === "jasa_setrika" && adaSetrikaUapCabang_;
+
   // Validasi per sumber air
   if (data.sumberAir === "pdam") {
     if (data.hargaPerM3 <= 0) {
       return { valid: false, message: "Harga per m³ PDAM harus lebih dari 0." };
     }
-    if (data.kebutuhanAirPerLoad <= 0) {
+    if (!lewatiKebutuhanPerLoad_ && data.kebutuhanAirPerLoad <= 0) {
       return { valid: false, message: "Kebutuhan air per load harus lebih dari 0." };
     }
   } else if (data.sumberAir === "tangki") {
