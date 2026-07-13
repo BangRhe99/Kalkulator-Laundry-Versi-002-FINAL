@@ -633,7 +633,7 @@ function getBiayaTetapSheet_() {
   if (!sheet) {
     sheet = ss.insertSheet(BIAYA_TETAP_SHEET_NAME_);
     sheet.getRange(1, 1, 1, BIAYA_TETAP_HEADERS_.length).setValues([BIAYA_TETAP_HEADERS_]);
-    sheet.setFrozenRows(1);
+    rapikanTampilanSheetAktif_(sheet);
   } else {
     ensureBiayaTetapHeaders_(sheet);
   }

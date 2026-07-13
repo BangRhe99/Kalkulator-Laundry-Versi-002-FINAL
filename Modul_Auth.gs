@@ -106,17 +106,6 @@ function resolveSession_(token) {
  * Keluar.
  */
 function logoutUser(sessionToken) {
-  // [2026-07-13] RAPIKAN SPREADSHEET SEMENTARA - taruh di sini krn dropdown
-  // fungsi di editor Apps Script user tidak mau menampilkan fungsi baru (bug
-  // UI) - logoutUser kebetulan sudah otomatis terpilih di dropdown mereka.
-  // HAPUS blok ini setelah dijalankan sekali - jangan biarkan tertinggal.
-  try {
-    rapikanSpreadsheetSekali_();
-  } catch (rapiErr) {
-    Logger.log("[RAPIKAN] ERROR: " + (rapiErr && rapiErr.message ? rapiErr.message : String(rapiErr)));
-  }
-  // ===== akhir blok rapikan sementara =====
-
   try {
     var sheet = ensureDataSheet_();
     deleteKeyRow_(sheet, authKeySession_(String(sessionToken || "").trim()));
@@ -127,37 +116,13 @@ function logoutUser(sessionToken) {
 }
 
 /**
- * [2026-07-13] SEKALI-PAKAI: (1) hapus sheet peninggalan template kalkulator
- * manual lama yang TIDAK dibaca/ditulis aplikasi web ini sama sekali, (2)
- * rapikan tampilan 3 sheet yang BENAR dipakai aplikasi (_data_operasional,
- * BiayaNotaKasir, BiayaTetapOutlet) - HANYA visual (warna header, bold,
- * freeze baris judul, lebar kolom), TIDAK mengubah nama sheet/kolom/urutan
- * data sama sekali (nama-nama itu tertulis di kode, mengubahnya akan
- * merusak aplikasi). Boleh dihapus dari kode setelah dijalankan sekali.
+ * rapikanTampilanSheetAktif_: styling visual sebuah sheet (header bold +
+ * warna, freeze baris judul, lebar kolom) - HANYA visual, TIDAK mengubah
+ * nama sheet/kolom/urutan data. Dipanggil otomatis tiap kali sheet
+ * BiayaNotaKasir/BiayaTetapOutlet baru dibuat (lihat getBiayaNotaKasirSheet_/
+ * getBiayaTetapSheet_) supaya tenant baru langsung dapat tampilan rapi tanpa
+ * perlu dirapikan manual satu-satu lagi.
  */
-function rapikanSpreadsheetSekali_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  var sheetLamaTidakDipakai_ = [
-    "TUTORIAL", "Depresiasi", "PaybackPeriod", "LapLabaSelfService",
-    "LapLabaKiloan", "BEPSelfService", "BEPKiloan", "HPPSelfService",
-    "HPPKiloan", "Nota", "Bahan Baku", "Packing", "Air", "Listrik", "Gas"
-  ];
-  sheetLamaTidakDipakai_.forEach(function (nama) {
-    var sh = ss.getSheetByName(nama);
-    if (sh) {
-      ss.deleteSheet(sh);
-      Logger.log("[RAPIKAN] Dihapus (sheet lama tidak terpakai): " + nama);
-    }
-  });
-
-  rapikanTampilanSheetAktif_(ss.getSheetByName(DATA_SHEET_NAME));
-  rapikanTampilanSheetAktif_(ss.getSheetByName("BiayaNotaKasir"));
-  rapikanTampilanSheetAktif_(ss.getSheetByName("BiayaTetapOutlet"));
-
-  Logger.log("[RAPIKAN] Selesai - sheet aktif dirapikan tanpa mengubah nama/kolom/urutan data.");
-}
-
 function rapikanTampilanSheetAktif_(sheet) {
   if (!sheet) return;
 
@@ -202,6 +167,13 @@ function provisionTenantSpreadsheet_(email) {
 
     var newSs = SpreadsheetApp.create("Data Laundry - " + email);
     var newId = newSs.getId();
+
+    // Sembunyikan "Sheet1" bawaan Google (tidak bisa dihapus di titik ini -
+    // spreadsheet wajib punya >=1 sheet, dan sheet data lain belum terbentuk
+    // sampai pertama diakses) supaya tidak terlihat sebagai tab kosong yang
+    // membingungkan tenant baru.
+    var defaultSheet = newSs.getSheets()[0];
+    if (defaultSheet) defaultSheet.hideSheet();
 
     user.tenantSpreadsheetId = newId;
     _writeKeyCore_(sheet, authKeyUser_(email), JSON.stringify(user));

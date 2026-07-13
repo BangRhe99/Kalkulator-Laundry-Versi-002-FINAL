@@ -83,6 +83,7 @@ function getBiayaNotaKasirSheet_() {
   if (!sheet) {
     sheet = ss.insertSheet("BiayaNotaKasir");
     sheet.getRange(1, 1, 1, BIAYA_NOTA_KASIR_HEADERS_.length).setValues([BIAYA_NOTA_KASIR_HEADERS_]);
+    rapikanTampilanSheetAktif_(sheet);
   }
   return sheet;
 }
