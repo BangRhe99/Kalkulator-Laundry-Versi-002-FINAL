@@ -81,7 +81,8 @@ function listBiayaTetapOutletSummaries_impl_() {
         id: cabangId,
         namaLaundry: item && item.namaLaundry ? String(item.namaLaundry) : "",
         mesinCuci: [],
-        mesinPengering: []
+        mesinPengering: [],
+        mesinSetrika: []
       };
 
       let record;
@@ -160,7 +161,8 @@ function getBiayaTetapOutlet_impl_(cabangId) {
           id: cabang.id,
           namaLaundry: cabang.namaLaundry || "",
           mesinCuci: cabang.mesinCuci || [],
-          mesinPengering: cabang.mesinPengering || []
+          mesinPengering: cabang.mesinPengering || [],
+          mesinSetrika: cabang.mesinSetrika || []
         },
         record: record,
         summary: computeBiayaTetapSummary_(record),
@@ -396,6 +398,10 @@ function buildDefaultDepresiasiRows_(cabang) {
   cabang = cabang || {};
   appendDepresiasiRowsFromMachines_(rows, cabang.mesinCuci || [], "washer");
   appendDepresiasiRowsFromMachines_(rows, cabang.mesinPengering || [], "dryer");
+  // [2026-07-13] Mesin setrika (kategori Jasa Setrika tidak punya mesinCuci/
+  // mesinPengering sama sekali) - dulu tidak pernah disertakan di sini, jadi
+  // depresiasinya tidak pernah bisa dihitung/tampil untuk kategori ini.
+  appendDepresiasiRowsFromMachines_(rows, cabang.mesinSetrika || [], "setrika");
   return rows;
 }
 
@@ -437,13 +443,14 @@ function appendDepresiasiRowsFromMachines_(rows, machines, group) {
     const key = group + ":" + machineId;
     const jenis = normalizeJenisMesinTetap_(m.jenis, group);
     const durasi = biayaTetapNumber_(m.durasiMenit, 0);
+    const kapasitasKgPerJam = biayaTetapNumber_(m.kapasitasKgPerJam, 0);
     const jumlahUnit = biayaTetapClamp_(m.jumlahUnit, 0, 1000000);
 
     rows.push({
       key: key,
       group: group,
       machineRefId: machineId,
-      namaMesin: buildNamaMesinTetap_(group, jenis, durasi, index),
+      namaMesin: buildNamaMesinTetap_(group, jenis, durasi, index, kapasitasKgPerJam),
       jenisMesin: jenis,
       jumlahUnit: jumlahUnit,
       hargaBeliPerUnit: 0,
@@ -454,7 +461,14 @@ function appendDepresiasiRowsFromMachines_(rows, machines, group) {
   });
 }
 
-function buildNamaMesinTetap_(group, jenis, durasiMenit, index) {
+// [2026-07-13] group "setrika" ditambah - mesin setrika tidak punya
+// durasiMenit (bukan basis per-load), pakai kapasitasKgPerJam sbg info di
+// nama baris.
+function buildNamaMesinTetap_(group, jenis, durasiMenit, index, kapasitasKgPerJam) {
+  if (group === "setrika") {
+    const kapasitasText = kapasitasKgPerJam > 0 ? " · " + kapasitasKgPerJam + " kg/jam" : "";
+    return "Setrika " + (index + 1) + " · " + jenis + kapasitasText;
+  }
   const prefix = group === "dryer" ? "Dryer" : "Washer";
   const durasiText = durasiMenit > 0 ? " · " + durasiMenit + " menit" : "";
   return prefix + " " + (index + 1) + " · " + jenis + durasiText;
@@ -462,6 +476,12 @@ function buildNamaMesinTetap_(group, jenis, durasiMenit, index) {
 
 function normalizeJenisMesinTetap_(jenis, group) {
   const v = biayaTetapString_(jenis).toLowerCase();
+
+  if (group === "setrika") {
+    if (v === "listrik") return "Listrik";
+    if (v === "uap") return "Uap";
+    return v ? titleCaseBiayaTetap_(v) : "Setrika";
+  }
 
   if (group === "dryer") {
     if (v === "konversi" || v === "conversion") return "Konversi";
@@ -608,7 +628,8 @@ function validateBiayaTetapWarnings_(record, cabang) {
 
   const mesinCuci = cabang && Array.isArray(cabang.mesinCuci) ? cabang.mesinCuci : [];
   const mesinPengering = cabang && Array.isArray(cabang.mesinPengering) ? cabang.mesinPengering : [];
-  if (!mesinCuci.length && !mesinPengering.length) warnings.push("Data mesin di Profil Operasional belum tersedia, sehingga depresiasi mesin belum bisa dihitung lengkap.");
+  const mesinSetrika = cabang && Array.isArray(cabang.mesinSetrika) ? cabang.mesinSetrika : [];
+  if (!mesinCuci.length && !mesinPengering.length && !mesinSetrika.length) warnings.push("Data mesin di Profil Operasional belum tersedia, sehingga depresiasi mesin belum bisa dihitung lengkap.");
 
   const depresiasiRows = Array.isArray(record.depresiasiRows) ? record.depresiasiRows : [];
   const incompleteDep = depresiasiRows.some(function (row) {
@@ -733,7 +754,8 @@ function getBiayaTetapCabang_(cabangId) {
       id: cabangId,
       namaLaundry: "",
       mesinCuci: [],
-      mesinPengering: []
+      mesinPengering: [],
+      mesinSetrika: []
     };
   } catch (err) {
     console.warn("[BiayaTetapOutlet] Gagal membaca cabang:", err);
@@ -741,7 +763,8 @@ function getBiayaTetapCabang_(cabangId) {
       id: cabangId,
       namaLaundry: "",
       mesinCuci: [],
-      mesinPengering: []
+      mesinPengering: [],
+      mesinSetrika: []
     };
   }
 }
@@ -754,7 +777,8 @@ function normalizeCabangForBiayaTetap_(cabang, cabangId) {
     id: cabang.id || cabangId,
     namaLaundry: profil.namaLaundry ? String(profil.namaLaundry) : "",
     mesinCuci: Array.isArray(cabang.mesinCuci) ? cabang.mesinCuci : [],
-    mesinPengering: Array.isArray(cabang.mesinPengering) ? cabang.mesinPengering : []
+    mesinPengering: Array.isArray(cabang.mesinPengering) ? cabang.mesinPengering : [],
+    mesinSetrika: Array.isArray(cabang.mesinSetrika) ? cabang.mesinSetrika : []
   };
 }
 
