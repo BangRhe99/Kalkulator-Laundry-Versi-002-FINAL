@@ -5,12 +5,17 @@ PROJECT: Kalkulator Laundry Versi 002
 ISI: Layar Admin - Buat & Kirim Akun Afiliator (KHUSUS admin)
 
 FUNGSI:
-Form 2 field (email + nama afiliator) - klik "Buat & Kirim Akun" -> backend
-adminCreateAffiliateAccount (Modul_Auth.gs) bikin akun trial 7 hari & kirim
-email berisi email+password ke afiliator. Layar ini SECARA UI cuma
-dimunculkan untuk email admin (lihat authApplyAdminUI_ di Script_Fitur_Auth.html)
-- keamanan SESUNGGUHNYA ditegakkan di backend (cek session.email di
-adminCreateAffiliateAccount), bukan cuma sembunyi-sembunyi di client.
+1. Form 2 field (email + nama afiliator) - klik "Buat & Kirim Akun" -> backend
+   adminCreateAffiliateAccount (Modul_Auth.gs) bikin akun trial 7 hari & kirim
+   email berisi email+password ke afiliator.
+2. Daftar SEMUA akun terdaftar (aktif/trial/menunggu OTP) - backend
+   adminListAccounts (Modul_Auth.gs), reuse komponen kanonik .gas-card/
+   .gas-grid (sama seperti Chemical/Packing) supaya responsif HP & desktop
+   tanpa CSS baru.
+Layar ini SECARA UI cuma dimunculkan untuk email admin (lihat
+authApplyAdminUI_ di Script_Fitur_Auth.html) - keamanan SESUNGGUHNYA
+ditegakkan di backend (cek session.email di tiap fungsi admin), bukan cuma
+sembunyi-sembunyi di client.
 
 Di-include dari Index.html lewat include('Screen_AdminAfiliator'). Jangan
 tambah tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
@@ -39,5 +44,15 @@ tambah tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
           <p style="font-size: 12px; color: var(--text-faint); line-height: 1.5; margin-top: 10px;">Akun aktif otomatis, akses trial 7 hari. Email berisi email + password terkirim otomatis ke afiliator.</p>
         </div>
       </section>
+
+      <div class="list-header" style="margin-top:22px;">
+        <h1>Daftar Akun</h1>
+        <span class="count" id="adminAccountsCount">0 akun</span>
+      </div>
+      <div id="adminAccountsEmpty" class="empty-state" style="display:none;">
+        <div class="icon">&#128101;</div>
+        <p>Belum ada akun terdaftar.</p>
+      </div>
+      <div class="gas-grid" id="adminAccountsList"></div>
     </section>
 

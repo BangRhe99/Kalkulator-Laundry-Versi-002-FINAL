@@ -5,11 +5,15 @@ PROJECT: Kalkulator Laundry Versi 002
 ISI: Fitur Admin - Buat & Kirim Akun Afiliator (screenAdminAfiliator)
 
 FUNGSI:
-Validasi form, panggil adminCreateAffiliateAccount (Modul_Auth.gs) lewat
-callServer_ (sessionToken disisipkan otomatis). Backend yang menegakkan
-"hanya admin boleh" (cek session.email) - kartu menu & layar ini di client
-cuma disembunyikan utk user lain (authApplyAdminUI_, Script_Fitur_Auth.html),
-BUKAN satu-satunya lapisan keamanan.
+1. Validasi form, panggil adminCreateAffiliateAccount (Modul_Auth.gs) lewat
+   callServer_ (sessionToken disisipkan otomatis).
+2. refreshAdminAccountsList_/renderAdminAccountsList_: ambil & render daftar
+   semua akun lewat adminListAccounts (Modul_Auth.gs) via cachedServerRead_,
+   dipanggil tiap kali layar dibuka & tiap kali berhasil buat akun baru
+   (supaya daftar langsung update tanpa perlu keluar-masuk layar).
+Backend yang menegakkan "hanya admin boleh" (cek session.email) - kartu menu
+& layar ini di client cuma disembunyikan utk user lain (authApplyAdminUI_,
+Script_Fitur_Auth.html), BUKAN satu-satunya lapisan keamanan.
 
 Include SEBELUM Script_Boot_Main.html.
 ===============================================================================
@@ -26,7 +30,69 @@ Include SEBELUM Script_Boot_Main.html.
     if (errEl) errEl.style.display = "none";
     if (resultEl) { resultEl.style.display = "none"; resultEl.innerHTML = ""; }
     showScreen("adminAfiliator");
+    refreshAdminAccountsList_();
   };
+
+  function adminFormatDate_(value) {
+    if (!value) return "-";
+    var d = new Date(isNaN(Number(value)) ? value : Number(value));
+    if (isNaN(d.getTime())) return "-";
+    var dd = String(d.getDate()).padStart(2, "0");
+    var mm = String(d.getMonth() + 1).padStart(2, "0");
+    return dd + "/" + mm + "/" + d.getFullYear();
+  }
+
+  function renderAdminAccountsList_(accounts) {
+    var listEl = document.getElementById("adminAccountsList");
+    var emptyEl = document.getElementById("adminAccountsEmpty");
+    var countEl = document.getElementById("adminAccountsCount");
+    if (!listEl) return;
+
+    if (countEl) countEl.textContent = accounts.length + " akun";
+    if (!accounts.length) {
+      listEl.innerHTML = "";
+      if (emptyEl) emptyEl.style.display = "block";
+      return;
+    }
+    if (emptyEl) emptyEl.style.display = "none";
+
+    listEl.innerHTML = accounts.map(function (acc) {
+      var dotColor = "var(--text-faint)";
+      if (!acc.pending) {
+        if (acc.status === "Aktif (permanen)") dotColor = "var(--sage)";
+        else if (acc.status === "Trial kedaluwarsa") dotColor = "var(--red)";
+        else dotColor = "var(--volt)";
+      }
+
+      var cells = "";
+      cells += '<div class="gas-result-cell"><div class="label">Status</div><div class="val" style="font-size:13px;">' + escapeHtml(acc.status) + '</div></div>';
+      cells += '<div class="gas-result-cell"><div class="label">Terdaftar</div><div class="val" style="font-size:13px;">' + escapeHtml(adminFormatDate_(acc.createdAt)) + '</div></div>';
+      if (acc.accessExpiresAt) {
+        cells += '<div class="gas-result-cell"><div class="label">Trial Berakhir</div><div class="val" style="font-size:13px;">' + escapeHtml(adminFormatDate_(acc.accessExpiresAt)) + '</div></div>';
+      }
+      if (acc.afiliatorLabel) {
+        cells += '<div class="gas-result-cell"><div class="label">Afiliator</div><div class="val" style="font-size:13px;">' + escapeHtml(acc.afiliatorLabel) + '</div></div>';
+      }
+
+      return '' +
+        '<div class="gas-card">' +
+          '<div class="gas-card-top">' +
+            '<div class="title-group">' +
+              '<span class="flame-dot" style="background:' + dotColor + ';"></span>' +
+              '<h3 style="font-size:13px; word-break:break-all;">' + escapeHtml(acc.email) + '</h3>' +
+            '</div>' +
+          '</div>' +
+          '<div class="gas-card-result"><div class="gas-result-grid">' + cells + '</div></div>' +
+        '</div>';
+    }).join("");
+  }
+
+  function refreshAdminAccountsList_() {
+    cachedServerRead_("adminListAccounts", undefined, function (res) {
+      if (!res || !res.ok) return;
+      renderAdminAccountsList_(res.data.accounts || []);
+    }, function () {});
+  }
 
   window.submitAdminAfiliator = function () {
     var emailEl = document.getElementById("adminAfiliatorEmail");
@@ -65,6 +131,8 @@ Include SEBELUM Script_Boot_Main.html.
       }
       if (emailEl) emailEl.value = "";
       if (namaEl) namaEl.value = "";
+      if (typeof invalidateServerReadCache_ === "function") invalidateServerReadCache_("adminListAccounts");
+      refreshAdminAccountsList_();
       if (typeof showToast === "function") showToast("Akun afiliator dibuat.", "ok");
     }, function (err) {
       if (btn) { btn.disabled = false; btn.textContent = "Buat & Kirim Akun"; }

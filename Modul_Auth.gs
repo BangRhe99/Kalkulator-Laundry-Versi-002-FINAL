@@ -666,6 +666,70 @@ function adminCreateAffiliateAccount(sessionToken, targetEmail, afiliatorLabel) 
 }
 
 /**
+ * adminListAccounts: daftar SEMUA akun (aktif + yang masih menunggu
+ * verifikasi OTP) buat layar "Buat Akun Afiliator" (screenAdminAfiliator) -
+ * sama seperti adminCreateAffiliateAccount, HANYA AUTH_ADMIN_EMAIL_ yang
+ * lolos. Read-only - tidak mengubah data apa pun.
+ */
+function adminListAccounts(sessionToken) {
+  try {
+    var session = resolveSession_(sessionToken);
+    if (!session || authNormalizeEmail_(session.email) !== AUTH_ADMIN_EMAIL_) {
+      return { ok: false, error: "Akses ditolak.", stage: "adminListAccounts:forbidden", code: "FORBIDDEN" };
+    }
+
+    var sheet = ensureDataSheet_();
+    var now = Date.now();
+
+    var accounts = readKeysByPrefix_(sheet, authKeyUser_("")).map(function (row) {
+      var u;
+      try { u = JSON.parse(row.value); } catch (e) { return null; }
+
+      var status;
+      if (!u.accessExpiresAt) {
+        status = "Aktif (permanen)";
+      } else if (now > Number(u.accessExpiresAt)) {
+        status = "Trial kedaluwarsa";
+      } else {
+        status = "Trial aktif";
+      }
+
+      return {
+        email: u.email || "",
+        pending: false,
+        status: status,
+        accessExpiresAt: u.accessExpiresAt || null,
+        afiliatorLabel: u.afiliatorLabel || "",
+        createdAt: u.createdAt || ""
+      };
+    }).filter(function (x) { return !!x; });
+
+    var pendingAccounts = readKeysByPrefix_(sheet, authKeyOtp_("")).map(function (row) {
+      var p;
+      try { p = JSON.parse(row.value); } catch (e) { return null; }
+
+      return {
+        email: p.email || "",
+        pending: true,
+        status: (now > Number(p.expiresAt || 0)) ? "OTP kedaluwarsa (belum coba lagi)" : "Menunggu verifikasi OTP",
+        accessExpiresAt: null,
+        afiliatorLabel: "",
+        createdAt: p.createdAt || ""
+      };
+    }).filter(function (x) { return !!x; });
+
+    var all = accounts.concat(pendingAccounts);
+    all.sort(function (a, b) {
+      return String(b.createdAt).localeCompare(String(a.createdAt));
+    });
+
+    return { ok: true, data: { accounts: all, totalAktif: accounts.length, totalPending: pendingAccounts.length } };
+  } catch (err) {
+    return errorResponse_(err, "adminListAccounts");
+  }
+}
+
+/**
  * migrateOwnerToTenant_: jalankan MANUAL SEKALI dari editor Apps Script
  * (bukan dipanggil dari UI/client - sengaja tidak client-callable krn tidak
  * dibungkus withTenant_ & tidak dipanggil dari file .html manapun) untuk

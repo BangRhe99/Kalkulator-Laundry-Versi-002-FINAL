@@ -130,6 +130,24 @@ function writeKey_(sheet, key, value) {
   return _withDataLock_(function () { return _writeKeyCore_(sheet, key, value); });
 }
 
+/**
+ * readKeysByPrefix_: scan SEMUA baris yang key-nya diawali `prefix` (mis.
+ * "authUser_" utk daftar semua akun) - dipakai adminListAccounts_
+ * (Modul_Auth.gs). Pakai cache yang sama seperti readKey_, jadi tidak nambah
+ * baca spreadsheet kalau sudah dipanggil sebelumnya di eksekusi yang sama.
+ */
+function readKeysByPrefix_(sheet, prefix) {
+  const cache = _loadSheetCache_(sheet);
+  const out = [];
+  for (let i = 0; i < cache.rows.length; i++) {
+    const k = cache.rows[i][0];
+    if (typeof k === "string" && k.indexOf(prefix) === 0) {
+      out.push({ key: k, value: cache.rows[i][1] });
+    }
+  }
+  return out;
+}
+
 function deleteKeyRow_(sheet, key) {
   return _withDataLock_(function () {
     const cache = _loadSheetCache_(sheet);
