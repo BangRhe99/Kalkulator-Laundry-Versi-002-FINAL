@@ -153,7 +153,11 @@ body:has(#screenBiayaTetapForm.active) .wrap { width: min(100%, 1080px); }
 
   body:has(#screenBiayaTetapList.active) .app-header { display: none !important; }
   body:has(#screenBiayaTetapList.active) { padding-top: 4px; }
-  body:has(#screenBiayaTetapList.active) .wrap { width: min(100%, 900px); }
+  /* [2026-07-13] Disamakan dgn Struktur HPP/Harga Layanan (1280px, bukan
+     900px) - sebelumnya panel layar ini kentara lebih sempit drpd fitur
+     lain krn beda lebar wrap, bikin kartunya kelihatan lebih kecil padahal
+     ukuran kartunya sendiri sudah sama. */
+  body:has(#screenBiayaTetapList.active) .wrap { width: min(100%, 1280px); }
 
   #screenBiayaTetapList .dashboard-header {
     background: var(--panel);
@@ -217,9 +221,13 @@ body:has(#screenBiayaTetapForm.active) .wrap { width: min(100%, 1080px); }
     padding-bottom: 18px;
     border-bottom: 1px solid var(--border);
   }
-  #biayaTetapDesktopContent .fc-outlet-total-item { text-align: center; }
+  #biayaTetapDesktopContent .fc-outlet-total-item { text-align: center; min-width: 0; }
   #biayaTetapDesktopContent .fc-outlet-total-item .label { font-size: 11px; color: var(--text-faint); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.03em; }
-  #biayaTetapDesktopContent .fc-outlet-total-item .value { font-family: var(--font-display); font-size: 24px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+  /* Nilai per tahun SELALU digit paling banyak (12 bulan sekaligus) - font
+     dibuat lebih kecil drpd bulan/hari supaya tidak membungkus 2 baris &
+     tetap sejajar dgn 2 kolom lainnya, [2026-07-13]. */
+  #biayaTetapDesktopContent .fc-outlet-total-item .value { font-family: var(--font-display); font-size: 24px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #biayaTetapDesktopContent .fc-outlet-total-tahun .value { font-size: 17px; }
   #biayaTetapDesktopContent .fc-outlet-total-item.highlight .value { color: var(--brass); }
 
   #biayaTetapDesktopContent .fc-outlet-table { width: 100%; border-collapse: collapse; }
