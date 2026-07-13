@@ -114,7 +114,7 @@ function getBiayaAir_impl_(cabangId) {
     return {
       ok: true,
       data: {
-        cabang: { id: cabang.id, namaLaundry: cabang.profil.namaLaundry, mesinSetrika: cabang.mesinSetrika },
+        cabang: { id: cabang.id, namaLaundry: cabang.profil.namaLaundry, mesinSetrika: cabang.mesinSetrika, kategoriLayanan: cabang.kategoriLayanan },
         record: record,
         summary: computeBiayaAirSummary_(record, cabang),
       },

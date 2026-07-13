@@ -84,6 +84,13 @@ menjalankan bootApp().
 
     if (airFormState.sumberAir === "pdam") {
       var adaSetrikaUap = ((airCabangCache && airCabangCache.mesinSetrika) || []).some(function (m) { return m.jenis === "uap"; });
+      // [Jasa Setrika + Setrika Uap] Kategori ini tidak punya mesin cuci sama
+      // sekali - "Kebutuhan air per load" tidak relevan, cukup aktifkan
+      // "Kebutuhan air setrika uap" saja. Kategori lain (Hybrid/Kiloan yang
+      // JUGA punya setrika uap tapi masih punya mesin cuci) tidak terpengaruh
+      // - dua-duanya tetap aktif untuk kategori itu.
+      var isJasaSetrika_ = String((airCabangCache && airCabangCache.kategoriLayanan) || "") === "jasa_setrika";
+      var nonaktifkanAirPerLoad_ = isJasaSetrika_ && adaSetrikaUap;
       container.innerHTML = `
         <div class="field-row" style="display:flex; gap:12px;">
           <div class="field" style="flex:1;">
@@ -96,10 +103,12 @@ menjalankan bootApp().
             <input type="text" id="airKonversiPerLiterField" value="Rp 0" readonly disabled style="background: var(--panel-2); color: var(--text-dim);">
           </div>
         </div>
+        ${nonaktifkanAirPerLoad_ ? `` : `
         <div class="field">
           <label for="airKebutuhanLiter">Kebutuhan air per load (liter)</label>
           <input type="number" inputmode="decimal" min="0" step="0.1" id="airKebutuhanLiter" placeholder="Contoh: 50">
         </div>
+        `}
         ${adaSetrikaUap ? `
         <div class="field">
           <label for="airSetrikaUapLiterJam">Kebutuhan air setrika uap per kapasitas boiler (liter)</label>
@@ -108,7 +117,6 @@ menjalankan bootApp().
         ` : ``}
       `;
       document.getElementById("airPdamHarga").value = airFormState.hargaPerM3 ? Number(airFormState.hargaPerM3).toLocaleString("id-ID") : "";
-      document.getElementById("airKebutuhanLiter").value = airFormState.kebutuhanAirPerLoad || "";
       document.getElementById("airPdamHarga").addEventListener("input", function (e) {
         var digitsOnly = e.target.value.replace(/[^0-9]/g, "");
         var numVal = Number(digitsOnly) || 0;
@@ -116,10 +124,13 @@ menjalankan bootApp().
         e.target.value = numVal > 0 ? numVal.toLocaleString("id-ID") : "";
         renderAirPreview();
       });
-      document.getElementById("airKebutuhanLiter").addEventListener("input", function (e) {
-        airFormState.kebutuhanAirPerLoad = Number(e.target.value) || 0;
-        renderAirPreview();
-      });
+      if (!nonaktifkanAirPerLoad_) {
+        document.getElementById("airKebutuhanLiter").value = airFormState.kebutuhanAirPerLoad || "";
+        document.getElementById("airKebutuhanLiter").addEventListener("input", function (e) {
+          airFormState.kebutuhanAirPerLoad = Number(e.target.value) || 0;
+          renderAirPreview();
+        });
+      }
       if (adaSetrikaUap) {
         document.getElementById("airSetrikaUapLiterJam").value = airFormState.kebutuhanAirSetrikaUapPerJam || "";
         document.getElementById("airSetrikaUapLiterJam").addEventListener("input", function (e) {
