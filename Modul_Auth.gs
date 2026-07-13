@@ -106,30 +106,20 @@ function resolveSession_(token) {
  * Keluar.
  */
 function logoutUser(sessionToken) {
-  // [2026-07-13] DIAGNOSA SEMENTARA - taruh di sini krn dropdown fungsi di
-  // editor Apps Script user tidak mau menampilkan fungsi baru (bug UI, bukan
-  // masalah kode) - logoutUser kebetulan sudah otomatis terpilih di dropdown
-  // mereka. HAPUS blok ini setelah masalah tenantSpreadsheetId selesai
-  // didiagnosa - jangan biarkan tertinggal di produksi.
+  // [2026-07-13] MIGRASI SEMENTARA - taruh di sini krn dropdown fungsi di
+  // editor Apps Script user tidak mau menampilkan fungsi baru (bug UI) -
+  // logoutUser kebetulan sudah otomatis terpilih di dropdown mereka. HAPUS
+  // blok ini setelah migrasi berhasil - jangan biarkan tertinggal di produksi.
   try {
+    migrateOwnerToTenant_("rheza354@gmail.com");
     var diagEmail = authNormalizeEmail_("rheza354@gmail.com");
-    var diagSs = SpreadsheetApp.getActiveSpreadsheet();
-    Logger.log("[DIAGNOSA] Spreadsheet ID (Master): " + (diagSs ? diagSs.getId() : "(kosong/null)"));
-    Logger.log("[DIAGNOSA] Spreadsheet Name: " + (diagSs ? diagSs.getName() : "(kosong/null)"));
     var diagSheet = ensureDataSheet_();
     var diagRaw = readKey_(diagSheet, authKeyUser_(diagEmail));
-    Logger.log("[DIAGNOSA] Key dicari: " + authKeyUser_(diagEmail));
-    Logger.log("[DIAGNOSA] Isi tersimpan (authUser_...): " + diagRaw);
-    var diagAllValues = diagSheet.getDataRange().getValues();
-    var diagMatchCount = 0;
-    for (var di = 1; di < diagAllValues.length; di++) {
-      if (diagAllValues[di][0] === authKeyUser_(diagEmail)) diagMatchCount++;
-    }
-    Logger.log("[DIAGNOSA] Jumlah baris dgn key ini di sheet: " + diagMatchCount + " (harusnya 1)");
+    Logger.log("[MIGRASI] Isi tersimpan SEKARANG (authUser_...): " + diagRaw);
   } catch (diagErr) {
-    Logger.log("[DIAGNOSA] ERROR: " + (diagErr && diagErr.message ? diagErr.message : String(diagErr)));
+    Logger.log("[MIGRASI] ERROR: " + (diagErr && diagErr.message ? diagErr.message : String(diagErr)));
   }
-  // ===== akhir blok diagnosa sementara =====
+  // ===== akhir blok migrasi sementara =====
 
   try {
     var sheet = ensureDataSheet_();
