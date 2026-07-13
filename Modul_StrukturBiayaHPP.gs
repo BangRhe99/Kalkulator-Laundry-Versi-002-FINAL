@@ -942,18 +942,37 @@ function buildKiloanHPPStructure_(normalized, serviceAktifMap) {
 /**
  * buildJasaSetrikaHPPStructure_: kategori Jasa Setrika hanya punya 1 layanan,
  * HPP Setrika Saja (biaya setrika + App Kasir & Nota, per Kg).
+ *
+ * [FIX] Setrika Listrik & Setrika Uap saling eksklusif sesuai jenis mesin di
+ * Profil Outlet (SAMA PERSIS pola yang sudah benar di buildKiloanHPPStructure_
+ * - lihat airSetrikaComponents_/listrikSetrikaComponents_/gasSetrikaComponents_
+ * di sana) - dulu di sini SELALU pakai getStrukturHPPSetrikaPerKg_ (murni
+ * biaya listrik) walau mesinnya uap, jadi hasilnya selalu Rp0 & data
+ * Gas/Air Setrika Uap yang sudah diisi user tidak pernah kepakai.
  */
 function buildJasaSetrikaHPPStructure_(normalized) {
   const notaPerKg = getStrukturHPPNotaPerKg_(normalized);
-  const setrikaPerKg = getStrukturHPPSetrikaPerKg_(normalized);
+  const setrikaNote = normalized.kiloan.adaMesinSetrika ? "" : "Belum ada mesin setrika di Profil Outlet.";
+  const kgPerJam = normalized.kiloan.setrikaKapasitasKgPerJam;
+  const toPerKgSetrika_ = function (rpPerJam) {
+    return kgPerJam > 0 ? strukturHPPRound2_(rpPerJam / kgPerJam) : 0;
+  };
+
+  const setrikaComponents = normalized.kiloan.adaMesinSetrikaListrik
+    ? [
+        { key: "setrika_listrik", label: "Listrik Setrika per Kg", amount: getStrukturHPPSetrikaPerKg_(normalized), note: setrikaNote },
+      ]
+    : [
+        { key: "setrika_air", label: "Air Setrika per Kg", amount: toPerKgSetrika_(normalized.kiloan.airSetrikaRpPerJam), note: setrikaNote },
+        { key: "setrika_gas", label: "Gas Setrika per Kg", amount: toPerKgSetrika_(normalized.kiloan.gasSetrikaRpPerJam), note: "" },
+      ];
 
   const setrikaSaja = calculateHPPService_(
     STRUKTUR_HPP_SERVICE_KEYS_.SETRIKA_SAJA,
     "HPP Setrika Saja",
-    [
-      { key: "setrika", label: "Setrika per Kg", amount: setrikaPerKg, note: normalized.kiloan.adaMesinSetrika ? "" : "Belum ada mesin setrika di Profil Outlet." },
+    setrikaComponents.concat([
       { key: "app_nota", label: "Biaya App Kasir & Nota per Kg", amount: notaPerKg, note: normalized.kiloan.kapasitasKgPerLoad <= 0 ? "Belum bisa dikonversi ke per Kg (kapasitas kg mesin cuci belum diisi)." : "" },
-    ],
+    ]),
     STRUKTUR_HPP_UNIT_LABEL_KG_
   );
 
