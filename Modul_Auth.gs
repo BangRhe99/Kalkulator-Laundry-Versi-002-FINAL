@@ -52,6 +52,34 @@ var AUTH_OTP_TTL_MS_ = 5 * 60 * 1000; // 5 menit
 var AUTH_ADMIN_EMAIL_ = "rheza354@gmail.com";
 var AUTH_SESSION_TTL_MS_ = 30 * 24 * 60 * 60 * 1000; // 30 hari
 
+/**
+ * [RATE LIMIT] Pakai CacheService (bukan sheet) - counter sementara yang
+ * kedaluwarsa otomatis, tidak menumpuk baris permanen di spreadsheet Master
+ * & tidak perlu dibersihkan manual. Cocok utk pembatasan per-email:
+ *   - loginUser: max 5 password salah / 15 menit / email (reset saat sukses)
+ *   - registerUser: jeda 60 detik antar percobaan / email
+ *   - resendOtp: max 3 kali / 10 menit / email
+ * CATATAN: ini membatasi per EMAIL, bukan per pengunjung/IP (Apps Script web
+ * app tidak expose IP pemanggil) - cukup untuk mencegah 1 email disklinamai
+ * berulang-ulang, tapi tidak mencegah penyerang mencoba banyak email
+ * BERBEDA sekaligus. Perlindungan tambahan (captcha dst) bisa menyusul kalau
+ * pola serangan itu benar-benar terjadi.
+ */
+function authRateLimitCount_(key) {
+  var raw = CacheService.getScriptCache().get(key);
+  return raw ? parseInt(raw, 10) : 0;
+}
+
+function authRateLimitBump_(key, ttlSeconds) {
+  var count = authRateLimitCount_(key) + 1;
+  CacheService.getScriptCache().put(key, String(count), ttlSeconds);
+  return count;
+}
+
+function authRateLimitReset_(key) {
+  CacheService.getScriptCache().remove(key);
+}
+
 function authKeyOtp_(email) {
   return "authOtp_" + email;
 }
@@ -304,6 +332,14 @@ function registerUser(email, password, accessCode) {
       return { ok: false, error: "Kode akses wajib diisi.", stage: "registerUser:validate_access_code" };
     }
 
+    // [RATE LIMIT] Jeda 60 detik antar percobaan daftar per email - cegah
+    // klik berulang cepat menghabiskan kuota email OTP harian percuma.
+    var registerRlKey = "rl_register_" + cleanEmail;
+    if (authRateLimitCount_(registerRlKey) > 0) {
+      return { ok: false, error: "Mohon tunggu sebentar sebelum mencoba daftar lagi.", stage: "registerUser:rate_limited" };
+    }
+    authRateLimitBump_(registerRlKey, 60);
+
     var sheet = ensureDataSheet_();
 
     if (readKey_(sheet, authKeyUser_(cleanEmail))) {
@@ -430,6 +466,14 @@ function verifyOtp(email, code) {
 function resendOtp(email) {
   try {
     var cleanEmail = authNormalizeEmail_(email);
+
+    // [RATE LIMIT] Maks 3 kali kirim ulang / 10 menit / email - cegah spam
+    // klik "Kirim ulang" menghabiskan kuota email OTP harian.
+    var resendRlKey = "rl_resend_" + cleanEmail;
+    if (authRateLimitCount_(resendRlKey) >= 3) {
+      return { ok: false, error: "Terlalu banyak permintaan kirim ulang. Coba lagi dalam beberapa menit.", stage: "resendOtp:rate_limited" };
+    }
+
     var sheet = ensureDataSheet_();
     var raw = readKey_(sheet, authKeyOtp_(cleanEmail));
     if (!raw) {
@@ -438,6 +482,7 @@ function resendOtp(email) {
 
     var pending = JSON.parse(raw);
     var otp = authGenerateOtp_();
+    authRateLimitBump_(resendRlKey, 10 * 60);
 
     try {
       authSendOtpEmail_(cleanEmail, otp);
@@ -466,9 +511,19 @@ function loginUser(email, password) {
     var cleanEmail = authNormalizeEmail_(email);
     var cleanPassword = typeof password === "string" ? password : "";
 
+    // [RATE LIMIT] Maks 5 percobaan gagal / 15 menit / email (reset saat
+    // login sukses) - cegah brute-force tebak password. Diperiksa SEBELUM
+    // cek akun ada/tidak, supaya email yang tidak terdaftar pun tidak bisa
+    // dipakai tebak-tebak tanpa batas.
+    var loginRlKey = "rl_login_" + cleanEmail;
+    if (authRateLimitCount_(loginRlKey) >= 5) {
+      return { ok: false, error: "Terlalu banyak percobaan gagal. Coba lagi dalam 15 menit.", stage: "loginUser:rate_limited" };
+    }
+
     var sheet = ensureDataSheet_();
     var raw = readKey_(sheet, authKeyUser_(cleanEmail));
     if (!raw) {
+      authRateLimitBump_(loginRlKey, 15 * 60);
       return { ok: false, error: "Email atau password salah.", stage: "loginUser:not_found" };
     }
 
@@ -492,8 +547,11 @@ function loginUser(email, password) {
     }
 
     if (!isMatch) {
+      authRateLimitBump_(loginRlKey, 15 * 60);
       return { ok: false, error: "Email atau password salah.", stage: "loginUser:mismatch" };
     }
+
+    authRateLimitReset_(loginRlKey);
 
     // [AKSES/TRIAL] accessExpiresAt kosong = akses permanen (kode Lynk.id).
     // Terisi = trial afiliator, tolak login kalau sudah lewat - data TIDAK
