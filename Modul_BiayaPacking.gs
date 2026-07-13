@@ -126,10 +126,18 @@ function isPackingIsolasiNama_(nama) {
 // ============================================================================
 
 /**
+ * [2026-07-13] Dibungkus withTenant_ (Code.gs) - argumen pertama SELALU
+ * sessionToken, badan logic asli dipindah ke nama "_impl_".
+ */
+function listBiayaPacking(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return listBiayaPacking_impl_(cabangId); });
+}
+
+/**
  * Daftar semua item packing milik SATU cabang, sudah termasuk summary
  * kalkulasi per item DAN total biaya packing per Kg (dijumlah semua item).
  */
-function listBiayaPacking(cabangId) {
+function listBiayaPacking_impl_(cabangId) {
   try {
     if (!cabangId || typeof cabangId !== "string") {
       return { ok: false, error: "ID cabang tidak valid.", stage: "listBiayaPacking:validate_cabang_id" };
@@ -168,10 +176,14 @@ function listBiayaPacking(cabangId) {
   }
 }
 
+function getBiayaPacking(sessionToken, id) {
+  return withTenant_(sessionToken, function () { return getBiayaPacking_impl_(id); });
+}
+
 /**
  * Mengambil satu item packing lengkap + summary, untuk layar edit.
  */
-function getBiayaPacking(id) {
+function getBiayaPacking_impl_(id) {
   try {
     if (!id || typeof id !== "string") {
       return { ok: false, error: "ID item packing tidak valid.", stage: "getBiayaPacking:validate_id" };
@@ -189,10 +201,14 @@ function getBiayaPacking(id) {
   }
 }
 
+function createBiayaPacking(sessionToken, payload) {
+  return withTenant_(sessionToken, function () { return createBiayaPacking_impl_(payload); });
+}
+
 /**
  * Membuat item packing baru untuk satu cabang.
  */
-function createBiayaPacking(payload) {
+function createBiayaPacking_impl_(payload) {
   try {
     if (!payload || typeof payload !== "object") {
       return { ok: false, error: "Data yang dikirim tidak valid.", stage: "createBiayaPacking:validate_payload" };
@@ -231,7 +247,11 @@ function createBiayaPacking(payload) {
  * Memperbarui item packing yang sudah ada. cabangId TIDAK BISA dipindah
  * lewat update (sama seperti Gas) — hapus & buat baru kalau perlu pindah cabang.
  */
-function updateBiayaPacking(id, payload) {
+function updateBiayaPacking(sessionToken, id, payload) {
+  return withTenant_(sessionToken, function () { return updateBiayaPacking_impl_(id, payload); });
+}
+
+function updateBiayaPacking_impl_(id, payload) {
   try {
     if (!id || typeof id !== "string") {
       return { ok: false, error: "ID item packing tidak valid.", stage: "updateBiayaPacking:validate_id" };
@@ -266,10 +286,14 @@ function updateBiayaPacking(id, payload) {
   }
 }
 
+function deleteBiayaPacking(sessionToken, id) {
+  return withTenant_(sessionToken, function () { return deleteBiayaPacking_impl_(id); });
+}
+
 /**
  * Menghapus satu item packing. Idempotent seperti deleteBiayaGas.
  */
-function deleteBiayaPacking(id) {
+function deleteBiayaPacking_impl_(id) {
   try {
     if (!id || typeof id !== "string") {
       return { ok: false, error: "ID item packing tidak valid.", stage: "deleteBiayaPacking:validate_id" };

@@ -33,11 +33,35 @@
  *   Listrik yang 1:1 per cabang), JANGAN buat fungsi order baru — reuse
  *   readOrder_/writeOrder_/appendToOrder_/removeFromOrder_ yang sudah generik
  *   ini, cukup definisikan KEY_xxx_ORDER baru di Code.gs.
+ *
+ * [2026-07-13] MULTI-TENANT: ensureDataSheet_() sekarang membaca dari
+ * _activeDataSpreadsheet_ (variabel modul-global di-set oleh withTenant_ di
+ * Code.gs sebelum fungsi backend manapun jalan), bukan selalu
+ * SpreadsheetApp.getActiveSpreadsheet(). Fallback ke getActiveSpreadsheet()
+ * kalau belum di-set (dipakai Modul_Auth.gs utk baca/tulis akun & sesi yang
+ * SELALU di Master, terlepas dari tenant mana yang login). Semua fungsi
+ * publik client-callable WAJIB lewat withTenant_ dulu (lihat Code.gs) supaya
+ * _activeDataSpreadsheet_ terisi benar sebelum menyentuh data.
+ *
+ * [2026-07-13] LOCKING: writeKey_/deleteKeyRow_/appendToOrder_/
+ * removeFromOrder_ dibungkus LockService.getScriptLock() utk SELURUH siklus
+ * baca-putuskan-tulis (bukan cuma baris terakhir), supaya 2 penyimpanan
+ * bersamaan tidak menghasilkan baris/urutan ganda (race condition).
  * ============================================================================
  */
 
+// Diisi withTenant_ (Code.gs) sebelum fungsi client-callable manapun jalan -
+// menunjuk spreadsheet data milik tenant yang sedang login. Kosong (null)
+// berarti belum di-set -> ensureDataSheet_() jatuh ke spreadsheet Master
+// (dipakai Modul_Auth.gs, yang datanya SELALU di Master terlepas dari tenant).
+var _activeDataSpreadsheet_ = null;
+
+function setActiveDataSpreadsheet_(ss) {
+  _activeDataSpreadsheet_ = ss || null;
+}
+
 function ensureDataSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = _activeDataSpreadsheet_ || SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(DATA_SHEET_NAME);
   if (!sheet) {
     sheet = ss.insertSheet(DATA_SHEET_NAME);
@@ -45,6 +69,18 @@ function ensureDataSheet_() {
     sheet.hideSheet();
   }
   return sheet;
+}
+
+function _withDataLock_(fn) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    throw new Error("Sistem sedang sibuk memproses permintaan lain, coba simpan lagi sebentar.");
+  }
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // Cache baca-sekali-per-eksekusi: sebelumnya readKey_/writeKey_/deleteKeyRow_
@@ -77,7 +113,7 @@ function readKey_(sheet, key) {
   return null;
 }
 
-function writeKey_(sheet, key, value) {
+function _writeKeyCore_(sheet, key, value) {
   const cache = _loadSheetCache_(sheet);
   for (let i = 0; i < cache.rows.length; i++) {
     if (cache.rows[i][0] === key) {
@@ -90,15 +126,21 @@ function writeKey_(sheet, key, value) {
   cache.rows.push([key, value]);
 }
 
+function writeKey_(sheet, key, value) {
+  return _withDataLock_(function () { return _writeKeyCore_(sheet, key, value); });
+}
+
 function deleteKeyRow_(sheet, key) {
-  const cache = _loadSheetCache_(sheet);
-  for (let i = 0; i < cache.rows.length; i++) {
-    if (cache.rows[i][0] === key) {
-      sheet.deleteRow(i + 2);
-      cache.rows.splice(i, 1);
-      return;
+  return _withDataLock_(function () {
+    const cache = _loadSheetCache_(sheet);
+    for (let i = 0; i < cache.rows.length; i++) {
+      if (cache.rows[i][0] === key) {
+        sheet.deleteRow(i + 2);
+        cache.rows.splice(i, 1);
+        return;
+      }
     }
-  }
+  });
 }
 
 /**
@@ -122,14 +164,21 @@ function writeOrder_(sheet, orderKey, order) {
 }
 
 function appendToOrder_(sheet, orderKey, id) {
-  const order = readOrder_(sheet, orderKey);
-  if (order.indexOf(id) === -1) {
-    order.push(id);
-    writeOrder_(sheet, orderKey, order);
-  }
+  // Seluruh baca-putuskan-tulis dikunci sekaligus (bukan nested lock ke
+  // writeKey_) supaya 2 appendToOrder_ bersamaan tidak saling menimpa hasil
+  // satu sama lain (lost update pada array urutan).
+  return _withDataLock_(function () {
+    const order = readOrder_(sheet, orderKey);
+    if (order.indexOf(id) === -1) {
+      order.push(id);
+      _writeKeyCore_(sheet, orderKey, JSON.stringify(order));
+    }
+  });
 }
 
 function removeFromOrder_(sheet, orderKey, id) {
-  const order = readOrder_(sheet, orderKey).filter(function (x) { return x !== id; });
-  writeOrder_(sheet, orderKey, order);
+  return _withDataLock_(function () {
+    const order = readOrder_(sheet, orderKey).filter(function (x) { return x !== id; });
+    _writeKeyCore_(sheet, orderKey, JSON.stringify(order));
+  });
 }

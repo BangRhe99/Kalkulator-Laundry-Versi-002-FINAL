@@ -80,11 +80,19 @@ function defaultBiayaAir_() {
 // menulis-atau-menimpa konfigurasi cabang itu (upsert).
 
 /**
+ * [2026-07-13] Dibungkus withTenant_ (Code.gs) - argumen pertama SELALU
+ * sessionToken, badan logic asli dipindah ke nama "_impl_".
+ */
+function getBiayaAir(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return getBiayaAir_impl_(cabangId); });
+}
+
+/**
  * Mengambil konfigurasi air satu cabang + summary kalkulasi.
  * Jika cabang belum pernah mengisi air, mengembalikan default (PDAM, semua 0)
  * — BUKAN error, supaya layar pertama kali dibuka tetap mulus.
  */
-function getBiayaAir(cabangId) {
+function getBiayaAir_impl_(cabangId) {
   try {
     if (!cabangId || typeof cabangId !== "string") {
       return { ok: false, error: "ID cabang tidak valid.", stage: "getBiayaAir:validate_cabang_id" };
@@ -116,11 +124,15 @@ function getBiayaAir(cabangId) {
   }
 }
 
+function saveBiayaAir(sessionToken, cabangId, payload) {
+  return withTenant_(sessionToken, function () { return saveBiayaAir_impl_(cabangId, payload); });
+}
+
 /**
  * Upsert konfigurasi air satu cabang. Selalu menimpa record yang ada
  * (idempotent secara desain — tidak ada "create vs update" terpisah).
  */
-function saveBiayaAir(cabangId, payload) {
+function saveBiayaAir_impl_(cabangId, payload) {
   try {
     if (!cabangId || typeof cabangId !== "string") {
       return { ok: false, error: "ID cabang tidak valid.", stage: "saveBiayaAir:validate_cabang_id" };

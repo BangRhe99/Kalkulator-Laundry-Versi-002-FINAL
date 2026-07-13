@@ -74,7 +74,11 @@ function notaKasirErrorResponse_(err, stage) {
 // ============================================================================
 
 function getBiayaNotaKasirSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // [2026-07-13] MULTI-TENANT: _activeDataSpreadsheet_ (Util_Penyimpanan.gs)
+  // di-set withTenant_ (Code.gs) sebelum fungsi publik manapun jalan -
+  // fallback ke getActiveSpreadsheet() cuma kalau belum di-set (harusnya
+  // tidak pernah terjadi utk fungsi yang dipanggil client, hanya jaga-jaga).
+  const ss = _activeDataSpreadsheet_ || SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName("BiayaNotaKasir");
   if (!sheet) {
     sheet = ss.insertSheet("BiayaNotaKasir");
@@ -153,9 +157,9 @@ function getCabangInfo_(cabangId) {
   if (!cabangId || typeof cabangId !== "string") {
     return { id: "", namaLaundry: "" };
   }
-  if (typeof getCabang === "function") {
+  if (typeof getCabang_impl_ === "function") {
     try {
-      const res = getCabang(cabangId);
+      const res = getCabang_impl_(cabangId);
       if (res && res.ok && res.data && res.data.cabang) {
         const cabang = res.data.cabang;
         const namaLaundry = cabang.profil && cabang.profil.namaLaundry ? String(cabang.profil.namaLaundry) : "";
@@ -172,7 +176,13 @@ function getCabangInfo_(cabangId) {
 // SECTION: PUBLIC FUNCTIONS â€” getBiayaNotaKasir / saveBiayaNotaKasir
 // ============================================================================
 
-function getBiayaNotaKasir(cabangId) {
+// [2026-07-13] Dibungkus withTenant_ (Code.gs) - argumen pertama SELALU
+// sessionToken, badan logic asli dipindah ke nama "_impl_".
+function getBiayaNotaKasir(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return getBiayaNotaKasir_impl_(cabangId); });
+}
+
+function getBiayaNotaKasir_impl_(cabangId) {
   try {
     if (!cabangId || typeof cabangId !== "string") {
       return { ok: false, error: "ID cabang tidak valid.", stage: "getBiayaNotaKasir:validate_cabang_id" };
@@ -212,7 +222,11 @@ function getBiayaNotaKasir(cabangId) {
   }
 }
 
-function saveBiayaNotaKasir(cabangId, payload) {
+function saveBiayaNotaKasir(sessionToken, cabangId, payload) {
+  return withTenant_(sessionToken, function () { return saveBiayaNotaKasir_impl_(cabangId, payload); });
+}
+
+function saveBiayaNotaKasir_impl_(cabangId, payload) {
   try {
     if (!cabangId || typeof cabangId !== "string") {
       return { ok: false, error: "ID cabang tidak valid.", stage: "saveBiayaNotaKasir:validate_cabang_id" };
@@ -221,40 +235,46 @@ function saveBiayaNotaKasir(cabangId, payload) {
       return { ok: false, error: "Data yang dikirim tidak valid.", stage: "saveBiayaNotaKasir:validate_payload" };
     }
 
-    const sheet = getBiayaNotaKasirSheet_();
-    const rowIndex = findBiayaNotaKasirRowFast_(sheet, cabangId);
+    // [2026-07-13] Sheet ini TIDAK lewat Util_Penyimpanan.gs (lihat header
+    // file), jadi baca-cek-tulisnya dikunci manual di sini - tanpa ini, 2
+    // penyimpanan bersamaan utk cabang yang SAMA-SAMA BARU bisa lolos
+    // "belum ada baris" berbarengan dan menghasilkan 2 baris utk 1 cabang.
+    return _withDataLock_(function () {
+      const sheet = getBiayaNotaKasirSheet_();
+      const rowIndex = findBiayaNotaKasirRowFast_(sheet, cabangId);
 
-    let existingRecord = null;
-    if (rowIndex > 0) {
-      const existingValues = sheet.getRange(rowIndex, 1, 1, BIAYA_NOTA_KASIR_HEADERS_.length).getValues()[0];
-      existingRecord = parseBiayaNotaKasirRecord_(rowArrayToBiayaNotaKasirObject_(existingValues));
-    }
+      let existingRecord = null;
+      if (rowIndex > 0) {
+        const existingValues = sheet.getRange(rowIndex, 1, 1, BIAYA_NOTA_KASIR_HEADERS_.length).getValues()[0];
+        existingRecord = parseBiayaNotaKasirRecord_(rowArrayToBiayaNotaKasirObject_(existingValues));
+      }
 
-    const normalized = normalizeBiayaNotaKasirRecord_(payload, cabangId);
-    normalized.id = existingRecord && existingRecord.id ? existingRecord.id : (normalized.id || newId_("n"));
-    const now = new Date().toISOString();
-    normalized.createdAt = existingRecord && existingRecord.createdAt ? existingRecord.createdAt : now;
-    normalized.updatedAt = now;
+      const normalized = normalizeBiayaNotaKasirRecord_(payload, cabangId);
+      normalized.id = existingRecord && existingRecord.id ? existingRecord.id : (normalized.id || newId_("n"));
+      const now = new Date().toISOString();
+      normalized.createdAt = existingRecord && existingRecord.createdAt ? existingRecord.createdAt : now;
+      normalized.updatedAt = now;
 
-    const validation = validateBiayaNotaKasir_(normalized);
-    if (!validation.valid) {
-      return { ok: false, error: validation.message, stage: "saveBiayaNotaKasir:validate_business_rules" };
-    }
+      const validation = validateBiayaNotaKasir_(normalized);
+      if (!validation.valid) {
+        return { ok: false, error: validation.message, stage: "saveBiayaNotaKasir:validate_business_rules" };
+      }
 
-    const row = buildBiayaNotaKasirRow_(normalized);
-    if (rowIndex > 0) {
-      sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
-    } else {
-      sheet.appendRow(row);
-    }
+      const row = buildBiayaNotaKasirRow_(normalized);
+      if (rowIndex > 0) {
+        sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
+      } else {
+        sheet.appendRow(row);
+      }
 
-    return {
-      ok: true,
-      data: {
-        record: normalized,
-        summary: computeBiayaNotaKasirSummary_(normalized),
-      },
-    };
+      return {
+        ok: true,
+        data: {
+          record: normalized,
+          summary: computeBiayaNotaKasirSummary_(normalized),
+        },
+      };
+    });
   } catch (err) {
     return notaKasirErrorResponse_(err, "saveBiayaNotaKasir");
   }

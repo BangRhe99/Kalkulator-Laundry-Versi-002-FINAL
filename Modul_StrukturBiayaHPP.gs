@@ -83,7 +83,15 @@ const STRUKTUR_HPP_SELF_SERVICE_TOGGLE_TITLES_ = [
 // Util_Penyimpanan.gs.
 let _strukturBiayaHPPCache_ = {};
 
-function getStrukturBiayaHPP(cabangId) {
+// [2026-07-13] Dibungkus withTenant_ (Code.gs) - argumen pertama SELALU
+// sessionToken. Badan cache-check dipindah ke getStrukturBiayaHPP_impl_
+// (dipakai internal oleh modul lain spt Modul_HargaLayanan.gs/Modul_Dashboard.gs
+// TANPA sessionToken, krn sudah berjalan di dalam withTenant_ yang sama).
+function getStrukturBiayaHPP(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return getStrukturBiayaHPP_impl_(cabangId); });
+}
+
+function getStrukturBiayaHPP_impl_(cabangId) {
   if (_strukturBiayaHPPCache_[cabangId]) return _strukturBiayaHPPCache_[cabangId];
   const result = getStrukturBiayaHPP_(cabangId);
   if (result && result.ok) _strukturBiayaHPPCache_[cabangId] = result;
@@ -192,47 +200,47 @@ function getStrukturHPPSourceData_(cabangId) {
     }
 
     const airResult = safeCallStrukturHPP_("getBiayaAir", function () {
-      if (typeof getBiayaAir !== "function") {
+      if (typeof getBiayaAir_impl_ !== "function") {
         return {
           ok: false,
           error: "Fungsi getBiayaAir belum tersedia.",
           stage: "getStrukturHPPSourceData_:getBiayaAir_missing",
         };
       }
-      return getBiayaAir(cabangId);
+      return getBiayaAir_impl_(cabangId);
     });
 
     const listrikResult = safeCallStrukturHPP_("getBiayaListrik", function () {
-      if (typeof getBiayaListrik !== "function") {
+      if (typeof getBiayaListrik_impl_ !== "function") {
         return {
           ok: false,
           error: "Fungsi getBiayaListrik belum tersedia.",
           stage: "getStrukturHPPSourceData_:getBiayaListrik_missing",
         };
       }
-      return getBiayaListrik(cabangId);
+      return getBiayaListrik_impl_(cabangId);
     });
 
     const gasResult = safeCallStrukturHPP_("listBiayaGas", function () {
-      if (typeof listBiayaGas !== "function") {
+      if (typeof listBiayaGas_impl_ !== "function") {
         return {
           ok: false,
           error: "Fungsi listBiayaGas belum tersedia.",
           stage: "getStrukturHPPSourceData_:listBiayaGas_missing",
         };
       }
-      return listBiayaGas(cabangId);
+      return listBiayaGas_impl_(cabangId);
     });
 
     const notaKasirResult = safeCallStrukturHPP_("getBiayaNotaKasir", function () {
-      if (typeof getBiayaNotaKasir !== "function") {
+      if (typeof getBiayaNotaKasir_impl_ !== "function") {
         return {
           ok: false,
           error: "Fungsi getBiayaNotaKasir belum tersedia.",
           stage: "getStrukturHPPSourceData_:getBiayaNotaKasir_missing",
         };
       }
-      return getBiayaNotaKasir(cabangId);
+      return getBiayaNotaKasir_impl_(cabangId);
     });
 
     // Chemical & Packing (Deterjen/Softener/Parfum/Packing) HANYA dipakai
@@ -240,25 +248,25 @@ function getStrukturHPPSourceData_(cabangId) {
     // sini secara umum (aman untuk Self Service karena tidak dipakai di
     // buildSelfServiceHPPStructure_).
     const chemicalResult = safeCallStrukturHPP_("listBiayaChemical", function () {
-      if (typeof listBiayaChemical !== "function") {
+      if (typeof listBiayaChemical_impl_ !== "function") {
         return {
           ok: false,
           error: "Fungsi listBiayaChemical belum tersedia.",
           stage: "getStrukturHPPSourceData_:listBiayaChemical_missing",
         };
       }
-      return listBiayaChemical(cabangId);
+      return listBiayaChemical_impl_(cabangId);
     });
 
     const packingResult = safeCallStrukturHPP_("listBiayaPacking", function () {
-      if (typeof listBiayaPacking !== "function") {
+      if (typeof listBiayaPacking_impl_ !== "function") {
         return {
           ok: false,
           error: "Fungsi listBiayaPacking belum tersedia.",
           stage: "getStrukturHPPSourceData_:listBiayaPacking_missing",
         };
       }
-      return listBiayaPacking(cabangId);
+      return listBiayaPacking_impl_(cabangId);
     });
 
     if (!airResult.ok) warnings.push("Data biaya air belum lengkap atau belum bisa dibaca.");
@@ -286,8 +294,8 @@ function getStrukturHPPSourceData_(cabangId) {
 
 function getStrukturHPPCabang_(cabangId) {
   try {
-    if (typeof getCabang === "function") {
-      const res = getCabang(cabangId);
+    if (typeof getCabang_impl_ === "function") {
+      const res = getCabang_impl_(cabangId);
       if (res && res.ok && res.data && res.data.cabang) {
         const cabang = res.data.cabang;
         const profil = cabang.profil || {};
@@ -1032,7 +1040,11 @@ function isBedCoverAktif_(cabangId) {
   }
 }
 
-function setBedCoverAktif(cabangId, aktif) {
+function setBedCoverAktif(sessionToken, cabangId, aktif) {
+  return withTenant_(sessionToken, function () { return setBedCoverAktif_impl_(cabangId, aktif); });
+}
+
+function setBedCoverAktif_impl_(cabangId, aktif) {
   try {
     const cleanId = typeof cabangId === "string" ? cabangId.trim() : "";
     if (!cleanId) {
@@ -1078,7 +1090,11 @@ function isHPPLayananAktif_(cabangId, serviceKey) {
   }
 }
 
-function setHPPLayananAktif(cabangId, serviceKey, aktif) {
+function setHPPLayananAktif(sessionToken, cabangId, serviceKey, aktif) {
+  return withTenant_(sessionToken, function () { return setHPPLayananAktif_impl_(cabangId, serviceKey, aktif); });
+}
+
+function setHPPLayananAktif_impl_(cabangId, serviceKey, aktif) {
   try {
     const cleanId = typeof cabangId === "string" ? cabangId.trim() : "";
     if (!cleanId) {
@@ -1088,7 +1104,7 @@ function setHPPLayananAktif(cabangId, serviceKey, aktif) {
       return { ok: false, error: "Layanan tidak dikenali.", stage: "setHPPLayananAktif:validate_service_key" };
     }
     if (serviceKey === STRUKTUR_HPP_SERVICE_KEYS_.BED_COVER) {
-      return setBedCoverAktif(cleanId, aktif);
+      return setBedCoverAktif_impl_(cleanId, aktif);
     }
 
     const sheet = ensureDataSheet_();
@@ -1393,7 +1409,7 @@ function strukturHPPErrorResponse_(err, stage) {
 
 function testStrukturBiayaHPP() {
   const cabangId = "test-cabang";
-  const result = getStrukturBiayaHPP(cabangId);
+  const result = getStrukturBiayaHPP_impl_(cabangId);
   Logger.log(JSON.stringify(result, null, 2));
   return result;
 }

@@ -18,10 +18,22 @@
  * - verifyOtp(email, code)
  * - resendOtp(email)
  * - loginUser(email, password)
+ * - logoutUser(sessionToken)
+ *
+ * [2026-07-13] MULTI-TENANT: setiap akun (authUser_<email>) sekarang juga
+ * punya field tenantSpreadsheetId - ID spreadsheet KHUSUS akun itu (dibuat
+ * otomatis oleh provisionTenantSpreadsheet_ saat verifyOtp sukses utk akun
+ * BARU) yang menyimpan SEMUA data bisnis (outlet, biaya, harga) milik akun
+ * itu, terpisah total dari akun lain. loginUser/verifyOtp yang sukses juga
+ * membuat "authSession_<token>" (lihat createSession_/resolveSession_) -
+ * token ini yang divalidasi withTenant_ (Code.gs) di SETIAP pemanggilan
+ * fungsi backend lain, supaya baca/tulis data selalu diarahkan ke
+ * spreadsheet tenant yang benar & tidak bisa dipalsukan dari client.
  * ============================================================================
  */
 
 var AUTH_OTP_TTL_MS_ = 5 * 60 * 1000; // 5 menit
+var AUTH_SESSION_TTL_MS_ = 30 * 24 * 60 * 60 * 1000; // 30 hari
 
 function authKeyOtp_(email) {
   return "authOtp_" + email;
@@ -29,6 +41,104 @@ function authKeyOtp_(email) {
 
 function authKeyUser_(email) {
   return "authUser_" + email;
+}
+
+function authKeySession_(token) {
+  return "authSession_" + token;
+}
+
+function authGenerateToken_() {
+  return Utilities.getUuid() + Utilities.getUuid();
+}
+
+/**
+ * createSession_: dipanggil SETELAH email+password (atau OTP) tervalidasi.
+ * Menulis "authSession_<token>" -> {email, tenantSpreadsheetId, expiresAt}
+ * di spreadsheet Master (SELALU Master, terlepas tenant mana pun, makanya
+ * dipanggil lewat ensureDataSheet_() biasa - BUKAN di dalam withTenant_).
+ */
+function createSession_(email) {
+  var sheet = ensureDataSheet_();
+  var raw = readKey_(sheet, authKeyUser_(email));
+  if (!raw) return null;
+  var user = JSON.parse(raw);
+  var token = authGenerateToken_();
+  writeKey_(sheet, authKeySession_(token), JSON.stringify({
+    email: email,
+    tenantSpreadsheetId: user.tenantSpreadsheetId || "",
+    createdAt: Date.now(),
+    expiresAt: Date.now() + AUTH_SESSION_TTL_MS_
+  }));
+  return token;
+}
+
+/**
+ * resolveSession_: dipanggil withTenant_ (Code.gs) di SETIAP pemanggilan
+ * fungsi backend lain. Balikin null kalau token kosong/tidak ada/kadaluarsa
+ * (withTenant_ akan menolak permintaan dgn {ok:false, code:"UNAUTHORIZED"}).
+ */
+function resolveSession_(token) {
+  var cleanToken = String(token || "").trim();
+  if (!cleanToken) return null;
+
+  var sheet = ensureDataSheet_();
+  var raw = readKey_(sheet, authKeySession_(cleanToken));
+  if (!raw) return null;
+
+  var session;
+  try {
+    session = JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
+
+  if (Date.now() > Number(session.expiresAt || 0)) {
+    deleteKeyRow_(sheet, authKeySession_(cleanToken));
+    return null;
+  }
+
+  return session;
+}
+
+/**
+ * logoutUser: hapus sesi dari server (bukan cuma clear localStorage di
+ * client) supaya token yang sama tidak bisa dipakai lagi setelah user klik
+ * Keluar.
+ */
+function logoutUser(sessionToken) {
+  try {
+    var sheet = ensureDataSheet_();
+    deleteKeyRow_(sheet, authKeySession_(String(sessionToken || "").trim()));
+    return { ok: true, data: {} };
+  } catch (err) {
+    return errorResponse_(err, "logoutUser");
+  }
+}
+
+/**
+ * provisionTenantSpreadsheet_: dipanggil verifyOtp saat akun BARU aktif.
+ * Membuat 1 spreadsheet kosong baru khusus akun ini (SpreadsheetApp.create -
+ * TIDAK butuh template/DriveApp, karena ensureDataSheet_/getBiayaNotaKasirSheet_/
+ * getBiayaTetapSheet_ semuanya SUDAH auto-membuat sheet+header sendiri saat
+ * pertama diakses). ID-nya disimpan di authUser_<email>.tenantSpreadsheetId.
+ * Idempoten: kalau akun sudah punya tenantSpreadsheetId, tidak bikin baru lagi.
+ */
+function provisionTenantSpreadsheet_(email) {
+  return _withDataLock_(function () {
+    var sheet = ensureDataSheet_();
+    var raw = readKey_(sheet, authKeyUser_(email));
+    if (!raw) throw new Error("Akun tidak ditemukan saat menyiapkan data tenant.");
+
+    var user = JSON.parse(raw);
+    if (user.tenantSpreadsheetId) return user.tenantSpreadsheetId;
+
+    var newSs = SpreadsheetApp.create("Data Laundry - " + email);
+    var newId = newSs.getId();
+
+    user.tenantSpreadsheetId = newId;
+    _writeKeyCore_(sheet, authKeyUser_(email), JSON.stringify(user));
+    return newId;
+  });
 }
 
 function authIsValidGmail_(email) {
@@ -154,11 +264,18 @@ function verifyOtp(email, code) {
       passwordHash: pending.passwordHash,
       salt: pending.salt,
       createdAt: pending.createdAt || new Date().toISOString(),
-      verifiedAt: new Date().toISOString()
+      verifiedAt: new Date().toISOString(),
+      tenantSpreadsheetId: ""
     }));
     deleteKeyRow_(sheet, authKeyOtp_(cleanEmail));
 
-    return { ok: true, data: { email: cleanEmail } };
+    // Akun baru aktif -> siapkan spreadsheet data khusus akun ini SEKARANG,
+    // supaya begitu login pertama kali, data sudah siap dipakai (bukan
+    // "kosong tanpa tenant" yang bikin loginUser menolak).
+    provisionTenantSpreadsheet_(cleanEmail);
+
+    var sessionToken = createSession_(cleanEmail);
+    return { ok: true, data: { email: cleanEmail, sessionToken: sessionToken } };
   } catch (err) {
     return errorResponse_(err, "verifyOtp");
   }
@@ -219,8 +336,39 @@ function loginUser(email, password) {
       return { ok: false, error: "Email atau password salah.", stage: "loginUser:mismatch" };
     }
 
-    return { ok: true, data: { email: cleanEmail } };
+    // Akun terverifikasi tapi BELUM punya spreadsheet tenant (mis. akun lama
+    // dari sebelum fitur multi-tenant ini ada) - JANGAN auto-provision di
+    // sini (beresiko membuat spreadsheet kosong baru & "memutus" akun dari
+    // data asli yang sudah ada). Harus disambungkan manual dulu lewat
+    // migrateOwnerToTenant_() dari editor Apps Script.
+    if (!user.tenantSpreadsheetId) {
+      return { ok: false, error: "Akun ini belum tersambung ke data. Hubungi admin untuk menyelesaikan penyiapan akun.", stage: "loginUser:missing_tenant" };
+    }
+
+    var sessionToken = createSession_(cleanEmail);
+    return { ok: true, data: { email: cleanEmail, sessionToken: sessionToken } };
   } catch (err) {
     return errorResponse_(err, "loginUser");
   }
+}
+
+/**
+ * migrateOwnerToTenant_: jalankan MANUAL SEKALI dari editor Apps Script
+ * (bukan dipanggil dari UI/client - sengaja tidak client-callable krn tidak
+ * dibungkus withTenant_ & tidak dipanggil dari file .html manapun) untuk
+ * menyambungkan akun PEMILIK aplikasi ini ke data yang SUDAH ADA di
+ * spreadsheet Master ini sendiri (self-reference) - TIDAK memindah data
+ * apa pun, cuma mengisi tenantSpreadsheetId.
+ */
+function migrateOwnerToTenant_(ownerEmail) {
+  var cleanEmail = authNormalizeEmail_(ownerEmail);
+  var sheet = ensureDataSheet_();
+  var raw = readKey_(sheet, authKeyUser_(cleanEmail));
+  if (!raw) {
+    throw new Error("Akun " + cleanEmail + " belum terdaftar/terverifikasi. Daftar & verifikasi OTP dulu lewat UI, baru jalankan fungsi ini.");
+  }
+  var user = JSON.parse(raw);
+  user.tenantSpreadsheetId = SpreadsheetApp.getActiveSpreadsheet().getId();
+  writeKey_(sheet, authKeyUser_(cleanEmail), JSON.stringify(user));
+  Logger.log("OK: " + cleanEmail + " sekarang tersambung ke spreadsheet Master ini (data asli tidak dipindah).");
 }

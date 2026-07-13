@@ -1,16 +1,21 @@
-/**
+﻿/**
  * ============================================================================
  * MODUL: DASHBOARD MENU UTAMA
  * ============================================================================
  * Modul ini hanya membaca data dari modul existing untuk menampilkan rangkuman
  * kondisi outlet di Menu Utama.
  *
- * PUBLIC FUNCTIONS:
- * - getDashboardCabangSummary()
- * - getDashboardMasterBiayaSummary()
- * - getDashboardHPPSummary()
- * - getDashboardHargaLayananSummary()
- * - getDashboardFixedCostSummary()
+ * PUBLIC FUNCTIONS (argumen pertama SELALU sessionToken - lihat withTenant_
+ * di Code.gs):
+ * - getDashboardCabangSummary(sessionToken, cabangId)
+ * - getDashboardMasterBiayaSummary(sessionToken, cabangId)
+ * - getDashboardHPPSummary(sessionToken, cabangId)
+ * - getDashboardHargaLayananSummary(sessionToken, cabangId)
+ * - getDashboardFixedCostSummary(sessionToken, cabangId)
+ * - getDashboardFullSummary(sessionToken, cabangId)
+ * - saveBepServiceMix(sessionToken, cabangId, mixMap)
+ * - getDashboardBEPSummary(sessionToken, cabangId)
+ * - getDashboardPotensiOmsetSummary(sessionToken, cabangId)
  * ============================================================================
  */
 
@@ -44,9 +49,9 @@ function dashboardFormatRp_(value) {
   return sign + "Rp" + Math.abs(num).toLocaleString("id-ID");
 }
 
-// Cache baca-sekali-per-eksekusi: getDashboardFullSummary() memanggil 7
+// Cache baca-sekali-per-eksekusi: getDashboardFullSummary_impl_() memanggil 7
 // fungsi kartu, dan HAMPIR SEMUANYA lewat dashboardGetCabangRows_() sendiri-
-// sendiri -> listCabang() (JSON.parse + computeSummary_ tiap cabang) diulang
+// sendiri -> listCabang_impl_() (JSON.parse + computeSummary_ tiap cabang) diulang
 // berkali-kali padahal hasilnya identik dalam satu kali load dashboard.
 // Variabel global Apps Script reset otomatis tiap eksekusi google.script.run
 // baru, jadi aman dari data basi lintas request (pola sama seperti
@@ -56,20 +61,20 @@ let _dashboardCabangRowsCache_ = null;
 function dashboardGetCabangRows_() {
   if (_dashboardCabangRowsCache_) return _dashboardCabangRowsCache_;
 
-  if (typeof listCabang !== "function") {
+  if (typeof listCabang_impl_ !== "function") {
     return {
       ok: false,
-      error: "Fungsi listCabang belum tersedia.",
+      error: "Fungsi listCabang_impl_ belum tersedia.",
       stage: "dashboardGetCabangRows_:listCabang_missing"
     };
   }
 
-  const res = listCabang();
+  const res = listCabang_impl_();
   if (!res || !res.ok) {
     return {
       ok: false,
       error: res && res.error ? res.error : "Gagal membaca daftar cabang.",
-      stage: res && res.stage ? res.stage : "dashboardGetCabangRows_:listCabang"
+      stage: res && res.stage ? res.stage : "dashboardGetCabangRows_:listCabang_impl_"
     };
   }
 
@@ -85,7 +90,17 @@ function dashboardOutletName_(item) {
   return String(item.namaLaundry || item.nama || item.namaCabang || "Outlet tanpa nama");
 }
 
-function getDashboardCabangSummary(cabangId) {
+// [2026-07-13] 9 fungsi publik Dashboard di bawah ini (semua "getDashboard*"
+// + saveBepServiceMix) dibungkus withTenant_ (Code.gs) - argumen pertama
+// SELALU sessionToken, badan logic asli dipindah ke nama "_impl_". Panggilan
+// silang antar fungsi Dashboard (mis. getDashboardFullSummary_impl_ ->
+// getDashboardCabangSummary_impl_ dkk) SUDAH diarahkan ke versi "_impl_"
+// (lihat masing-masing).
+function getDashboardCabangSummary(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return getDashboardCabangSummary_impl_(cabangId); });
+}
+
+function getDashboardCabangSummary_impl_(cabangId) {
   try {
     const cabangRes = dashboardGetCabangRows_();
     if (!cabangRes.ok) return cabangRes;
@@ -98,7 +113,7 @@ function getDashboardCabangSummary(cabangId) {
       const kering = summary.kering || {};
 
       // Dulu di sini panggil getCabang(item.id) lagi (baca ulang sheet) hanya
-      // untuk ambil mesinCuci/mesinPengering/okupansi. Sekarang listCabang()
+      // untuk ambil mesinCuci/mesinPengering/okupansi. Sekarang listCabang_impl_()
       // sudah menyertakan field ini langsung, jadi tidak perlu fetch kedua.
       const mesinCuci = dashboardArray_(item.mesinCuci);
       const mesinPengering = dashboardArray_(item.mesinPengering);
@@ -141,33 +156,41 @@ function getDashboardCabangSummary(cabangId) {
       }
     };
   } catch (err) {
-    return dashboardError_(err, "getDashboardCabangSummary");
+    return dashboardError_(err, "getDashboardCabangSummary_impl_");
   }
 }
 
 // Gabungan 6 fungsi Dashboard jadi 1 eksekusi server: browser cukup 1 kali
 // google.script.run, dan cache baca sheet (Util_Penyimpanan.gs) kepakai
 // bersama oleh keenam sub-panggilan di bawah (bukan reset tiap panggilan).
-function getDashboardFullSummary(cabangId) {
+function getDashboardFullSummary(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return getDashboardFullSummary_impl_(cabangId); });
+}
+
+function getDashboardFullSummary_impl_(cabangId) {
   try {
     return {
       ok: true,
       data: {
-        cabang: getDashboardCabangSummary(cabangId),
-        masterBiaya: getDashboardMasterBiayaSummary(cabangId),
-        hpp: getDashboardHPPSummary(cabangId),
-        hargaLayanan: getDashboardHargaLayananSummary(cabangId),
-        fixedCost: getDashboardFixedCostSummary(cabangId),
-        bep: getDashboardBEPSummary(cabangId),
-        potensiOmset: getDashboardPotensiOmsetSummary(cabangId)
+        cabang: getDashboardCabangSummary_impl_(cabangId),
+        masterBiaya: getDashboardMasterBiayaSummary_impl_(cabangId),
+        hpp: getDashboardHPPSummary_impl_(cabangId),
+        hargaLayanan: getDashboardHargaLayananSummary_impl_(cabangId),
+        fixedCost: getDashboardFixedCostSummary_impl_(cabangId),
+        bep: getDashboardBEPSummary_impl_(cabangId),
+        potensiOmset: getDashboardPotensiOmsetSummary_impl_(cabangId)
       }
     };
   } catch (err) {
-    return dashboardError_(err, "getDashboardFullSummary");
+    return dashboardError_(err, "getDashboardFullSummary_impl_");
   }
 }
 
-function getDashboardMasterBiayaSummary(cabangId) {
+function getDashboardMasterBiayaSummary(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return getDashboardMasterBiayaSummary_impl_(cabangId); });
+}
+
+function getDashboardMasterBiayaSummary_impl_(cabangId) {
   try {
     const cabangRes = dashboardGetCabangRows_();
     if (!cabangRes.ok) return cabangRes;
@@ -181,8 +204,8 @@ function getDashboardMasterBiayaSummary(cabangId) {
 
       let gasComplete = false;
       try {
-        if (typeof listBiayaGas === "function") {
-          const gasRes = listBiayaGas(cabangId);
+        if (typeof listBiayaGas_impl_ === "function") {
+          const gasRes = listBiayaGas_impl_(cabangId);
           gasComplete = !!(gasRes && gasRes.ok && gasRes.data && Array.isArray(gasRes.data.items) && gasRes.data.items.length > 0);
         }
       } catch (e) {}
@@ -190,8 +213,8 @@ function getDashboardMasterBiayaSummary(cabangId) {
 
       let listrikComplete = false;
       try {
-        if (typeof getBiayaListrik === "function") {
-          const listrikRes = getBiayaListrik(cabangId);
+        if (typeof getBiayaListrik_impl_ === "function") {
+          const listrikRes = getBiayaListrik_impl_(cabangId);
           listrikComplete = !!(listrikRes && listrikRes.ok && listrikRes.data && listrikRes.data.record && listrikRes.data.record.updatedAt);
         }
       } catch (e) {}
@@ -199,8 +222,8 @@ function getDashboardMasterBiayaSummary(cabangId) {
 
       let airComplete = false;
       try {
-        if (typeof getBiayaAir === "function") {
-          const airRes = getBiayaAir(cabangId);
+        if (typeof getBiayaAir_impl_ === "function") {
+          const airRes = getBiayaAir_impl_(cabangId);
           airComplete = !!(airRes && airRes.ok && airRes.data && airRes.data.record && airRes.data.record.updatedAt);
         }
       } catch (e) {}
@@ -208,8 +231,8 @@ function getDashboardMasterBiayaSummary(cabangId) {
 
       let notaComplete = false;
       try {
-        if (typeof getBiayaNotaKasir === "function") {
-          const notaRes = getBiayaNotaKasir(cabangId);
+        if (typeof getBiayaNotaKasir_impl_ === "function") {
+          const notaRes = getBiayaNotaKasir_impl_(cabangId);
           notaComplete = !!(notaRes && notaRes.ok && notaRes.data && notaRes.data.record && notaRes.data.record.updatedAt);
         }
       } catch (e) {}
@@ -217,8 +240,8 @@ function getDashboardMasterBiayaSummary(cabangId) {
 
       let chemicalComplete = false;
       try {
-        if (typeof listBiayaChemical === "function") {
-          const chemicalRes = listBiayaChemical(cabangId);
+        if (typeof listBiayaChemical_impl_ === "function") {
+          const chemicalRes = listBiayaChemical_impl_(cabangId);
           chemicalComplete = !!(chemicalRes && chemicalRes.ok && chemicalRes.data && Array.isArray(chemicalRes.data.items) && chemicalRes.data.items.length > 0);
         }
       } catch (e) {}
@@ -226,8 +249,8 @@ function getDashboardMasterBiayaSummary(cabangId) {
 
       let packingComplete = false;
       try {
-        if (typeof listBiayaPacking === "function") {
-          const packingRes = listBiayaPacking(cabangId);
+        if (typeof listBiayaPacking_impl_ === "function") {
+          const packingRes = listBiayaPacking_impl_(cabangId);
           packingComplete = !!(packingRes && packingRes.ok && packingRes.data && Array.isArray(packingRes.data.items) && packingRes.data.items.length > 0);
         }
       } catch (e) {}
@@ -238,8 +261,8 @@ function getDashboardMasterBiayaSummary(cabangId) {
       let gasCardRef = null;
 
       try {
-        if (typeof listBiayaGas === "function") {
-          const gasRes = listBiayaGas(cabangId);
+        if (typeof listBiayaGas_impl_ === "function") {
+          const gasRes = listBiayaGas_impl_(cabangId);
           if (gasRes && gasRes.ok && gasRes.data && gasRes.data.items) {
             // Kategori Jasa Setrika: gas dipakai untuk memanaskan setrika uap,
             // dihitung PER JAM (s.biayaGasSetrikaPerJam, diisi kalau record
@@ -303,8 +326,8 @@ function getDashboardMasterBiayaSummary(cabangId) {
       } catch(e) {}
 
       try {
-        if (typeof getBiayaListrik === "function") {
-          const listrikRes = getBiayaListrik(cabangId);
+        if (typeof getBiayaListrik_impl_ === "function") {
+          const listrikRes = getBiayaListrik_impl_(cabangId);
           if (listrikRes && listrikRes.ok && listrikRes.data && listrikRes.data.summary) {
             const listrikRecord = listrikRes.data.record || {};
             const cuciArr = Array.isArray(listrikRes.data.summary.cuci) ? listrikRes.data.summary.cuci : [];
@@ -337,8 +360,8 @@ function getDashboardMasterBiayaSummary(cabangId) {
         }
       } catch(e) {}
       try {
-        if (typeof getBiayaAir === "function") {
-          const airRes = getBiayaAir(cabangId);
+        if (typeof getBiayaAir_impl_ === "function") {
+          const airRes = getBiayaAir_impl_(cabangId);
           if (airRes && airRes.ok && airRes.data && airRes.data.summary) {
             const airPerLoad = dashboardNumber_(airRes.data.summary.biayaPerLoad, 0);
             if (airComplete) {
@@ -362,8 +385,8 @@ function getDashboardMasterBiayaSummary(cabangId) {
       } catch(e) {}
 
       try {
-        if (typeof getBiayaNotaKasir === "function") {
-          const notaRes = getBiayaNotaKasir(cabangId);
+        if (typeof getBiayaNotaKasir_impl_ === "function") {
+          const notaRes = getBiayaNotaKasir_impl_(cabangId);
           if (notaRes && notaRes.ok && notaRes.data && notaRes.data.summary) {
             const notaPerLoad = dashboardNumber_(notaRes.data.summary.totalBiayaNotaKasirPerLoad, 0);
             if (notaComplete) {
@@ -379,8 +402,8 @@ function getDashboardMasterBiayaSummary(cabangId) {
       } catch(e) {}
 
       try {
-        if (typeof listBiayaChemical === "function") {
-          const chemicalRes = listBiayaChemical(cabangId);
+        if (typeof listBiayaChemical_impl_ === "function") {
+          const chemicalRes = listBiayaChemical_impl_(cabangId);
           if (chemicalRes && chemicalRes.ok && chemicalRes.data && chemicalRes.data.items) {
             // Akumulasi biayaPerLoad SEMUA item chemical (Deterjen, Softener,
             // Parfum, Pelicin, dan item tambahan lain) jadi satu angka total.
@@ -406,8 +429,8 @@ function getDashboardMasterBiayaSummary(cabangId) {
       } catch(e) {}
 
       try {
-        if (typeof listBiayaPacking === "function") {
-          const packingRes = listBiayaPacking(cabangId);
+        if (typeof listBiayaPacking_impl_ === "function") {
+          const packingRes = listBiayaPacking_impl_(cabangId);
           if (packingRes && packingRes.ok && packingRes.data && packingRes.data.items) {
             // Akumulasi biayaPerLoad item packing utk layanan KILOAN saja:
             // item non-plastik (Isolasi, dll) selalu ikut; item plastik
@@ -468,11 +491,15 @@ function getDashboardMasterBiayaSummary(cabangId) {
       }
     };
   } catch (err) {
-    return dashboardError_(err, "getDashboardMasterBiayaSummary");
+    return dashboardError_(err, "getDashboardMasterBiayaSummary_impl_");
   }
 }
 
-function getDashboardHPPSummary(cabangId) {
+function getDashboardHPPSummary(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return getDashboardHPPSummary_impl_(cabangId); });
+}
+
+function getDashboardHPPSummary_impl_(cabangId) {
   try {
     const cabangRes = dashboardGetCabangRows_();
     if (!cabangRes.ok) return cabangRes;
@@ -489,8 +516,8 @@ function getDashboardHPPSummary(cabangId) {
       let serviceToggles = [];
 
       try {
-        if (typeof getStrukturBiayaHPP === "function") {
-          const hppRes = getStrukturBiayaHPP(cabangId);
+        if (typeof getStrukturBiayaHPP_impl_ === "function") {
+          const hppRes = getStrukturBiayaHPP_impl_(cabangId);
           if (hppRes && hppRes.ok && hppRes.data) {
             layanan = dashboardArray_(hppRes.data.layanan);
             warnings = dashboardArray_(hppRes.data.warnings);
@@ -502,7 +529,7 @@ function getDashboardHPPSummary(cabangId) {
             errorText = hppRes && hppRes.error ? hppRes.error : "HPP belum bisa dibaca.";
           }
         } else {
-          errorText = "Fungsi getStrukturBiayaHPP belum tersedia.";
+          errorText = "Fungsi getStrukturBiayaHPP_impl_ belum tersedia.";
         }
       } catch (e) {
         errorText = e && e.message ? e.message : String(e);
@@ -551,11 +578,15 @@ function getDashboardHPPSummary(cabangId) {
       }
     };
   } catch (err) {
-    return dashboardError_(err, "getDashboardHPPSummary");
+    return dashboardError_(err, "getDashboardHPPSummary_impl_");
   }
 }
 
-function getDashboardHargaLayananSummary(cabangId) {
+function getDashboardHargaLayananSummary(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return getDashboardHargaLayananSummary_impl_(cabangId); });
+}
+
+function getDashboardHargaLayananSummary_impl_(cabangId) {
   try {
     const cabangRes = dashboardGetCabangRows_();
     if (!cabangRes.ok) return cabangRes;
@@ -569,8 +600,8 @@ function getDashboardHargaLayananSummary(cabangId) {
       let errorText = "";
 
       try {
-        if (typeof getHargaLayanan === "function") {
-          const hargaRes = getHargaLayanan(cabangId);
+        if (typeof getHargaLayanan_impl_ === "function") {
+          const hargaRes = getHargaLayanan_impl_(cabangId);
           if (hargaRes && hargaRes.ok && hargaRes.data) {
             layanan = dashboardArray_(hargaRes.data.layanan);
             warnings = dashboardArray_(hargaRes.data.warnings);
@@ -578,7 +609,7 @@ function getDashboardHargaLayananSummary(cabangId) {
             errorText = hargaRes && hargaRes.error ? hargaRes.error : "Harga layanan belum bisa dibaca.";
           }
         } else {
-          errorText = "Fungsi getHargaLayanan belum tersedia.";
+          errorText = "Fungsi getHargaLayanan_impl_ belum tersedia.";
         }
       } catch (e) {
         errorText = e && e.message ? e.message : String(e);
@@ -676,26 +707,30 @@ function getDashboardHargaLayananSummary(cabangId) {
       }
     };
   } catch (err) {
-    return dashboardError_(err, "getDashboardHargaLayananSummary");
+    return dashboardError_(err, "getDashboardHargaLayananSummary_impl_");
   }
 }
 
-function getDashboardFixedCostSummary(cabangId) {
+function getDashboardFixedCostSummary(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return getDashboardFixedCostSummary_impl_(cabangId); });
+}
+
+function getDashboardFixedCostSummary_impl_(cabangId) {
   try {
-    if (typeof listBiayaTetapOutletSummaries !== "function") {
+    if (typeof listBiayaTetapOutletSummaries_impl_ !== "function") {
       return {
         ok: false,
-        error: "Fungsi listBiayaTetapOutletSummaries belum tersedia.",
-        stage: "getDashboardFixedCostSummary:listBiayaTetapOutletSummaries_missing"
+        error: "Fungsi listBiayaTetapOutletSummaries_impl_ belum tersedia.",
+        stage: "getDashboardFixedCostSummary_impl_:listBiayaTetapOutletSummaries_missing"
       };
     }
 
-    const res = listBiayaTetapOutletSummaries();
+    const res = listBiayaTetapOutletSummaries_impl_();
     if (!res || !res.ok) {
       return {
         ok: false,
         error: res && res.error ? res.error : "Gagal membaca summary fixed cost.",
-        stage: res && res.stage ? res.stage : "getDashboardFixedCostSummary:listBiayaTetapOutletSummaries"
+        stage: res && res.stage ? res.stage : "getDashboardFixedCostSummary_impl_:listBiayaTetapOutletSummaries_impl_"
       };
     }
 
@@ -733,12 +768,12 @@ function getDashboardFixedCostSummary(cabangId) {
       }
     };
   } catch (err) {
-    return dashboardError_(err, "getDashboardFixedCostSummary");
+    return dashboardError_(err, "getDashboardFixedCostSummary_impl_");
   }
 }
 
 /**
- * getDashboardBEPSummary
+ * getDashboardBEPSummary_impl_
  * Menghitung Break Even Point (BEP) berdasarkan:
  * - Fixed Cost per bulan
  * - Rata-rata HPP per load (semua layanan)
@@ -785,14 +820,18 @@ function getBepServiceMix_(cabangId, activeKeys) {
   }
 }
 
-function saveBepServiceMix(cabangId, mixMap) {
+function saveBepServiceMix(sessionToken, cabangId, mixMap) {
+  return withTenant_(sessionToken, function () { return saveBepServiceMix_impl_(cabangId, mixMap); });
+}
+
+function saveBepServiceMix_impl_(cabangId, mixMap) {
   try {
     var cleanId = typeof cabangId === "string" ? cabangId.trim() : "";
     if (!cleanId) {
-      return { ok: false, error: "ID cabang tidak valid.", stage: "saveBepServiceMix:validate_cabang_id" };
+      return { ok: false, error: "ID cabang tidak valid.", stage: "saveBepServiceMix_impl_:validate_cabang_id" };
     }
     if (!mixMap || typeof mixMap !== "object") {
-      return { ok: false, error: "Data mix tidak valid.", stage: "saveBepServiceMix:validate_mix" };
+      return { ok: false, error: "Data mix tidak valid.", stage: "saveBepServiceMix_impl_:validate_mix" };
     }
 
     var cleanMix = {};
@@ -811,7 +850,7 @@ function saveBepServiceMix(cabangId, mixMap) {
       return {
         ok: false,
         error: "Total kontribusi layanan harus 100%.",
-        stage: "saveBepServiceMix:validate_total"
+        stage: "saveBepServiceMix_impl_:validate_total"
       };
     }
 
@@ -823,7 +862,7 @@ function saveBepServiceMix(cabangId, mixMap) {
 
     return { ok: true, data: { cabangId: cleanId, mix: cleanMix } };
   } catch (err) {
-    return dashboardError_(err, "saveBepServiceMix");
+    return dashboardError_(err, "saveBepServiceMix_impl_");
   }
 }
 
@@ -868,7 +907,7 @@ function bepEffectiveHpp_(item) {
 function getBepWeightedServiceData_(cabangId) {
   var warnings = [];
 
-  var hppRes = getDashboardHPPSummary(cabangId);
+  var hppRes = getDashboardHPPSummary_impl_(cabangId);
   var hppByKey = {};
   if (hppRes && hppRes.ok && hppRes.data && hppRes.data.rows && hppRes.data.rows.length) {
     dashboardArray_(hppRes.data.rows[0].layananList).forEach(function (svc) {
@@ -878,12 +917,12 @@ function getBepWeightedServiceData_(cabangId) {
     warnings.push("HPP belum tersedia.");
   }
 
-  var hargaRes = getDashboardHargaLayananSummary(cabangId);
+  var hargaRes = getDashboardHargaLayananSummary_impl_(cabangId);
   var requiredItems = [];
   if (hargaRes && hargaRes.ok && hargaRes.data && hargaRes.data.rows && hargaRes.data.rows.length) {
     var hargaRow = hargaRes.data.rows[0];
-    if (hargaRow && typeof getHargaLayanan === "function") {
-      var detailRes = getHargaLayanan(hargaRow.cabangId);
+    if (hargaRow && typeof getHargaLayanan_impl_ === "function") {
+      var detailRes = getHargaLayanan_impl_(hargaRow.cabangId);
       if (detailRes && detailRes.ok && detailRes.data && detailRes.data.layanan) {
         // Bed Cover basisnya per item (bukan per order/load) -- tidak
         // sebanding dgn model BEP campuran layanan di sini, tidak diikutkan.
@@ -955,9 +994,13 @@ function getBepWeightedServiceData_(cabangId) {
   };
 }
 
-function getDashboardBEPSummary(cabangId) {
+function getDashboardBEPSummary(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return getDashboardBEPSummary_impl_(cabangId); });
+}
+
+function getDashboardBEPSummary_impl_(cabangId) {
   try {
-    var fixedCostRes = getDashboardFixedCostSummary(cabangId);
+    var fixedCostRes = getDashboardFixedCostSummary_impl_(cabangId);
     var warnings = [];
     var fixedCostPerBulan = 0;
 
@@ -1033,7 +1076,7 @@ function getDashboardBEPSummary(cabangId) {
       }
     };
   } catch (err) {
-    return dashboardError_(err, "getDashboardBEPSummary");
+    return dashboardError_(err, "getDashboardBEPSummary_impl_");
   }
 }
 
@@ -1084,10 +1127,14 @@ function bepMachineUsageMap_(key) {
   return map[key] || { washer: 0, dryer: 0, setrika: 0 };
 }
 
-function getDashboardPotensiOmsetSummary(cabangId) {
+function getDashboardPotensiOmsetSummary(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return getDashboardPotensiOmsetSummary_impl_(cabangId); });
+}
+
+function getDashboardPotensiOmsetSummary_impl_(cabangId) {
   try {
-    var fixedCostRes = getDashboardFixedCostSummary(cabangId);
-    var cabangRes = getDashboardCabangSummary(cabangId);
+    var fixedCostRes = getDashboardFixedCostSummary_impl_(cabangId);
+    var cabangRes = getDashboardCabangSummary_impl_(cabangId);
 
     var warnings = [];
     var fixedCostPerBulan = 0;
@@ -1121,8 +1168,8 @@ function getDashboardPotensiOmsetSummary(cabangId) {
     // Layanan di sini supaya dapat angka aslinya, BUKAN versi "per order"
     // (omzetMinimumOrder) yang dipakai kartu BEP.
     var hargaDetailByKey = {};
-    if (typeof getHargaLayanan === "function") {
-      var hargaDetailRes = getHargaLayanan(cabangId);
+    if (typeof getHargaLayanan_impl_ === "function") {
+      var hargaDetailRes = getHargaLayanan_impl_(cabangId);
       if (hargaDetailRes && hargaDetailRes.ok && hargaDetailRes.data && hargaDetailRes.data.layanan) {
         hargaDetailRes.data.layanan.forEach(function (item) {
           if (item && item.key) hargaDetailByKey[item.key] = item;
@@ -1252,6 +1299,6 @@ function getDashboardPotensiOmsetSummary(cabangId) {
       }
     };
   } catch (err) {
-    return dashboardError_(err, "getDashboardPotensiOmsetSummary");
+    return dashboardError_(err, "getDashboardPotensiOmsetSummary_impl_");
   }
 }

@@ -555,8 +555,7 @@ menjalankan bootApp().
     if (btn) btn.disabled = true;
     setSaveStatus("Menyimpan...", "busy");
 
-    google.script.run
-      .withSuccessHandler(function (res) {
+    callServer_("saveBiayaTetapOutlet", [view.biayaTetapCabangId, collectBiayaTetapPayload()], function (res) {
         if (btn) btn.disabled = false;
         if (!res || !res.ok) {
           handleBackendError(res, "menyimpan biaya tetap outlet");
@@ -569,12 +568,10 @@ menjalankan bootApp().
         showToast("Biaya tetap outlet tersimpan.", "ok");
         setSaveStatus("Tersimpan", "ok");
         renderBiayaTetapOutletForm(res.data);
-      })
-      .withFailureHandler(function (err) {
+      }, function (err) {
         if (btn) btn.disabled = false;
         handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:saveBiayaTetapOutlet" }, "menyimpan biaya tetap outlet");
-      })
-      .saveBiayaTetapOutlet(view.biayaTetapCabangId, collectBiayaTetapPayload());
+      });
   }
 
   function deleteBiayaTetapOutletCurrent() {
@@ -583,8 +580,7 @@ menjalankan bootApp().
 
     setSaveStatus("Menghapus...", "busy");
 
-    google.script.run
-      .withSuccessHandler(function (res) {
+    callServer_("deleteBiayaTetapOutlet", [view.biayaTetapCabangId], function (res) {
         if (!res || !res.ok) {
           handleBackendError(res, "reset biaya tetap outlet");
           return;
@@ -593,11 +589,9 @@ menjalankan bootApp().
         invalidateServerReadCache_("listBiayaTetapOutletSummaries");
         showToast("Data biaya tetap outlet di-reset.", "ok");
         openBiayaTetapOutletForm(view.biayaTetapCabangId);
-      })
-      .withFailureHandler(function (err) {
+      }, function (err) {
         handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:deleteBiayaTetapOutlet" }, "reset biaya tetap outlet");
-      })
-      .deleteBiayaTetapOutlet(view.biayaTetapCabangId);
+      });
   }
 
 

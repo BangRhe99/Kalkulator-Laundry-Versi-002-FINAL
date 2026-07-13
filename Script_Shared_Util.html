@@ -323,7 +323,17 @@ menjalankan bootApp().
     setSaveStatus("", "");
   }
 
+  // [2026-07-13] Titik pusat deteksi sesi habis/tidak valid - HAMPIR SEMUA
+  // pemanggilan server di app ini sudah lewat handleBackendError saat
+  // {ok:false} (lihat pola "if (!res.ok) handleBackendError(res, ...)" di
+  // seluruh Script_Fitur_*.html), jadi cukup dicek SEKALI di sini supaya
+  // callServer_/cachedServerRead_ sendiri tidak perlu tahu soal ini.
   function handleBackendError(res, actionLabel) {
+    if (res && res.code === "UNAUTHORIZED") {
+      showToast("Sesi login sudah berakhir, silakan masuk lagi.", "err");
+      if (typeof authLogout === "function") authLogout();
+      return;
+    }
     var msg = (res && res.error) ? res.error : "Terjadi kesalahan tidak dikenal.";
     var stage = (res && res.stage) ? res.stage : "unknown_stage";
     var label = actionLabel || "memproses data";
@@ -588,6 +598,10 @@ menjalankan bootApp().
     return fnName + "::" + (key === undefined || key === null ? "" : String(key));
   }
 
+  // [2026-07-13] MULTI-TENANT: semua fungsi backend sekarang WAJIB terima
+  // sessionToken sbg argumen PERTAMA (divalidasi withTenant_ di Code.gs) -
+  // disisipkan otomatis di sini dari authGetSessionToken_() (Script_Fitur_
+  // Auth.html) supaya caller tidak perlu mengurusnya sendiri.
   function cachedServerRead_(fnName, key, onData, onError) {
     var cacheKey = serverReadCacheKey_(fnName, key);
     var hadCache = Object.prototype.hasOwnProperty.call(serverReadCache_, cacheKey);
@@ -595,6 +609,8 @@ menjalankan bootApp().
     if (hadCache && typeof onData === "function") {
       try { onData(serverReadCache_[cacheKey], true); } catch (e) {}
     }
+
+    var token = (typeof window.authGetSessionToken_ === "function") ? window.authGetSessionToken_() : "";
 
     var runner = google.script.run
       .withSuccessHandler(function (res) {
@@ -607,14 +623,44 @@ menjalankan bootApp().
         if (typeof onError === "function") onError(err, hadCache);
       });
 
-    // Endpoint tanpa argumen (mis. listCabang) dipanggil TANPA argumen -
-    // jangan kirim `undefined` ke google.script.run.
+    // Endpoint tanpa argumen selain token (mis. listCabang) dipanggil TANPA
+    // key kedua - jangan kirim `undefined` ke google.script.run.
     if (key === undefined || key === null) {
-      runner[fnName]();
+      runner[fnName](token);
     } else {
-      runner[fnName](key);
+      runner[fnName](token, key);
     }
     return hadCache;
+  }
+
+  /**
+   * =========================================================================
+   * callServer_ : wrapper TULIS generik (create/update/delete/save) - versi
+   * "callServer_" dari cachedServerRead_ di atas, TANPA cache (data tulis
+   * selalu harus sampai ke server, tidak boleh dari cache lama). Menyisipkan
+   * sessionToken otomatis sbg argumen pertama, sama seperti cachedServerRead_.
+   *
+   *   callServer_("createCabang", [payload], function (res) {...}, function (err) {...});
+   *
+   * argsArray: array argumen ASLI fungsi backend (TANPA token, token
+   * disisipkan otomatis) - boleh [] kalau fungsi backend cuma butuh token.
+   * =========================================================================
+   */
+  function callServer_(fnName, argsArray, onSuccess, onError) {
+    var token = (typeof window.authGetSessionToken_ === "function") ? window.authGetSessionToken_() : "";
+    var finalArgs = [token].concat(Array.isArray(argsArray) ? argsArray : []);
+
+    var runner = google.script.run
+      .withSuccessHandler(function (res) {
+        if (typeof onSuccess === "function") {
+          try { onSuccess(res); } catch (e) {}
+        }
+      })
+      .withFailureHandler(function (err) {
+        if (typeof onError === "function") onError(err);
+      });
+
+    runner[fnName].apply(runner, finalArgs);
   }
 
   function invalidateServerReadCache_(fnName, key) {

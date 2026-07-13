@@ -334,8 +334,7 @@ menjalankan bootApp().
       showToast("Proses simpan lambat. Coba klik simpan lagi jika belum tersimpan.", "err");
     }, 10000);
 
-    google.script.run
-      .withSuccessHandler(function (res) {
+    callServer_("saveBiayaNotaKasir", [view.notaKasirCabangId, notaKasirFormState], function (res) {
         window.clearTimeout(saveTimeout);
         if (saveBtn) {
           saveBtn.disabled = false;
@@ -353,16 +352,14 @@ menjalankan bootApp().
         setSaveStatus("Tersimpan", "ok");
         showScreen("masterBiaya");
         refreshBiayaPickCabangList();
-      })
-      .withFailureHandler(function (err) {
+      }, function (err) {
         window.clearTimeout(saveTimeout);
         if (saveBtn) {
           saveBtn.disabled = false;
           saveBtn.textContent = "Simpan perubahan";
         }
         handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:saveBiayaNotaKasir" }, "menyimpan data biaya nota kasir");
-      })
-      .saveBiayaNotaKasir(view.notaKasirCabangId, notaKasirFormState);
+      });
   }
   window.saveNotaKasirForm = saveNotaKasirForm;
 

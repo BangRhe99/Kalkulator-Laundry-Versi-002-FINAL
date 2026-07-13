@@ -254,8 +254,7 @@ function renderAirPreview() {
 
   setSaveStatus("Menyimpan...", "busy");
 
-  google.script.run
-    .withSuccessHandler(function (res) {
+  callServer_("saveBiayaAir", [view.airCabangId, airFormState], function (res) {
       if (saveBtn) {
         saveBtn.disabled = false;
         saveBtn.textContent = "Simpan perubahan";
@@ -274,8 +273,7 @@ function renderAirPreview() {
       renderAirForm();
       showScreen("masterBiaya");
       refreshBiayaPickCabangList();
-    })
-    .withFailureHandler(function (err) {
+    }, function (err) {
       if (saveBtn) {
         saveBtn.disabled = false;
         saveBtn.textContent = "Simpan perubahan";
@@ -288,8 +286,7 @@ function renderAirPreview() {
         },
         "menyimpan data biaya air"
       );
-    })
-    .saveBiayaAir(view.airCabangId, airFormState);
+    });
 }
 window.saveAirForm = saveAirForm;
 

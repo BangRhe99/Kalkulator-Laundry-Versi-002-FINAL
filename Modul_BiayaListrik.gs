@@ -89,12 +89,20 @@ function defaultBiayaListrik_() {
 // sederhana, karena tidak ada konsep "baris ke-2 konfigurasi listrik".
 
 /**
+ * [2026-07-13] Dibungkus withTenant_ (Code.gs) - argumen pertama SELALU
+ * sessionToken, badan logic asli dipindah ke nama "_impl_".
+ */
+function getBiayaListrik(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return getBiayaListrik_impl_(cabangId); });
+}
+
+/**
  * Mengambil konfigurasi listrik satu cabang + summary kalkulasi penuh
  * (per baris mesin cuci & pengering, plus alokasi pompa air).
  * Jika cabang belum pernah mengisi listrik, mengembalikan default (TDL 1700,
  * watt semua 0) — BUKAN error, supaya layar pertama kali dibuka tetap mulus.
  */
-function getBiayaListrik(cabangId) {
+function getBiayaListrik_impl_(cabangId) {
   try {
     if (!cabangId || typeof cabangId !== "string") {
       return { ok: false, error: "ID cabang tidak valid.", stage: "getBiayaListrik:validate_cabang_id" };
@@ -126,11 +134,15 @@ function getBiayaListrik(cabangId) {
   }
 }
 
+function saveBiayaListrik(sessionToken, cabangId, payload) {
+  return withTenant_(sessionToken, function () { return saveBiayaListrik_impl_(cabangId, payload); });
+}
+
 /**
  * Upsert konfigurasi listrik satu cabang. Selalu menimpa record yang ada
  * (idempotent secara desain — tidak ada "create vs update" terpisah).
  */
-function saveBiayaListrik(cabangId, payload) {
+function saveBiayaListrik_impl_(cabangId, payload) {
   try {
     if (!cabangId || typeof cabangId !== "string") {
       return { ok: false, error: "ID cabang tidak valid.", stage: "saveBiayaListrik:validate_cabang_id" };

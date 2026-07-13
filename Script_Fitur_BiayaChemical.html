@@ -162,8 +162,7 @@ menjalankan bootApp().
     btn.disabled = true;
     btn.textContent = "Menghapus...";
 
-    google.script.run
-      .withSuccessHandler(function (res) {
+    callServer_("deleteBiayaChemical", [id], function (res) {
         btn.disabled = false;
         btn.textContent = "Hapus";
         closeConfirm();
@@ -172,13 +171,11 @@ menjalankan bootApp().
         invalidateServerReadCache_("listBiayaChemical", view.chemicalCabangId);
         invalidateServerReadCache_("getBiayaChemical");
         openChemicalList(view.chemicalCabangId);
-      })
-      .withFailureHandler(function (err) {
+      }, function (err) {
         btn.disabled = false;
         btn.textContent = "Hapus";
         handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:deleteBiayaChemical" }, "menghapus data chemical");
-      })
-      .deleteBiayaChemical(id);
+      });
   }
 
   function defaultChemicalRecord(cabangId) {
@@ -415,21 +412,15 @@ menjalankan bootApp().
     }
 
     if (view.chemicalIsNew) {
-      google.script.run
-        .withSuccessHandler(function (res) { onDone(res, "menyimpan data chemical baru", "Simpan item chemical"); })
-        .withFailureHandler(function (err) {
+      callServer_("createBiayaChemical", [chemicalFormState], function (res) { onDone(res, "menyimpan data chemical baru", "Simpan item chemical"); }, function (err) {
           if (btn) { btn.disabled = false; btn.textContent = "Simpan item chemical"; }
           handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:createBiayaChemical" }, "menyimpan data chemical baru");
-        })
-        .createBiayaChemical(chemicalFormState);
+        });
     } else {
-      google.script.run
-        .withSuccessHandler(function (res) { onDone(res, "menyimpan perubahan data chemical", "Simpan perubahan"); })
-        .withFailureHandler(function (err) {
+      callServer_("updateBiayaChemical", [view.chemicalEditingId, chemicalFormState], function (res) { onDone(res, "menyimpan perubahan data chemical", "Simpan perubahan"); }, function (err) {
           if (btn) { btn.disabled = false; btn.textContent = "Simpan perubahan"; }
           handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:updateBiayaChemical" }, "menyimpan perubahan data chemical");
-        })
-        .updateBiayaChemical(view.chemicalEditingId, chemicalFormState);
+        });
     }
   }
 

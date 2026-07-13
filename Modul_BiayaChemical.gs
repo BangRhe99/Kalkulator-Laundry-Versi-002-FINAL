@@ -86,10 +86,18 @@ function defaultBiayaChemical_() {
 // ============================================================================
 
 /**
+ * [2026-07-13] Dibungkus withTenant_ (Code.gs) - argumen pertama SELALU
+ * sessionToken, badan logic asli dipindah ke nama "_impl_".
+ */
+function listBiayaChemical(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return listBiayaChemical_impl_(cabangId); });
+}
+
+/**
  * Daftar semua item chemical milik SATU cabang, sudah termasuk summary
  * kalkulasi per item DAN total biaya chemical per Kg (dijumlah semua item).
  */
-function listBiayaChemical(cabangId) {
+function listBiayaChemical_impl_(cabangId) {
   try {
     if (!cabangId || typeof cabangId !== "string") {
       return { ok: false, error: "ID cabang tidak valid.", stage: "listBiayaChemical:validate_cabang_id" };
@@ -132,10 +140,14 @@ function listBiayaChemical(cabangId) {
   }
 }
 
+function getBiayaChemical(sessionToken, id) {
+  return withTenant_(sessionToken, function () { return getBiayaChemical_impl_(id); });
+}
+
 /**
  * Mengambil satu item chemical lengkap + summary, untuk layar edit.
  */
-function getBiayaChemical(id) {
+function getBiayaChemical_impl_(id) {
   try {
     if (!id || typeof id !== "string") {
       return { ok: false, error: "ID item chemical tidak valid.", stage: "getBiayaChemical:validate_id" };
@@ -160,10 +172,14 @@ function getBiayaChemical(id) {
   }
 }
 
+function createBiayaChemical(sessionToken, payload) {
+  return withTenant_(sessionToken, function () { return createBiayaChemical_impl_(payload); });
+}
+
 /**
  * Membuat item chemical baru untuk satu cabang.
  */
-function createBiayaChemical(payload) {
+function createBiayaChemical_impl_(payload) {
   try {
     if (!payload || typeof payload !== "object") {
       return { ok: false, error: "Data yang dikirim tidak valid.", stage: "createBiayaChemical:validate_payload" };
@@ -203,7 +219,11 @@ function createBiayaChemical(payload) {
  * Memperbarui item chemical yang sudah ada. cabangId TIDAK BISA dipindah
  * lewat update (sama seperti Gas) — hapus & buat baru kalau perlu pindah cabang.
  */
-function updateBiayaChemical(id, payload) {
+function updateBiayaChemical(sessionToken, id, payload) {
+  return withTenant_(sessionToken, function () { return updateBiayaChemical_impl_(id, payload); });
+}
+
+function updateBiayaChemical_impl_(id, payload) {
   try {
     if (!id || typeof id !== "string") {
       return { ok: false, error: "ID item chemical tidak valid.", stage: "updateBiayaChemical:validate_id" };
@@ -244,10 +264,14 @@ function updateBiayaChemical(id, payload) {
   }
 }
 
+function deleteBiayaChemical(sessionToken, id) {
+  return withTenant_(sessionToken, function () { return deleteBiayaChemical_impl_(id); });
+}
+
 /**
  * Menghapus satu item chemical. Idempotent seperti deleteBiayaGas.
  */
-function deleteBiayaChemical(id) {
+function deleteBiayaChemical_impl_(id) {
   try {
     if (!id || typeof id !== "string") {
       return { ok: false, error: "ID item chemical tidak valid.", stage: "deleteBiayaChemical:validate_id" };

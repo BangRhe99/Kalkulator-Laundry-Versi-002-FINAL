@@ -362,8 +362,7 @@ menjalankan bootApp().
     btn.disabled = true;
     btn.textContent = "Menghapus...";
 
-    google.script.run
-      .withSuccessHandler(function (res) {
+    callServer_("deleteCabang", [id], function (res) {
         btn.disabled = false;
         btn.textContent = "Hapus";
         closeConfirm();
@@ -375,13 +374,11 @@ menjalankan bootApp().
         invalidateServerReadCache_("getCabang");
         showScreen("list");
         refreshList();
-      })
-      .withFailureHandler(function (err) {
+      }, function (err) {
         btn.disabled = false;
         btn.textContent = "Hapus";
         handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:deleteCabang" }, "menghapus cabang");
-      })
-      .deleteCabang(id);
+      });
   }
 
   function defaultCabang() {
@@ -713,21 +710,15 @@ menjalankan bootApp().
     }
 
     if (view.isNew) {
-      google.script.run
-        .withSuccessHandler(function (res) { onDone(res, "menyimpan cabang baru"); })
-        .withFailureHandler(function (err) {
+      callServer_("createCabang", [formState], function (res) { onDone(res, "menyimpan cabang baru"); }, function (err) {
           if (btn) { btn.disabled = false; btn.textContent = "Simpan cabang baru"; }
           handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:createCabang" }, "menyimpan cabang baru");
-        })
-        .createCabang(formState);
+        });
     } else {
-      google.script.run
-        .withSuccessHandler(function (res) { onDone(res, "menyimpan perubahan"); })
-        .withFailureHandler(function (err) {
+      callServer_("updateCabang", [view.editingId, formState], function (res) { onDone(res, "menyimpan perubahan"); }, function (err) {
           if (btn) { btn.disabled = false; btn.textContent = "Simpan perubahan"; }
           handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:updateCabang" }, "menyimpan perubahan");
-        })
-        .updateCabang(view.editingId, formState);
+        });
     }
   }
 

@@ -151,8 +151,7 @@ menjalankan bootApp().
     btn.disabled = true;
     btn.textContent = "Menghapus...";
 
-    google.script.run
-      .withSuccessHandler(function (res) {
+    callServer_("deleteBiayaGas", [id], function (res) {
         btn.disabled = false;
         btn.textContent = "Hapus";
         closeConfirm();
@@ -161,13 +160,11 @@ menjalankan bootApp().
         invalidateServerReadCache_("listBiayaGas", view.gasCabangId);
         invalidateServerReadCache_("getBiayaGas");
         openGasList(view.gasCabangId);
-      })
-      .withFailureHandler(function (err) {
+      }, function (err) {
         btn.disabled = false;
         btn.textContent = "Hapus";
         handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:deleteBiayaGas" }, "menghapus data gas");
-      })
-      .deleteBiayaGas(id);
+      });
   }
 
   function defaultGasRecord(cabangId) {
@@ -571,21 +568,15 @@ function selectGasCustom() {
     }
 
     if (view.gasIsNew) {
-      google.script.run
-        .withSuccessHandler(function (res) { onDone(res, "menyimpan data gas baru", "Simpan data gas"); })
-        .withFailureHandler(function (err) {
+      callServer_("createBiayaGas", [gasFormState], function (res) { onDone(res, "menyimpan data gas baru", "Simpan data gas"); }, function (err) {
           if (btn) { btn.disabled = false; btn.textContent = "Simpan data gas"; }
           handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:createBiayaGas" }, "menyimpan data gas baru");
-        })
-        .createBiayaGas(gasFormState);
+        });
     } else {
-      google.script.run
-        .withSuccessHandler(function (res) { onDone(res, "menyimpan perubahan data gas", "Simpan perubahan"); })
-        .withFailureHandler(function (err) {
+      callServer_("updateBiayaGas", [view.gasEditingId, gasFormState], function (res) { onDone(res, "menyimpan perubahan data gas", "Simpan perubahan"); }, function (err) {
           if (btn) { btn.disabled = false; btn.textContent = "Simpan perubahan"; }
           handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:updateBiayaGas" }, "menyimpan perubahan data gas");
-        })
-        .updateBiayaGas(view.gasEditingId, gasFormState);
+        });
     }
   }
 

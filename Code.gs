@@ -90,6 +90,45 @@ const KEY_BIAYA_PACKING_ORDER = "biayaPacking_order";
 const KEY_LEGACY_V1 = "operasional_v1";
 
 // ----------------------------------------------------------------------------
+// MULTI-TENANT SESSION GUARD
+// ----------------------------------------------------------------------------
+// [2026-07-13] SEMUA fungsi backend yang dipanggil client (google.script.run)
+// WAJIB dibungkus withTenant_ ini SEBAGAI LAPISAN PALING LUAR, argumen
+// pertamanya SELALU sessionToken. withTenant_ memvalidasi sesi (resolveSession_
+// di Modul_Auth.gs), lalu mengarahkan SEMUA baca/tulis data (lewat
+// Util_Penyimpanan.gs) ke spreadsheet milik tenant yang login - BUKAN selalu
+// spreadsheet yang di-bind ke script ini. Kalau sesi tidak valid/kadaluarsa,
+// fn TIDAK dijalankan sama sekali, langsung balas {ok:false, error:"UNAUTHORIZED"}
+// supaya frontend tahu harus login ulang (lihat callServer_/cachedServerRead_
+// di Script_Shared_Util.html).
+//
+// Pola pemakaian di tiap Modul_*.gs (badan logic asli dipindah ke *_impl_,
+// TIDAK diubah sama sekali):
+//   function createCabang(sessionToken, payload) {
+//     return withTenant_(sessionToken, function () {
+//       return createCabang_impl_(payload);
+//     });
+//   }
+function withTenant_(sessionToken, fn) {
+  try {
+    const session = resolveSession_(sessionToken);
+    if (!session) {
+      return { ok: false, error: "Sesi login tidak valid atau sudah kadaluarsa. Silakan login ulang.", stage: "withTenant_:invalid_session", code: "UNAUTHORIZED" };
+    }
+    if (!session.tenantSpreadsheetId) {
+      return { ok: false, error: "Akun ini belum punya data tersendiri. Hubungi admin.", stage: "withTenant_:missing_tenant_spreadsheet" };
+    }
+    const ss = SpreadsheetApp.openById(session.tenantSpreadsheetId);
+    setActiveDataSpreadsheet_(ss);
+    return fn();
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : String(err), stage: "withTenant_:exception" };
+  } finally {
+    setActiveDataSpreadsheet_(null);
+  }
+}
+
+// ----------------------------------------------------------------------------
 // ENTRY POINT WEB APP
 // ----------------------------------------------------------------------------
 

@@ -6,9 +6,15 @@ ISI: Fitur Masuk / Daftar / Verifikasi OTP (#authRoot)
 
 FUNGSI:
 Validasi form, panggil registerUser/verifyOtp/resendOtp/loginUser (Modul_Auth.gs),
-pindah antar 3 layar auth (authGoTo), simpan status login di localStorage
-(BUKAN keamanan sungguhan - browser bisa dimanipulasi user sendiri via
-DevTools, cuma penanda UI supaya tidak perlu login ulang tiap buka app).
+pindah antar 3 layar auth (authGoTo), simpan status login di localStorage.
+
+[2026-07-13] MULTI-TENANT: loginUser/verifyOtp yang sukses sekarang JUGA
+mengembalikan sessionToken (Modul_Auth.gs) - token INI yang jadi identitas
+sungguhan di server (divalidasi tiap panggilan lewat withTenant_/callServer_,
+lihat Script_Shared_Util.html), BUKAN email di localStorage. Email di
+localStorage cuma penanda UI (isi form login otomatis dsb) - kalau token
+hilang/tidak valid, server akan menolak dgn {ok:false, code:"UNAUTHORIZED"}
+dan callServer_ otomatis memaksa logout.
 
 Include SEBELUM Script_Boot_Main.html (bootApp() manggil isAuthLoggedIn()
 dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
@@ -17,25 +23,36 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
 <script>
 "use strict";
   var AUTH_STORAGE_KEY_ = "klAuthUserEmail";
+  var AUTH_SESSION_STORAGE_KEY_ = "klAuthSessionToken";
   var authPendingEmail_ = "";
 
   function isAuthLoggedIn() {
     try {
-      return !!window.localStorage.getItem(AUTH_STORAGE_KEY_);
+      return !!window.localStorage.getItem(AUTH_STORAGE_KEY_) && !!window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY_);
     } catch (e) {
       return false;
     }
   }
 
-  function authSetLoggedIn_(email) {
+  window.authGetSessionToken_ = function () {
+    try {
+      return window.localStorage.getItem(AUTH_SESSION_STORAGE_KEY_) || "";
+    } catch (e) {
+      return "";
+    }
+  };
+
+  function authSetLoggedIn_(email, sessionToken) {
     try {
       window.localStorage.setItem(AUTH_STORAGE_KEY_, email);
+      window.localStorage.setItem(AUTH_SESSION_STORAGE_KEY_, sessionToken || "");
     } catch (e) {}
   }
 
   function authClearLoggedIn_() {
     try {
       window.localStorage.removeItem(AUTH_STORAGE_KEY_);
+      window.localStorage.removeItem(AUTH_SESSION_STORAGE_KEY_);
     } catch (e) {}
   }
 
@@ -92,7 +109,7 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
           authShowError_("authLoginError", (res && res.error) || "Gagal masuk.");
           return;
         }
-        authSetLoggedIn_(res.data.email);
+        authSetLoggedIn_(res.data.email, res.data.sessionToken);
         authEnterApp_();
       })
       .withFailureHandler(function (err) {
@@ -188,6 +205,19 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
   };
 
   window.authLogout = function () {
+    // Hapus sesi di server DULU (selagi token masih ada di localStorage utk
+    // dikirim) - baru clear localStorage. Kalau gagal (mis. sudah offline),
+    // tetap lanjut logout di sisi client, tidak menghalangi user keluar.
+    try {
+      var token = window.authGetSessionToken_();
+      if (token) {
+        google.script.run
+          .withSuccessHandler(function () {})
+          .withFailureHandler(function () {})
+          .logoutUser(token);
+      }
+    } catch (e) {}
+
     authClearLoggedIn_();
     var appRootEl = document.getElementById("appRoot");
     var authRootEl = document.getElementById("authRoot");

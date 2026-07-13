@@ -113,10 +113,20 @@ function listBiayaGasPreset() {
 // ============================================================================
 
 /**
+ * [2026-07-13] 5 fungsi publik CRUD di bawah ini dibungkus withTenant_
+ * (Code.gs) - argumen pertama SELALU sessionToken, badan logic asli
+ * dipindah ke nama "_impl_". listBiayaGasPreset() TIDAK dibungkus krn tidak
+ * menyentuh data tenant (cuma preset statis).
+ */
+function listBiayaGas(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return listBiayaGas_impl_(cabangId); });
+}
+
+/**
  * Daftar semua record biaya gas milik SATU cabang, sudah termasuk summary
  * kalkulasi (konversi menit, estimasi load, biaya per jam/menit/load).
  */
-function listBiayaGas(cabangId) {
+function listBiayaGas_impl_(cabangId) {
   try {
     if (!cabangId || typeof cabangId !== "string") {
       return { ok: false, error: "ID cabang tidak valid.", stage: "listBiayaGas:validate_cabang_id" };
@@ -160,10 +170,14 @@ function listBiayaGas(cabangId) {
   }
 }
 
+function getBiayaGas(sessionToken, id) {
+  return withTenant_(sessionToken, function () { return getBiayaGas_impl_(id); });
+}
+
 /**
  * Mengambil satu record biaya gas lengkap + summary, untuk layar edit.
  */
-function getBiayaGas(id) {
+function getBiayaGas_impl_(id) {
   try {
     if (!id || typeof id !== "string") {
       return { ok: false, error: "ID record biaya gas tidak valid.", stage: "getBiayaGas:validate_id" };
@@ -188,10 +202,14 @@ function getBiayaGas(id) {
   }
 }
 
+function createBiayaGas(sessionToken, payload) {
+  return withTenant_(sessionToken, function () { return createBiayaGas_impl_(payload); });
+}
+
 /**
  * Membuat record biaya gas baru untuk satu cabang.
  */
-function createBiayaGas(payload) {
+function createBiayaGas_impl_(payload) {
   try {
     if (!payload || typeof payload !== "object") {
       return { ok: false, error: "Data yang dikirim tidak valid.", stage: "createBiayaGas:validate_payload" };
@@ -234,7 +252,11 @@ function createBiayaGas(payload) {
  * ini sengaja dibuat ketat supaya tidak ada record biaya "pindah outlet"
  * secara tidak sengaja akibat payload yang salah kirim.
  */
-function updateBiayaGas(id, payload) {
+function updateBiayaGas(sessionToken, id, payload) {
+  return withTenant_(sessionToken, function () { return updateBiayaGas_impl_(id, payload); });
+}
+
+function updateBiayaGas_impl_(id, payload) {
   try {
     if (!id || typeof id !== "string") {
       return { ok: false, error: "ID record biaya gas tidak valid.", stage: "updateBiayaGas:validate_id" };
@@ -275,10 +297,14 @@ function updateBiayaGas(id, payload) {
   }
 }
 
+function deleteBiayaGas(sessionToken, id) {
+  return withTenant_(sessionToken, function () { return deleteBiayaGas_impl_(id); });
+}
+
 /**
  * Menghapus satu record biaya gas. Idempotent seperti deleteCabang.
  */
-function deleteBiayaGas(id) {
+function deleteBiayaGas_impl_(id) {
   try {
     if (!id || typeof id !== "string") {
       return { ok: false, error: "ID record biaya gas tidak valid.", stage: "deleteBiayaGas:validate_id" };

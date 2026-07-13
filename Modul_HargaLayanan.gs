@@ -26,7 +26,16 @@
 // Util_Penyimpanan.gs / _dashboardCabangRowsCache_ di Modul_Dashboard.gs.
 let _hargaLayananCache_ = {};
 
-function getHargaLayanan(cabangId) {
+// [2026-07-13] Dibungkus withTenant_ (Code.gs) - argumen pertama SELALU
+// sessionToken. Badan cache-check yang tadinya di sini dipindah ke
+// getHargaLayanan_impl_ (dipakai internal oleh modul lain spt
+// Modul_Dashboard.gs, TANPA sessionToken, krn sudah berjalan di dalam
+// withTenant_ yang sama).
+function getHargaLayanan(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return getHargaLayanan_impl_(cabangId); });
+}
+
+function getHargaLayanan_impl_(cabangId) {
   if (_hargaLayananCache_[cabangId]) return _hargaLayananCache_[cabangId];
   const result = getHargaLayanan_(cabangId);
   if (result && result.ok) _hargaLayananCache_[cabangId] = result;
@@ -103,7 +112,11 @@ function getHargaLayanan_(cabangId) {
   }
 }
 
-function saveHargaLayanan(cabangId, payload) {
+function saveHargaLayanan(sessionToken, cabangId, payload) {
+  return withTenant_(sessionToken, function () { return saveHargaLayanan_impl_(cabangId, payload); });
+}
+
+function saveHargaLayanan_impl_(cabangId, payload) {
   try {
     const cleanCabangId = sanitizeHargaLayananCabangId_(cabangId);
     if (!cleanCabangId) {
@@ -135,7 +148,7 @@ function saveHargaLayanan(cabangId, payload) {
 
     writeKey_(sheet, getHargaLayananKey_(cleanCabangId), JSON.stringify(record));
 
-    return getHargaLayanan(cleanCabangId);
+    return getHargaLayanan_impl_(cleanCabangId);
   } catch (err) {
     return errorResponse_(err, "saveHargaLayanan");
   }
@@ -175,8 +188,8 @@ function readHargaLayananRecord_(cabangId) {
 
 function getHargaLayananCabang_(cabangId) {
   try {
-    if (typeof getCabang === "function") {
-      const res = getCabang(cabangId);
+    if (typeof getCabang_impl_ === "function") {
+      const res = getCabang_impl_(cabangId);
       if (res && res.ok && res.data && res.data.cabang) {
         const c = res.data.cabang;
         const profil = c.profil || {};
@@ -206,14 +219,14 @@ function getHargaLayananCabang_(cabangId) {
 
 function readHargaLayananHPP_(cabangId) {
   try {
-    if (typeof getStrukturBiayaHPP !== "function") {
+    if (typeof getStrukturBiayaHPP_impl_ !== "function") {
       return {
         ok: false,
         error: "Fungsi getStrukturBiayaHPP belum tersedia.",
         stage: "readHargaLayananHPP_:missing_getStrukturBiayaHPP",
       };
     }
-    return getStrukturBiayaHPP(cabangId);
+    return getStrukturBiayaHPP_impl_(cabangId);
   } catch (err) {
     return errorResponse_(err, "readHargaLayananHPP_");
   }

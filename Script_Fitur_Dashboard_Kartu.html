@@ -703,8 +703,7 @@ DIPAKAI OLEH FILE LAIN:
     var saveBtn = document.getElementById("bepMixSaveBtn");
     if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Menyimpan..."; }
 
-    google.script.run
-      .withSuccessHandler(function (res) {
+    callServer_("saveBepServiceMix", [dashboardSelectedOutletId, mixMap], function (res) {
         if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Simpan"; }
         if (!res || !res.ok) {
           handleBackendError(res, "menyimpan mix kontribusi layanan BEP");
@@ -713,14 +712,12 @@ DIPAKAI OLEH FILE LAIN:
         showToast("Mix kontribusi layanan berhasil disimpan.", "ok");
         closeBepMix();
         refreshDashboard(true);
-      })
-      .withFailureHandler(function (err) {
+      }, function (err) {
         if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Simpan"; }
         handleBackendError(
           { error: err && err.message ? err.message : String(err), stage: "client:saveBepServiceMix" },
           "menyimpan mix kontribusi layanan BEP"
         );
-      })
-      .saveBepServiceMix(dashboardSelectedOutletId, mixMap);
+      });
   };
 </script>

@@ -485,8 +485,7 @@ menjalankan bootApp().
     if (btn) btn.disabled = true;
     setSaveStatus("Menyimpan...", "busy");
 
-    google.script.run
-      .withSuccessHandler(function (res) {
+    callServer_("saveHargaLayanan", [hargaLayananCurrentCabangId, collectHargaLayananPayload()], function (res) {
         if (btn) btn.disabled = false;
 
         if (!res || !res.ok) {
@@ -501,8 +500,7 @@ menjalankan bootApp().
         invalidateServerReadCache_("getHargaLayanan", hargaLayananCurrentCabangId);
         hargaLayananFormDirty = false;
         openHargaLayananOutletList();
-      })
-      .withFailureHandler(function (err) {
+      }, function (err) {
         if (btn) btn.disabled = false;
         handleBackendError(
           {
@@ -511,8 +509,7 @@ menjalankan bootApp().
           },
           "menyimpan Harga Layanan"
         );
-      })
-      .saveHargaLayanan(hargaLayananCurrentCabangId, collectHargaLayananPayload());
+      });
   }
 
   function resetHargaLayananCurrent() {

@@ -400,8 +400,7 @@ DAFTAR ISI (cari nama fungsi ini kalau butuh mengubah/memahami):
       firedFast = true;
     }
 
-    google.script.run
-      .withSuccessHandler(function (res) {
+    callServer_("listCabang", [], function (res) {
         if (mySeq !== dashboardRequestSeq) return;
         var beforeId = dashboardSelectedOutletId;
         if (res && res.ok) {
@@ -413,12 +412,10 @@ DAFTAR ISI (cari nama fungsi ini kalau butuh mengubah/memahami):
         if (!firedFast || dashboardSelectedOutletId !== beforeId) {
           fetchDashboardFullSummary_(mySeq);
         }
-      })
-      .withFailureHandler(function () {
+      }, function () {
         if (mySeq !== dashboardRequestSeq) return;
         if (!firedFast) fetchDashboardFullSummary_(mySeq);
-      })
-      .listCabang();
+      });
   }
 
   function fetchDashboardFullSummary_(mySeq) {
@@ -431,8 +428,7 @@ DAFTAR ISI (cari nama fungsi ini kalau butuh mengubah/memahami):
       renderDashboardFullSummary_(dashboardFullSummaryCache_[cId]);
     }
 
-    google.script.run
-      .withSuccessHandler(function (full) {
+    callServer_("getDashboardFullSummary", [cId], function (full) {
         if (mySeq !== dashboardRequestSeq) return;
         if (!full || !full.ok) {
           var msg = full && full.error ? full.error : "Gagal memuat ringkasan dashboard.";
@@ -452,8 +448,7 @@ DAFTAR ISI (cari nama fungsi ini kalau butuh mengubah/memahami):
         var d = full.data || {};
         if (cId) dashboardFullSummaryCache_[cId] = d;
         renderDashboardFullSummary_(d);
-      })
-      .withFailureHandler(function (err) {
+      }, function (err) {
         if (mySeq !== dashboardRequestSeq) return;
         if (cId && dashboardFullSummaryCache_[cId]) return; // data lama tetap ditampilkan, jangan ditimpa error
         var msg = err && err.message ? err.message : String(err);
@@ -466,8 +461,7 @@ DAFTAR ISI (cari nama fungsi ini kalau butuh mengubah/memahami):
           bep: { ok: false, error: msg },
           potensiOmset: { ok: false, error: msg }
         });
-      })
-      .getDashboardFullSummary(cId);
+      });
   }
 
   window.openScreenCabangList = function () {

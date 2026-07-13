@@ -37,14 +37,23 @@ const BIAYA_TETAP_HEADERS_ = [
 // SECTION: PUBLIC FUNCTIONS
 // ============================================================================
 
+// [2026-07-13] 4 fungsi publik di bawah ini dibungkus withTenant_ (Code.gs) -
+// argumen pertama SELALU sessionToken, badan logic asli dipindah ke nama
+// "_impl_". Pemanggilan silang antar fungsi publik di file ini (mis.
+// getBiayaTetapCabang_ -> getCabang) diarahkan ke versi "_impl_" krn sudah
+// berjalan DI DALAM withTenant_ yang sama (tidak punya/butuh sessionToken lagi).
+function listBiayaTetapOutletSummaries(sessionToken) {
+  return withTenant_(sessionToken, function () { return listBiayaTetapOutletSummaries_impl_(); });
+}
+
 /**
  * Mengambil daftar outlet beserta rangkuman fixed cost.
  * Dipakai untuk menampilkan total biaya tetap langsung di halaman depan
  * tanpa membuka form input satu per satu.
  */
-function listBiayaTetapOutletSummaries() {
+function listBiayaTetapOutletSummaries_impl_() {
   try {
-    if (typeof listCabang !== "function") {
+    if (typeof listCabang_impl_ !== "function") {
       return {
         ok: false,
         error: "Fungsi listCabang belum tersedia.",
@@ -52,7 +61,7 @@ function listBiayaTetapOutletSummaries() {
       };
     }
 
-    const cabangRes = listCabang();
+    const cabangRes = listCabang_impl_();
     if (!cabangRes || !cabangRes.ok) {
       return {
         ok: false,
@@ -108,7 +117,11 @@ function listBiayaTetapOutletSummaries() {
   }
 }
 
-function getBiayaTetapOutlet(cabangId) {
+function getBiayaTetapOutlet(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return getBiayaTetapOutlet_impl_(cabangId); });
+}
+
+function getBiayaTetapOutlet_impl_(cabangId) {
   try {
     if (!cabangId || typeof cabangId !== "string") {
       return {
@@ -159,7 +172,11 @@ function getBiayaTetapOutlet(cabangId) {
   }
 }
 
-function saveBiayaTetapOutlet(cabangId, payload) {
+function saveBiayaTetapOutlet(sessionToken, cabangId, payload) {
+  return withTenant_(sessionToken, function () { return saveBiayaTetapOutlet_impl_(cabangId, payload); });
+}
+
+function saveBiayaTetapOutlet_impl_(cabangId, payload) {
   try {
     if (!cabangId || typeof cabangId !== "string") {
       return {
@@ -186,60 +203,68 @@ function saveBiayaTetapOutlet(cabangId, payload) {
       };
     }
 
-    const sheet = getBiayaTetapSheet_();
-    const rowIndex = findBiayaTetapRowFast_(sheet, cabangId);
+    // [2026-07-13] Sheet ini TIDAK lewat Util_Penyimpanan.gs, jadi
+    // baca-cek-tulisnya dikunci manual (sama alasannya dgn saveBiayaNotaKasir).
+    return _withDataLock_(function () {
+      const sheet = getBiayaTetapSheet_();
+      const rowIndex = findBiayaTetapRowFast_(sheet, cabangId);
 
-    let existingRecord = null;
-    if (rowIndex > 0) {
-      const existingValues = sheet.getRange(rowIndex, 1, 1, BIAYA_TETAP_HEADERS_.length).getValues()[0];
-      existingRecord = normalizeBiayaTetapRecord_(rowArrayToBiayaTetapObject_(existingValues), cabangId, cabang);
-    }
-
-    const normalized = normalizeBiayaTetapRecord_(payload, cabangId, cabang);
-    normalized.depresiasiRows = syncDepresiasiRowsWithProfil_(normalized.depresiasiRows, cabang);
-
-    const validation = validateBiayaTetapRecord_(normalized);
-    if (!validation.valid) {
-      return {
-        ok: false,
-        error: validation.message,
-        stage: "saveBiayaTetapOutlet:validate_business_rules"
-      };
-    }
-
-    const now = new Date().toISOString();
-    normalized.id = existingRecord && existingRecord.id ? existingRecord.id : (normalized.id || biayaTetapNewId_("fc"));
-    normalized.createdAt = existingRecord && existingRecord.createdAt ? existingRecord.createdAt : now;
-    normalized.updatedAt = now;
-
-    const row = buildBiayaTetapRow_(normalized);
-
-    if (rowIndex > 0) {
-      sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
-    } else {
-      sheet.appendRow(row);
-    }
-
-    return {
-      ok: true,
-      data: {
-        cabang: {
-          id: cabang.id,
-          namaLaundry: cabang.namaLaundry || "",
-          mesinCuci: cabang.mesinCuci || [],
-          mesinPengering: cabang.mesinPengering || []
-        },
-        record: normalized,
-        summary: computeBiayaTetapSummary_(normalized),
-        warnings: validateBiayaTetapWarnings_(normalized, cabang)
+      let existingRecord = null;
+      if (rowIndex > 0) {
+        const existingValues = sheet.getRange(rowIndex, 1, 1, BIAYA_TETAP_HEADERS_.length).getValues()[0];
+        existingRecord = normalizeBiayaTetapRecord_(rowArrayToBiayaTetapObject_(existingValues), cabangId, cabang);
       }
-    };
+
+      const normalized = normalizeBiayaTetapRecord_(payload, cabangId, cabang);
+      normalized.depresiasiRows = syncDepresiasiRowsWithProfil_(normalized.depresiasiRows, cabang);
+
+      const validation = validateBiayaTetapRecord_(normalized);
+      if (!validation.valid) {
+        return {
+          ok: false,
+          error: validation.message,
+          stage: "saveBiayaTetapOutlet:validate_business_rules"
+        };
+      }
+
+      const now = new Date().toISOString();
+      normalized.id = existingRecord && existingRecord.id ? existingRecord.id : (normalized.id || biayaTetapNewId_("fc"));
+      normalized.createdAt = existingRecord && existingRecord.createdAt ? existingRecord.createdAt : now;
+      normalized.updatedAt = now;
+
+      const row = buildBiayaTetapRow_(normalized);
+
+      if (rowIndex > 0) {
+        sheet.getRange(rowIndex, 1, 1, row.length).setValues([row]);
+      } else {
+        sheet.appendRow(row);
+      }
+
+      return {
+        ok: true,
+        data: {
+          cabang: {
+            id: cabang.id,
+            namaLaundry: cabang.namaLaundry || "",
+            mesinCuci: cabang.mesinCuci || [],
+            mesinPengering: cabang.mesinPengering || []
+          },
+          record: normalized,
+          summary: computeBiayaTetapSummary_(normalized),
+          warnings: validateBiayaTetapWarnings_(normalized, cabang)
+        }
+      };
+    });
   } catch (err) {
     return biayaTetapErrorResponse_(err, "saveBiayaTetapOutlet");
   }
 }
 
-function deleteBiayaTetapOutlet(cabangId) {
+function deleteBiayaTetapOutlet(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return deleteBiayaTetapOutlet_impl_(cabangId); });
+}
+
+function deleteBiayaTetapOutlet_impl_(cabangId) {
   try {
     if (!cabangId || typeof cabangId !== "string") {
       return {
@@ -249,20 +274,22 @@ function deleteBiayaTetapOutlet(cabangId) {
       };
     }
 
-    const sheet = getBiayaTetapSheet_();
-    const rowIndex = findBiayaTetapRowFast_(sheet, cabangId);
+    return _withDataLock_(function () {
+      const sheet = getBiayaTetapSheet_();
+      const rowIndex = findBiayaTetapRowFast_(sheet, cabangId);
 
-    if (rowIndex > 0) {
-      sheet.deleteRow(rowIndex);
-    }
-
-    return {
-      ok: true,
-      data: {
-        deleted: rowIndex > 0,
-        cabangId: cabangId
+      if (rowIndex > 0) {
+        sheet.deleteRow(rowIndex);
       }
-    };
+
+      return {
+        ok: true,
+        data: {
+          deleted: rowIndex > 0,
+          cabangId: cabangId
+        }
+      };
+    });
   } catch (err) {
     return biayaTetapErrorResponse_(err, "deleteBiayaTetapOutlet");
   }
@@ -597,7 +624,9 @@ function validateBiayaTetapWarnings_(record, cabang) {
 // ============================================================================
 
 function getBiayaTetapSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // [2026-07-13] MULTI-TENANT: lihat komentar sama di getBiayaNotaKasirSheet_
+  // (Modul_BiayaNotaKasir.gs).
+  const ss = _activeDataSpreadsheet_ || SpreadsheetApp.getActiveSpreadsheet();
   if (!ss) throw new Error("Spreadsheet aktif tidak ditemukan.");
 
   let sheet = ss.getSheetByName(BIAYA_TETAP_SHEET_NAME_);
@@ -693,8 +722,8 @@ function buildBiayaTetapRow_(record) {
 
 function getBiayaTetapCabang_(cabangId) {
   try {
-    if (typeof getCabang === "function") {
-      const res = getCabang(cabangId);
+    if (typeof getCabang_impl_ === "function") {
+      const res = getCabang_impl_(cabangId);
       if (res && res.ok && res.data && res.data.cabang) {
         return normalizeCabangForBiayaTetap_(res.data.cabang, cabangId);
       }
@@ -844,7 +873,7 @@ function biayaTetapErrorResponse_(err, stage) {
 
 function testBiayaTetapOutlet() {
   const cabangId = "test-cabang";
-  const result = getBiayaTetapOutlet(cabangId);
+  const result = getBiayaTetapOutlet_impl_(cabangId);
   Logger.log(JSON.stringify(result, null, 2));
   return result;
 }

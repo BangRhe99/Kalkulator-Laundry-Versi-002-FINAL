@@ -254,8 +254,7 @@ menjalankan bootApp().
 
     setSaveStatus("Menghitung...", "busy");
 
-    google.script.run
-      .withSuccessHandler(function (res) {
+    callServer_("getStrukturBiayaHPP", [cabangId], function (res) {
         if (!res || !res.ok) {
           handleBackendError(res, "memuat Struktur Biaya HPP");
           contentEl.innerHTML =
@@ -269,8 +268,7 @@ menjalankan bootApp().
 
         renderStrukturHPP(res.data);
         setSaveStatus("Tersimpan", "ok");
-      })
-      .withFailureHandler(function (err) {
+      }, function (err) {
         handleBackendError(
           {
             error: err && err.message ? err.message : String(err),
@@ -285,8 +283,7 @@ menjalankan bootApp().
             '<p>' + escapeHtml(err && err.message ? err.message : String(err)) + '</p>' +
           '</div>';
         setSaveStatus("Gagal", "err");
-      })
-      .getStrukturBiayaHPP(cabangId);
+      });
   };
 
   function renderStrukturHPP(data) {

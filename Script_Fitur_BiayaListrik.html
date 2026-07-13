@@ -298,8 +298,7 @@ menjalankan bootApp().
     if (btn) { btn.disabled = true; btn.textContent = "Menyimpan..."; }
     setSaveStatus("Menyimpan...", "busy");
 
-    google.script.run
-      .withSuccessHandler(function (res) {
+    callServer_("saveBiayaListrik", [view.listrikCabangId, listrikFormState], function (res) {
         if (btn) { btn.disabled = false; btn.textContent = "Simpan perubahan"; }
         if (!res || !res.ok) { handleBackendError(res, "menyimpan data biaya listrik"); return; }
         invalidateServerReadCache_("getBiayaListrik", view.listrikCabangId);
@@ -308,12 +307,10 @@ menjalankan bootApp().
         setSaveStatus("Tersimpan", "ok");
         showScreen("masterBiaya");
         refreshBiayaPickCabangList();
-      })
-      .withFailureHandler(function (err) {
+      }, function (err) {
         if (btn) { btn.disabled = false; btn.textContent = "Simpan perubahan"; }
         handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:saveBiayaListrik" }, "menyimpan data biaya listrik");
-      })
-      .saveBiayaListrik(view.listrikCabangId, listrikFormState);
+      });
   }
 
   /**

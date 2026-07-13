@@ -163,8 +163,7 @@ menjalankan bootApp().
     btn.disabled = true;
     btn.textContent = "Menghapus...";
 
-    google.script.run
-      .withSuccessHandler(function (res) {
+    callServer_("deleteBiayaPacking", [id], function (res) {
         btn.disabled = false;
         btn.textContent = "Hapus";
         closeConfirm();
@@ -173,13 +172,11 @@ menjalankan bootApp().
         invalidateServerReadCache_("listBiayaPacking", view.packingCabangId);
         invalidateServerReadCache_("getBiayaPacking");
         openPackingList(view.packingCabangId);
-      })
-      .withFailureHandler(function (err) {
+      }, function (err) {
         btn.disabled = false;
         btn.textContent = "Hapus";
         handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:deleteBiayaPacking" }, "menghapus data packing");
-      })
-      .deleteBiayaPacking(id);
+      });
   }
 
   function defaultPackingRecord(cabangId) {
@@ -450,21 +447,15 @@ menjalankan bootApp().
     }
 
     if (view.packingIsNew) {
-      google.script.run
-        .withSuccessHandler(function (res) { onDone(res, "menyimpan data packing baru", "Simpan item packing"); })
-        .withFailureHandler(function (err) {
+      callServer_("createBiayaPacking", [packingFormState], function (res) { onDone(res, "menyimpan data packing baru", "Simpan item packing"); }, function (err) {
           if (btn) { btn.disabled = false; btn.textContent = "Simpan item packing"; }
           handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:createBiayaPacking" }, "menyimpan data packing baru");
-        })
-        .createBiayaPacking(packingFormState);
+        });
     } else {
-      google.script.run
-        .withSuccessHandler(function (res) { onDone(res, "menyimpan perubahan data packing", "Simpan perubahan"); })
-        .withFailureHandler(function (err) {
+      callServer_("updateBiayaPacking", [view.packingEditingId, packingFormState], function (res) { onDone(res, "menyimpan perubahan data packing", "Simpan perubahan"); }, function (err) {
           if (btn) { btn.disabled = false; btn.textContent = "Simpan perubahan"; }
           handleBackendError({ error: err && err.message ? err.message : String(err), stage: "client:updateBiayaPacking" }, "menyimpan perubahan data packing");
-        })
-        .updateBiayaPacking(view.packingEditingId, packingFormState);
+        });
     }
   }
 

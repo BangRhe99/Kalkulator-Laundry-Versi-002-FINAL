@@ -96,11 +96,21 @@ function defaultSetrikaRow_() {
 // ============================================================================
 
 /**
+ * [2026-07-13] Semua fungsi publik di bawah ini dibungkus withTenant_
+ * (Code.gs) - argumen pertama SELALU sessionToken, badan logic asli
+ * dipindah ke nama "_impl_" (TIDAK diubah sama sekali). Lihat komentar
+ * withTenant_ di Code.gs utk pola lengkapnya.
+ */
+function listCabang(sessionToken) {
+  return withTenant_(sessionToken, function () { return listCabang_impl_(); });
+}
+
+/**
  * Daftar semua cabang dalam bentuk ringkas (untuk Layar List), sudah termasuk
  * summary kalkulasi supaya kartu list bisa langsung menampilkan angka kunci
  * tanpa frontend perlu hitung ulang atau panggil getCabang per kartu.
  */
-function listCabang() {
+function listCabang_impl_() {
   try {
     ensureMigrated_();
     const sheet = ensureDataSheet_();
@@ -132,10 +142,14 @@ function listCabang() {
   }
 }
 
+function getCabang(sessionToken, id) {
+  return withTenant_(sessionToken, function () { return getCabang_impl_(id); });
+}
+
 /**
  * Mengambil satu cabang lengkap + summary kalkulasi, untuk Layar Ringkasan/Edit.
  */
-function getCabang(id) {
+function getCabang_impl_(id) {
   try {
     if (!id || typeof id !== "string") {
       return { ok: false, error: "ID cabang tidak valid.", stage: "getCabang:validate_id" };
@@ -153,10 +167,14 @@ function getCabang(id) {
   }
 }
 
+function createCabang(sessionToken, payload) {
+  return withTenant_(sessionToken, function () { return createCabang_impl_(payload); });
+}
+
 /**
  * Membuat cabang baru. Mengembalikan record lengkap (dengan id final dari server).
  */
-function createCabang(payload) {
+function createCabang_impl_(payload) {
   try {
     if (!payload || typeof payload !== "object") {
       return { ok: false, error: "Data yang dikirim tidak valid.", stage: "createCabang:validate_payload" };
@@ -189,7 +207,11 @@ function createCabang(payload) {
  * jika tidak ditemukan akan ditolak (bukan diam-diam membuat baru),
  * supaya tidak ada cabang "hantu" akibat id yang typo/hilang.
  */
-function updateCabang(id, payload) {
+function updateCabang(sessionToken, id, payload) {
+  return withTenant_(sessionToken, function () { return updateCabang_impl_(id, payload); });
+}
+
+function updateCabang_impl_(id, payload) {
   try {
     if (!id || typeof id !== "string") {
       return { ok: false, error: "ID cabang tidak valid.", stage: "updateCabang:validate_id" };
@@ -237,7 +259,11 @@ function updateCabang(id, payload) {
  * juga pemanggilan deleteBiayaXxxByCabang_ di sini, atau data biaya kategori
  * itu akan "nyangkut" tanpa cabang pemilik saat cabang dihapus.
  */
-function deleteCabang(id) {
+function deleteCabang(sessionToken, id) {
+  return withTenant_(sessionToken, function () { return deleteCabang_impl_(id); });
+}
+
+function deleteCabang_impl_(id) {
   try {
     if (!id || typeof id !== "string") {
       return { ok: false, error: "ID cabang tidak valid.", stage: "deleteCabang:validate_id" };
