@@ -142,12 +142,20 @@ menjalankan bootApp().
     card.classList.toggle("is-open");
   }
 
-  window.toggleHPPLayananAktif = function (cabangId, serviceKey, nextAktif, evt) {
+  // [2026-07-13] onDone opsional: dulu SELALU refreshDashboardFast() (cuma
+  // dipakai kartu HPP Dashboard) - sekarang dipakai juga oleh layar Struktur
+  // Biaya HPP (Script_Fitur_StrukturHPP.html), yang perlu refresh layar
+  // dirinya sendiri, bukan Dashboard. Default tetap refreshDashboardFast utk
+  // kompatibilitas pemanggil lama yang tidak kirim argumen ke-5.
+  window.toggleHPPLayananAktif = function (cabangId, serviceKey, nextAktif, evt, onDone) {
     if (evt) evt.stopPropagation();
     if (!cabangId || !serviceKey) return;
 
     google.script.run
-      .withSuccessHandler(function () { refreshDashboardFast(); })
+      .withSuccessHandler(function () {
+        if (typeof onDone === "function") onDone();
+        else if (typeof refreshDashboardFast === "function") refreshDashboardFast();
+      })
       .withFailureHandler(function (err) {
         showToast(err && err.message ? err.message : "Gagal mengubah status layanan.", "err");
       })

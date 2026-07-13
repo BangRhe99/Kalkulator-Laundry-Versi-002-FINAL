@@ -197,13 +197,47 @@ menjalankan bootApp().
     });
   }
 
+  // [2026-07-13] Toggle aktif/nonaktif per layanan - SAMA seperti kartu HPP
+  // Dashboard (Script_Fitur_Dashboard_Kartu.html), disamakan ke desktop.
+  // refresh sendiri (bukan refreshDashboardFast) supaya layar ini yang
+  // ter-update, bukan Dashboard.
+  window.toggleStrukturHPPLayananDesktop_ = function (cabangId, serviceKey, nextAktif, evt) {
+    toggleHPPLayananAktif(cabangId, serviceKey, nextAktif, evt, function () {
+      if (typeof invalidateServerReadCache_ === "function") invalidateServerReadCache_("getStrukturBiayaHPP", cabangId);
+      renderStrukturHPPDesktop_();
+    });
+  };
+
+  function buildStrukturHPPToggleHtml_(cabangId, toggleInfo) {
+    if (!toggleInfo) return '';
+    return '<div class="hpp-bedcover-toggle-row">' +
+      '<span>Layanan aktif</span>' +
+      '<button type="button" class="hpp-bedcover-toggle-btn" onclick="toggleStrukturHPPLayananDesktop_(\'' + escapeJsAttr(cabangId) + '\', \'' + escapeJsAttr(toggleInfo.key) + '\', false, event)">Matikan</button>' +
+    '</div>';
+  }
+
+  function buildStrukturHPPOffRowsHtml_(cabangId, serviceToggles) {
+    return serviceToggles.filter(function (t) { return t.aktif === false; }).map(function (t) {
+      return '<div class="hpp-bedcover-off-row">' +
+        '<span>Layanan ' + escapeHtml((t.title || '').replace(/^HPP /, '')) + ' nonaktif</span>' +
+        '<button type="button" class="hpp-bedcover-toggle-btn" onclick="toggleStrukturHPPLayananDesktop_(\'' + escapeJsAttr(cabangId) + '\', \'' + escapeJsAttr(t.key) + '\', true, event)">Aktifkan</button>' +
+      '</div>';
+    }).join('');
+  }
+
   function buildStrukturHPPDesktopHtml_(data) {
     data = data || {};
     var layanan = Array.isArray(data.layanan) ? data.layanan : [];
     var warnings = Array.isArray(data.warnings) ? data.warnings : [];
+    var serviceToggles = Array.isArray(data.serviceToggles) ? data.serviceToggles : [];
+    var toggleByKey = {};
+    serviceToggles.forEach(function (t) { toggleByKey[t.key] = t; });
+    var cabangId = (data.cabang && data.cabang.id) || '';
+
+    var offHtml = buildStrukturHPPOffRowsHtml_(cabangId, serviceToggles);
 
     if (!layanan.length) {
-      return '<div class="dashboard-empty">HPP belum siap dihitung untuk outlet ini.</div>';
+      return '<div class="dashboard-empty">HPP belum siap dihitung untuk outlet ini.</div>' + offHtml;
     }
 
     var miniHtml = layanan.map(function (svc) {
@@ -215,6 +249,7 @@ menjalankan bootApp().
           '<span class="hpp-mini-row-amount">' + money0(c.amount) + '</span>' +
         '</div>';
       }).join('');
+      var toggleHtml = buildStrukturHPPToggleHtml_(cabangId, toggleByKey[svc.key]);
       // Kartu langsung terbuka: tanpa tombol panah/onclick, rincian komponen
       // (.hpp-mini-detail) selalu tampil.
       return '<div class="hpp-mini-card is-open">' +
@@ -222,7 +257,7 @@ menjalankan bootApp().
           '<span class="hpp-mini-title">' + escapeHtml(svc.title || '') + '</span>' +
           '<span class="hpp-mini-total">' + money0(svc.total) + '</span>' +
         '</div>' +
-        (rowsHtml ? '<div class="hpp-mini-detail">' + rowsHtml + '</div>' : '') +
+        (rowsHtml || toggleHtml ? '<div class="hpp-mini-detail">' + rowsHtml + toggleHtml + '</div>' : '') +
       '</div>';
     }).join('');
 
@@ -235,7 +270,7 @@ menjalankan bootApp().
     // Dibungkus .hpp-desktop-scroll supaya HANYA daftar kartu ini yang bisa
     // discroll kalau lebih panjang dari tinggi panel - header & panel di
     // luar tetap terkunci (lihat Style_Module_HPP.html).
-    return '<div class="hpp-desktop-scroll"><div class="hpp-mini-list">' + miniHtml + '</div>' + warningHtml + '</div>';
+    return '<div class="hpp-desktop-scroll"><div class="hpp-mini-list">' + miniHtml + '</div>' + offHtml + warningHtml + '</div>';
   }
 
   window.openStrukturHPPDetail = function (cabangId) {
@@ -286,6 +321,15 @@ menjalankan bootApp().
       });
   };
 
+  // [2026-07-13] Toggle aktif/nonaktif per layanan - refresh layar detail ini
+  // sendiri (bukan refreshDashboardFast).
+  window.toggleStrukturHPPLayananDetail_ = function (cabangId, serviceKey, nextAktif, evt) {
+    toggleHPPLayananAktif(cabangId, serviceKey, nextAktif, evt, function () {
+      if (typeof invalidateServerReadCache_ === "function") invalidateServerReadCache_("getStrukturBiayaHPP", cabangId);
+      openStrukturHPPDetail(cabangId);
+    });
+  };
+
   function renderStrukturHPP(data) {
     var contentEl = document.getElementById("strukturHPPContent");
     if (!contentEl) return;
@@ -293,8 +337,12 @@ menjalankan bootApp().
     data = data || {};
 
     var cabang = data.cabang || {};
+    var cabangId = cabang.id || "";
     var layanan = Array.isArray(data.layanan) ? data.layanan : [];
     var warnings = Array.isArray(data.warnings) ? data.warnings : [];
+    var serviceToggles = Array.isArray(data.serviceToggles) ? data.serviceToggles : [];
+    var toggleByKey = {};
+    serviceToggles.forEach(function (t) { toggleByKey[t.key] = t; });
 
     var warningHtml = warnings.length
       ? (
@@ -310,13 +358,17 @@ menjalankan bootApp().
       : "";
 
     var serviceHtml = layanan.length
-      ? layanan.map(renderStrukturHPPServiceCard).join("")
+      ? layanan.map(function (svc) { return renderStrukturHPPServiceCard(svc, cabangId, toggleByKey[svc.key]); }).join("")
       : (
         '<div class="empty-state">' +
           '<div class="icon">&#128202;</div>' +
           '<p>Belum ada hasil Struktur Biaya HPP untuk outlet ini.</p>' +
         '</div>'
       );
+
+    var offHtml = buildStrukturHPPOffRowsHtml_(cabangId, serviceToggles).replace(
+      /toggleStrukturHPPLayananDesktop_/g, "toggleStrukturHPPLayananDetail_"
+    );
 
     contentEl.innerHTML =
       '<div class="summary-hero">' +
@@ -328,12 +380,18 @@ menjalankan bootApp().
         '</div>' +
       '</div>' +
       warningHtml +
-      serviceHtml;
+      serviceHtml +
+      offHtml;
   }
 
-  function renderStrukturHPPServiceCard(service) {
+  function renderStrukturHPPServiceCard(service, cabangId, toggleInfo) {
     service = service || {};
     var components = Array.isArray(service.components) ? service.components : [];
+    var toggleHtml = !toggleInfo ? '' :
+      '<div class="hpp-bedcover-toggle-row">' +
+        '<span>Layanan aktif</span>' +
+        '<button type="button" class="hpp-bedcover-toggle-btn" onclick="toggleStrukturHPPLayananDetail_(\'' + escapeJsAttr(cabangId) + '\', \'' + escapeJsAttr(service.key) + '\', false, event)">Matikan</button>' +
+      '</div>';
 
     return (
       '<div class="hpp-service-card">' +
@@ -350,6 +408,7 @@ menjalankan bootApp().
         '<div class="hpp-component-list">' +
           components.map(renderStrukturHPPComponentRow).join("") +
         '</div>' +
+        toggleHtml +
       '</div>'
     );
   }

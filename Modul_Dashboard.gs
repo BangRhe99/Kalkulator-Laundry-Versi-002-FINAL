@@ -834,9 +834,21 @@ function getBepServiceMix_(cabangId, activeKeys) {
     // Kalau daftar layanan aktif berubah sejak mix terakhir disimpan (toggle
     // di-nonaktifkan/aktifkan, kategori outlet berubah, dst), mix lama sudah
     // tidak relevan lagi -> balik ke default rata sama besar.
+    // [2026-07-13] SIMPAN default baru ini permanen (dulu cuma dipakai
+    // sekali di memori lalu hilang lagi) - supaya benar-benar tersinkron:
+    // modal "Atur %" langsung menampilkan angka yang sudah benar tanpa perlu
+    // user buka-simpan manual, dan grafik BEP tidak "nyangkut" di kondisi
+    // tidak lengkap gara-gara mix lama basi berapa pun jumlah layanan aktif
+    // sekarang.
     var storedKeys = Object.keys(storedMix).sort().join(",");
     var currentKeys = activeKeys.slice().sort().join(",");
-    if (storedKeys !== currentKeys) return defaultMix;
+    if (storedKeys !== currentKeys) {
+      writeKey_(sheet, getBepMixKey_(cabangId), JSON.stringify({
+        mix: defaultMix,
+        updatedAt: new Date().toISOString()
+      }));
+      return defaultMix;
+    }
 
     return storedMix;
   } catch (err) {
