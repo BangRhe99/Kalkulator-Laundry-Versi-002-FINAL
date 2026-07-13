@@ -8,13 +8,15 @@
  *
  * Penyimpanan pakai pola key-value yang sama seperti modul lain (lihat
  * Util_Penyimpanan.gs):
- *   - "authOtp_<email>"  -> pendaftaran yang BELUM diverifikasi (OTP, hash
- *                           password sementara, kedaluwarsa 5 menit)
- *   - "authUser_<email>" -> akun yang SUDAH terverifikasi (hash + salt
- *                           password, siap dipakai login)
+ *   - "authOtp_<email>"      -> pendaftaran yang BELUM diverifikasi (OTP,
+ *                               hash password sementara, kedaluwarsa 5 menit)
+ *   - "authUser_<email>"     -> akun yang SUDAH terverifikasi (hash + salt
+ *                               password, siap dipakai login)
+ *   - "accessCode_<KODE>"    -> kode akses billing (lihat blok AKSES/BILLING
+ *                               di bawah)
  *
  * PUBLIC FUNCTIONS:
- * - registerUser(email, password)
+ * - registerUser(email, password, accessCode)
  * - verifyOtp(email, code)
  * - resendOtp(email)
  * - loginUser(email, password)
@@ -29,6 +31,14 @@
  * token ini yang divalidasi withTenant_ (Code.gs) di SETIAP pemanggilan
  * fungsi backend lain, supaya baca/tulis data selalu diarahkan ke
  * spreadsheet tenant yang benar & tidak bisa dipalsukan dari client.
+ *
+ * [2026-07-13] AKSES/BILLING: pendaftaran WAJIB kode akses valid & belum
+ * dipakai (dari pembelian Lynk.id atau kode trial afiliator). Kode dibuat
+ * MANUAL dari editor Apps Script lewat generateLynkAccessCodes_(count)
+ * (tipe "paid", akses permanen) atau generateAffiliateTrialCode_(nama)
+ * (tipe "affiliate_trial", akses 7 hari lalu diblokir sampai admin
+ * mengaktifkan permanen lewat activateAccountPermanent_(email)). Lihat
+ * blok fungsi admin di akhir file (dekat migrateOwnerToTenant_).
  * ============================================================================
  */
 
@@ -45,6 +55,10 @@ function authKeyUser_(email) {
 
 function authKeySession_(token) {
   return "authSession_" + token;
+}
+
+function authKeyAccessCode_(code) {
+  return "accessCode_" + code;
 }
 
 function authGenerateToken_() {
@@ -253,12 +267,20 @@ function authSendOtpEmail_(email, otp) {
 }
 
 /**
- * registerUser: validasi email (WAJIB @gmail.com) & password (min 6
- * karakter), lalu kirim OTP 4 angka ke email tsb. Akun BELUM aktif sampai
- * verifyOtp() dipanggil dengan kode yang benar. Kalau email tidak valid,
- * OTP TIDAK PERNAH dikirim (validasi terjadi sebelum MailApp dipanggil).
+ * registerUser: validasi email (WAJIB @gmail.com), password (min 6 karakter)
+ * & kode akses (dari pembelian Lynk.id atau kode trial afiliator - lihat
+ * generateLynkAccessCodes_/generateAffiliateTrialCode_), lalu kirim OTP 4
+ * angka ke email tsb. Akun BELUM aktif sampai verifyOtp() dipanggil dengan
+ * kode yang benar. Kalau email/kode tidak valid, OTP TIDAK PERNAH dikirim
+ * (validasi terjadi sebelum MailApp dipanggil).
+ *
+ * [AKSES/BILLING] Kode akses direservasi (ditandai used) DI SINI, SEBELUM
+ * OTP dikirim - supaya 1 kode tidak bisa direbut 2 pendaftar sekaligus.
+ * Kalau pengiriman OTP gagal ATAU pendaftar tidak pernah menyelesaikan
+ * verifyOtp (OTP kedaluwarsa 5 menit), kode akan "menggantung" berstatus
+ * used tanpa akun jadi - admin bisa lepas lagi lewat releaseAccessCode_().
  */
-function registerUser(email, password) {
+function registerUser(email, password, accessCode) {
   try {
     var cleanEmail = authNormalizeEmail_(email);
     if (!authIsValidGmail_(cleanEmail)) {
@@ -270,11 +292,32 @@ function registerUser(email, password) {
       return { ok: false, error: "Password minimal 6 karakter.", stage: "registerUser:validate_password" };
     }
 
+    var cleanAccessCode = String(accessCode || "").trim().toUpperCase();
+    if (!cleanAccessCode) {
+      return { ok: false, error: "Kode akses wajib diisi.", stage: "registerUser:validate_access_code" };
+    }
+
     var sheet = ensureDataSheet_();
 
     if (readKey_(sheet, authKeyUser_(cleanEmail))) {
       return { ok: false, error: "Email ini sudah terdaftar. Silakan masuk.", stage: "registerUser:already_registered" };
     }
+
+    var codeRaw = readKey_(sheet, authKeyAccessCode_(cleanAccessCode));
+    if (!codeRaw) {
+      return { ok: false, error: "Kode akses tidak valid.", stage: "registerUser:invalid_access_code" };
+    }
+    var codeObj = JSON.parse(codeRaw);
+    if (codeObj.used) {
+      return { ok: false, error: "Kode akses ini sudah pernah dipakai.", stage: "registerUser:access_code_used" };
+    }
+
+    // Reservasi kode SEKARANG (sebelum OTP terkirim) supaya tidak bisa
+    // direbut pendaftar lain di saat bersamaan.
+    codeObj.used = true;
+    codeObj.usedByEmail = cleanEmail;
+    codeObj.usedAt = new Date().toISOString();
+    writeKey_(sheet, authKeyAccessCode_(cleanAccessCode), JSON.stringify(codeObj));
 
     var salt = Utilities.getUuid();
     var passwordHash = authHashPasswordV2_(cleanPassword, salt);
@@ -282,15 +325,23 @@ function registerUser(email, password) {
 
     // Kirim dulu sebelum simpan - kalau MailApp gagal (misal alamat gmail
     // valid formatnya tapi kena error pengiriman), jangan tinggalkan OTP
-    // "menggantung" yang tidak pernah bisa dipakai user.
+    // "menggantung" yang tidak pernah bisa dipakai user. Kode akses juga
+    // dilepas lagi (rollback) supaya tidak hangus percuma.
     try {
       authSendOtpEmail_(cleanEmail, otp);
     } catch (mailErr) {
+      codeObj.used = false;
+      codeObj.usedByEmail = "";
+      codeObj.usedAt = "";
+      writeKey_(sheet, authKeyAccessCode_(cleanAccessCode), JSON.stringify(codeObj));
       return { ok: false, error: "Gagal mengirim email OTP. Coba lagi beberapa saat.", stage: "registerUser:send_mail" };
     }
 
     writeKey_(sheet, authKeyOtp_(cleanEmail), JSON.stringify({
       email: cleanEmail,
+      accessCode: cleanAccessCode,
+      accessType: codeObj.type || "paid",
+      trialDays: codeObj.trialDays || 0,
       otp: otp,
       expiresAt: Date.now() + AUTH_OTP_TTL_MS_,
       passwordHash: passwordHash,
@@ -324,6 +375,10 @@ function verifyOtp(email, code) {
     var pending = JSON.parse(raw);
     if (Date.now() > Number(pending.expiresAt || 0)) {
       deleteKeyRow_(sheet, authKeyOtp_(cleanEmail));
+      // Pendaftaran dibatalkan (kedaluwarsa) - lepas lagi kode akses yang
+      // sempat direservasi di registerUser supaya tidak hangus percuma,
+      // bisa dipakai ulang oleh pendaftaran berikutnya.
+      if (pending.accessCode) releaseAccessCode_(pending.accessCode);
       return { ok: false, error: "Kode OTP sudah kedaluwarsa. Silakan daftar ulang.", stage: "verifyOtp:expired" };
     }
 
@@ -331,11 +386,18 @@ function verifyOtp(email, code) {
       return { ok: false, error: "Kode OTP salah. Coba lagi.", stage: "verifyOtp:mismatch" };
     }
 
+    var accessType = pending.accessType || "paid";
+    var accessExpiresAt = accessType === "affiliate_trial"
+      ? Date.now() + (Number(pending.trialDays) || 7) * 24 * 60 * 60 * 1000
+      : null;
+
     writeKey_(sheet, authKeyUser_(cleanEmail), JSON.stringify({
       email: cleanEmail,
       passwordHash: pending.passwordHash,
       salt: pending.salt,
       hashVersion: pending.hashVersion || 1,
+      accessType: accessType,
+      accessExpiresAt: accessExpiresAt,
       createdAt: pending.createdAt || new Date().toISOString(),
       verifiedAt: new Date().toISOString(),
       tenantSpreadsheetId: ""
@@ -426,6 +488,13 @@ function loginUser(email, password) {
       return { ok: false, error: "Email atau password salah.", stage: "loginUser:mismatch" };
     }
 
+    // [AKSES/TRIAL] accessExpiresAt kosong = akses permanen (kode Lynk.id).
+    // Terisi = trial afiliator, tolak login kalau sudah lewat - data TIDAK
+    // dihapus, admin bisa aktifkan permanen lewat activateAccountPermanent_().
+    if (user.accessExpiresAt && Date.now() > Number(user.accessExpiresAt)) {
+      return { ok: false, error: "Masa trial akun ini sudah berakhir. Hubungi admin untuk melanjutkan.", stage: "loginUser:trial_expired" };
+    }
+
     // Akun terverifikasi tapi BELUM punya spreadsheet tenant (mis. akun lama
     // dari sebelum fitur multi-tenant ini ada) - JANGAN auto-provision di
     // sini (beresiko membuat spreadsheet kosong baru & "memutus" akun dari
@@ -461,5 +530,114 @@ function migrateOwnerToTenant_(ownerEmail) {
   user.tenantSpreadsheetId = SpreadsheetApp.getActiveSpreadsheet().getId();
   writeKey_(sheet, authKeyUser_(cleanEmail), JSON.stringify(user));
   Logger.log("OK: " + cleanEmail + " sekarang tersambung ke spreadsheet Master ini (data asli tidak dipindah).");
+}
+
+/**
+ * [AKSES/BILLING] Fungsi-fungsi di bawah ini SENGAJA TIDAK client-callable
+ * (tidak dipanggil dari file .html manapun, tidak dibungkus withTenant_) -
+ * jalankan MANUAL dari editor Apps Script (pilih nama fungsinya di dropdown
+ * run, lalu klik Run). Sheet _data_operasional (Master) menyimpan kode-kode
+ * ini di key "accessCode_<KODE>".
+ */
+
+function authRandomCodeSuffix_(length) {
+  var raw = Utilities.getUuid().replace(/-/g, "").toUpperCase();
+  return raw.slice(0, length);
+}
+
+/**
+ * generateLynkAccessCodes_: bikin sejumlah kode akses SEKALI PAKAI (tipe
+ * "paid", akses permanen - accessExpiresAt kosong). Jalankan lewat editor
+ * Apps Script, isi jumlah kode yang mau dibuat (misal 50), lalu salin daftar
+ * kode dari Logger (Lihat > Log Eksekusi) untuk diupload ke Lynk.id sebagai
+ * daftar serial produk digital (1 kode terkirim otomatis per pembelian).
+ */
+function generateLynkAccessCodes_(count) {
+  var sheet = ensureDataSheet_();
+  var total = Number(count) || 0;
+  var codes = [];
+
+  for (var i = 0; i < total; i++) {
+    var code = "KL-" + authRandomCodeSuffix_(8);
+    codes.push(code);
+    writeKey_(sheet, authKeyAccessCode_(code), JSON.stringify({
+      code: code,
+      type: "paid",
+      ownerLabel: "",
+      trialDays: 0,
+      used: false,
+      usedByEmail: "",
+      createdAt: new Date().toISOString(),
+      usedAt: ""
+    }));
+  }
+
+  Logger.log("OK: " + total + " kode akses Lynk.id dibuat:\n" + codes.join("\n"));
+  return codes;
+}
+
+/**
+ * generateAffiliateTrialCode_: bikin 1 kode trial 7 hari untuk 1 afiliator
+ * (bisa dilacak lewat ownerLabel siapa yang pakai kode ini). Jalankan lewat
+ * editor Apps Script dengan nama afiliator sebagai argumen, salin kode dari
+ * Logger, berikan ke afiliator terkait.
+ */
+function generateAffiliateTrialCode_(afiliatorLabel) {
+  var sheet = ensureDataSheet_();
+  var labelSlug = String(afiliatorLabel || "AFILIATOR").trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  var code = "TRIAL-" + (labelSlug || "AFILIATOR") + "-" + authRandomCodeSuffix_(4);
+
+  writeKey_(sheet, authKeyAccessCode_(code), JSON.stringify({
+    code: code,
+    type: "affiliate_trial",
+    ownerLabel: String(afiliatorLabel || ""),
+    trialDays: 7,
+    used: false,
+    usedByEmail: "",
+    createdAt: new Date().toISOString(),
+    usedAt: ""
+  }));
+
+  Logger.log("OK: kode trial afiliator dibuat untuk '" + afiliatorLabel + "': " + code);
+  return code;
+}
+
+/**
+ * activateAccountPermanent_: admin override manual - ubah akun trial
+ * afiliator (atau akun lain) jadi akses permanen (accessExpiresAt
+ * dikosongkan). Dipakai kalau afiliator jadi pelanggan tetap setelah masa
+ * trial, atau kalau ada kasus khusus lain yang perlu diaktifkan manual.
+ */
+function activateAccountPermanent_(email) {
+  var cleanEmail = authNormalizeEmail_(email);
+  var sheet = ensureDataSheet_();
+  var raw = readKey_(sheet, authKeyUser_(cleanEmail));
+  if (!raw) {
+    throw new Error("Akun " + cleanEmail + " tidak ditemukan.");
+  }
+  var user = JSON.parse(raw);
+  user.accessType = "paid";
+  user.accessExpiresAt = null;
+  writeKey_(sheet, authKeyUser_(cleanEmail), JSON.stringify(user));
+  Logger.log("OK: " + cleanEmail + " sekarang punya akses permanen.");
+}
+
+/**
+ * releaseAccessCode_: lepas reservasi kode akses yang "menggantung" (used
+ * tapi pendaftarnya tidak pernah selesai verifikasi OTP - kasus ini normalnya
+ * sudah ditangani OTOMATIS oleh verifyOtp saat OTP kedaluwarsa, fungsi ini
+ * cuma jaga-jaga untuk kasus manual/darurat lain).
+ */
+function releaseAccessCode_(code) {
+  var cleanCode = String(code || "").trim().toUpperCase();
+  var sheet = ensureDataSheet_();
+  var raw = readKey_(sheet, authKeyAccessCode_(cleanCode));
+  if (!raw) return;
+  var codeObj = JSON.parse(raw);
+  codeObj.used = false;
+  codeObj.usedByEmail = "";
+  codeObj.usedAt = "";
+  writeKey_(sheet, authKeyAccessCode_(cleanCode), JSON.stringify(codeObj));
+  Logger.log("OK: kode " + cleanCode + " dilepas, bisa dipakai lagi.");
 }
 

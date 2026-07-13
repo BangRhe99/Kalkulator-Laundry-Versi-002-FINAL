@@ -122,9 +122,11 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
   window.submitAuthRegister = function () {
     var emailEl = document.getElementById("authRegisterEmail");
     var passwordEl = document.getElementById("authRegisterPassword");
+    var accessCodeEl = document.getElementById("authRegisterAccessCode");
     var btn = document.getElementById("authRegisterBtn");
     var email = emailEl ? emailEl.value.trim() : "";
     var password = passwordEl ? passwordEl.value : "";
+    var accessCode = accessCodeEl ? accessCodeEl.value.trim() : "";
 
     if (!authIsValidGmailClient_(email)) {
       authShowError_("authRegisterError", "Email harus alamat Gmail yang valid (contoh: nama@gmail.com).");
@@ -132,6 +134,10 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
     }
     if (password.length < 6) {
       authShowError_("authRegisterError", "Password minimal 6 karakter.");
+      return;
+    }
+    if (!accessCode) {
+      authShowError_("authRegisterError", "Kode akses wajib diisi (dari Lynk.id atau afiliator).");
       return;
     }
 
@@ -154,7 +160,7 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
         if (btn) { btn.disabled = false; btn.textContent = "Daftar"; }
         authShowError_("authRegisterError", err && err.message ? err.message : String(err));
       })
-      .registerUser(email, password);
+      .registerUser(email, password, accessCode);
   };
 
   window.submitAuthOtp = function () {
