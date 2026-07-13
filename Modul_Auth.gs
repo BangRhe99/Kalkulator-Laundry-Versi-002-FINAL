@@ -106,21 +106,6 @@ function resolveSession_(token) {
  * Keluar.
  */
 function logoutUser(sessionToken) {
-  // [2026-07-13] MIGRASI SEMENTARA - taruh di sini krn dropdown fungsi di
-  // editor Apps Script user tidak mau menampilkan fungsi baru (bug UI) -
-  // logoutUser kebetulan sudah otomatis terpilih di dropdown mereka. HAPUS
-  // blok ini setelah migrasi berhasil - jangan biarkan tertinggal di produksi.
-  try {
-    migrateOwnerToTenant_("rheza354@gmail.com");
-    var diagEmail = authNormalizeEmail_("rheza354@gmail.com");
-    var diagSheet = ensureDataSheet_();
-    var diagRaw = readKey_(diagSheet, authKeyUser_(diagEmail));
-    Logger.log("[MIGRASI] Isi tersimpan SEKARANG (authUser_...): " + diagRaw);
-  } catch (diagErr) {
-    Logger.log("[MIGRASI] ERROR: " + (diagErr && diagErr.message ? diagErr.message : String(diagErr)));
-  }
-  // ===== akhir blok migrasi sementara =====
-
   try {
     var sheet = ensureDataSheet_();
     deleteKeyRow_(sheet, authKeySession_(String(sessionToken || "").trim()));
@@ -388,40 +373,3 @@ function migrateOwnerToTenant_(ownerEmail) {
   Logger.log("OK: " + cleanEmail + " sekarang tersambung ke spreadsheet Master ini (data asli tidak dipindah).");
 }
 
-/**
- * [2026-07-13] Wrapper SEKALI-PAKAI - email pemilik sudah ditulis LANGSUNG di
- * kode (bukan lewat parameter terminal), supaya "clasp run jalankanMigrasiSekali_"
- * bisa dijalankan TANPA --params sama sekali (menghindari masalah tanda kutip
- * JSON yang beda-beda tiap jenis terminal Windows). Boleh dihapus setelah
- * dijalankan sekali dan berhasil - TIDAK dipanggil dari UI/client manapun.
- */
-function jalankanMigrasiSekali_() {
-  migrateOwnerToTenant_("rheza354@gmail.com");
-}
-
-/**
- * [2026-07-13] Diagnosa sekali-pakai: cek apakah tenantSpreadsheetId
- * benar-benar tersimpan & spreadsheet mana yang dipakai eksekusi ini - untuk
- * melacak kenapa loginUser masih bilang "belum tersambung ke data" padahal
- * migrateOwnerToTenant_ sudah lapor OK. Boleh dihapus setelah masalah selesai.
- */
-function cekStatusAkunSekali_() {
-  var email = authNormalizeEmail_("rheza354@gmail.com");
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  Logger.log("Spreadsheet ID (Master) yang dipakai eksekusi ini: " + (ss ? ss.getId() : "(kosong/null)"));
-  Logger.log("Spreadsheet Name: " + (ss ? ss.getName() : "(kosong/null)"));
-
-  var sheet = ensureDataSheet_();
-  var raw = readKey_(sheet, authKeyUser_(email));
-  Logger.log("Key dicari: " + authKeyUser_(email));
-  Logger.log("Isi tersimpan (authUser_...): " + raw);
-
-  // Cek juga apakah ada baris DUPLIKAT dgn key yang sama (indikasi race
-  // condition lama sebelum LockService dipasang).
-  var allValues = sheet.getDataRange().getValues();
-  var matchCount = 0;
-  for (var i = 1; i < allValues.length; i++) {
-    if (allValues[i][0] === authKeyUser_(email)) matchCount++;
-  }
-  Logger.log("Jumlah baris dgn key ini di sheet: " + matchCount + " (harusnya 1)");
-}
