@@ -383,3 +383,30 @@ function migrateOwnerToTenant_(ownerEmail) {
 function jalankanMigrasiSekali_() {
   migrateOwnerToTenant_("rheza354@gmail.com");
 }
+
+/**
+ * [2026-07-13] Diagnosa sekali-pakai: cek apakah tenantSpreadsheetId
+ * benar-benar tersimpan & spreadsheet mana yang dipakai eksekusi ini - untuk
+ * melacak kenapa loginUser masih bilang "belum tersambung ke data" padahal
+ * migrateOwnerToTenant_ sudah lapor OK. Boleh dihapus setelah masalah selesai.
+ */
+function cekStatusAkunSekali_() {
+  var email = authNormalizeEmail_("rheza354@gmail.com");
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  Logger.log("Spreadsheet ID (Master) yang dipakai eksekusi ini: " + (ss ? ss.getId() : "(kosong/null)"));
+  Logger.log("Spreadsheet Name: " + (ss ? ss.getName() : "(kosong/null)"));
+
+  var sheet = ensureDataSheet_();
+  var raw = readKey_(sheet, authKeyUser_(email));
+  Logger.log("Key dicari: " + authKeyUser_(email));
+  Logger.log("Isi tersimpan (authUser_...): " + raw);
+
+  // Cek juga apakah ada baris DUPLIKAT dgn key yang sama (indikasi race
+  // condition lama sebelum LockService dipasang).
+  var allValues = sheet.getDataRange().getValues();
+  var matchCount = 0;
+  for (var i = 1; i < allValues.length; i++) {
+    if (allValues[i][0] === authKeyUser_(email)) matchCount++;
+  }
+  Logger.log("Jumlah baris dgn key ini di sheet: " + matchCount + " (harusnya 1)");
+}
