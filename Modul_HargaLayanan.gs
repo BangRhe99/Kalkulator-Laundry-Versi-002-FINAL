@@ -420,23 +420,28 @@ function buildHargaLayananItems_(kategori, hppMap, storedHargaJual, aktifMap, ko
       item.statusLabel = getHargaLayananMarginStatusLabel_(marginPerKg, marginPercentPerKg);
     }
 
-    // Jasa Setrika: HPP sumbernya sudah PER KG, "per Jam" dikonversi lewat
-    // kapasitas kg/jam mesin setrika (berapa Kg diproses tiap 1 jam).
+    // [2026-07-13] Jasa Setrika: HPP sumbernya sekarang sudah PER LOAD/PER
+    // JAM LANGSUNG (lihat buildJasaSetrikaHPPStructure_ di Modul_StrukturBiayaHPP.gs,
+    // basis HPP kategori ini diubah dari per Kg jadi per Load) - JANGAN
+    // dikalikan kapasitas kg/jam lagi (dulu begitu waktu HPP masih per Kg,
+    // sekarang jadi dobel hitung). Pola disamakan persis dengan blok Kiloan
+    // di atas: hpp APA ADANYA = per siklus, hppPerKg didapat dari MEMBAGI
+    // (bukan mengalikan) dengan kapasitas, cuma untuk info tambahan.
     if (kategori === "jasa_setrika") {
-      const hppPerKg = hpp;
+      const hppPerJam = hpp;
       const hargaJualPerKg = hargaJual;
-      const hppPerJam = round2_(hppPerKg * setrikaKapasitasKgPerJam);
-      const hargaJualPerJam = round2_(hargaJualPerKg * setrikaKapasitasKgPerJam);
-      const marginPerJam = round2_(hargaJualPerJam - hppPerJam);
-      const marginPercentPerJam = hargaJualPerJam > 0 ? round2_((marginPerJam / hargaJualPerJam) * 100) : 0;
+      const hppPerKg = setrikaKapasitasKgPerJam > 0 ? round2_(hppPerJam / setrikaKapasitasKgPerJam) : 0;
+      const marginPerJam = round2_(hargaJualPerKg * setrikaKapasitasKgPerJam - hppPerJam);
+      const hargaJualPerJamAcuan_ = round2_(hargaJualPerKg * setrikaKapasitasKgPerJam);
+      const marginPercentPerJam = hargaJualPerJamAcuan_ > 0 ? round2_((marginPerJam / hargaJualPerJamAcuan_) * 100) : 0;
       const marginPerKg = round2_(hargaJualPerKg - hppPerKg);
       const marginPercentPerKg = hargaJualPerKg > 0 ? round2_((marginPerKg / hargaJualPerKg) * 100) : 0;
 
       item.hargaJualPerKg = round2_(hargaJualPerKg);
-      item.hppPerJam = hppPerJam;
+      item.hppPerJam = round2_(hppPerJam);
       item.marginPerJam = marginPerJam;
       item.marginPercentPerJam = marginPercentPerJam;
-      item.hppPerKg = round2_(hppPerKg);
+      item.hppPerKg = hppPerKg;
       item.marginPerKg = marginPerKg;
       item.marginPercentPerKg = marginPercentPerKg;
       // Kapasitas kg mesin setrika per 1 jam - dipakai frontend utk simulasi
