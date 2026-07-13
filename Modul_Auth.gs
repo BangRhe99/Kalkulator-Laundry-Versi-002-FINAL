@@ -372,3 +372,14 @@ function migrateOwnerToTenant_(ownerEmail) {
   writeKey_(sheet, authKeyUser_(cleanEmail), JSON.stringify(user));
   Logger.log("OK: " + cleanEmail + " sekarang tersambung ke spreadsheet Master ini (data asli tidak dipindah).");
 }
+
+/**
+ * [2026-07-13] Wrapper SEKALI-PAKAI - email pemilik sudah ditulis LANGSUNG di
+ * kode (bukan lewat parameter terminal), supaya "clasp run jalankanMigrasiSekali_"
+ * bisa dijalankan TANPA --params sama sekali (menghindari masalah tanda kutip
+ * JSON yang beda-beda tiap jenis terminal Windows). Boleh dihapus setelah
+ * dijalankan sekali dan berhasil - TIDAK dipanggil dari UI/client manapun.
+ */
+function jalankanMigrasiSekali_() {
+  migrateOwnerToTenant_("rheza354@gmail.com");
+}
