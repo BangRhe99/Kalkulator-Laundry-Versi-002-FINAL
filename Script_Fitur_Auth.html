@@ -109,18 +109,32 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
     }
 
     if (btn) { btn.disabled = true; btn.textContent = "Memeriksa..."; }
+
+    // Loading hyper-premium mode "await": bar naik ~92% & MENUNGGU server -
+    // begitu login OK, premiumLoaderComplete melesat ke 100% lalu masuk app.
+    // Kalau gagal, premiumLoaderFail menutupnya & error tampil di kartu login.
+    if (typeof premiumLoaderShow === "function") {
+      premiumLoaderShow({ status: "Memverifikasi akun Anda", mode: "await" });
+    }
+
     google.script.run
       .withSuccessHandler(function (res) {
         if (btn) { btn.disabled = false; btn.textContent = "Masuk"; }
         if (!res || !res.ok) {
+          if (typeof premiumLoaderFail === "function") premiumLoaderFail();
           authShowError_("authLoginError", (res && res.error) || "Gagal masuk.");
           return;
         }
         authSetLoggedIn_(res.data.email, res.data.sessionToken);
-        authEnterApp_();
+        if (typeof premiumLoaderComplete === "function") {
+          premiumLoaderComplete(function () { authEnterApp_(); });
+        } else {
+          authEnterApp_();
+        }
       })
       .withFailureHandler(function (err) {
         if (btn) { btn.disabled = false; btn.textContent = "Masuk"; }
+        if (typeof premiumLoaderFail === "function") premiumLoaderFail();
         authShowError_("authLoginError", err && err.message ? err.message : String(err));
       })
       .loginUser(email, password);

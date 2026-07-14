@@ -1,0 +1,174 @@
+<!--
+===============================================================================
+FILE: Style_Module_Loader.html
+PROJECT: Kalkulator Laundry Versi 002
+FUNGSI: Style overlay loading "hyper-premium" (#premiumLoader) - dipakai 2 saat:
+  1. Splash awal aplikasi dibuka (bootApp, Script_Boot_Main.html).
+  2. Verifikasi saat login (submitAuthLogin, Script_Fitur_Auth.html).
+Semua warna pakai token brand (Style_Tokens.html) - sage/brass/volt. Logika
+progres acak & tampil/sembunyikan ada di Script_Fitur_Loader.html.
+BATAS TANGGUNG JAWAB: hanya CSS loader. Tidak ada JS/markup screen di sini.
+===============================================================================
+-->
+<style>
+  .pl-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99990;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background:
+      radial-gradient(1200px 640px at 50% -12%, #ffffff 0%, var(--bg) 56%, #e7edf3 100%);
+    opacity: 1;
+    transition: opacity 0.46s ease;
+  }
+  .pl-overlay.is-visible { display: flex; }
+  .pl-overlay.is-hiding { opacity: 0; pointer-events: none; }
+
+  /* Vignette lembut supaya panggung terasa "berkelas" */
+  .pl-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(120% 90% at 50% 42%, transparent 60%, rgba(17, 24, 39, 0.05) 100%);
+  }
+
+  .pl-stage {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  .pl-overlay.is-visible:not(.is-hiding) .pl-stage {
+    animation: plRise 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+
+  /* ---- Logo + cincin gradient berputar ---- */
+  .pl-logo {
+    position: relative;
+    width: 74px;
+    height: 74px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--sage-dim);
+  }
+  .pl-logo-ring {
+    position: absolute;
+    inset: -7px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, var(--sage), var(--brass), var(--volt), var(--sage));
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+            mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+    animation: plSpin 1.15s linear infinite;
+    opacity: 0.92;
+  }
+  .pl-logo svg {
+    width: 38px;
+    height: 38px;
+    fill: none;
+    stroke: var(--sage);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    animation: plBreath 2.4s ease-in-out infinite;
+  }
+
+  /* ---- Brand ---- */
+  .pl-brand {
+    font-family: var(--font-display);
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    display: flex;
+    gap: 7px;
+    margin-top: 2px;
+  }
+  .pl-brand-main { color: var(--text); }
+  .pl-brand-accent { color: var(--sage); }
+
+  /* ---- Progress track + fill ---- */
+  .pl-track {
+    width: min(288px, 76vw);
+    height: 7px;
+    border-radius: 999px;
+    background: var(--panel-2);
+    box-shadow: inset 0 1px 2px rgba(17, 24, 39, 0.09);
+    overflow: hidden;
+    position: relative;
+  }
+  .pl-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #0F766E 0%, #14b8a6 100%);
+    box-shadow: 0 0 12px rgba(15, 118, 110, 0.45);
+    position: relative;
+    overflow: hidden;
+    transition: width 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  .pl-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.55) 50%, transparent 100%);
+    transform: translateX(-100%);
+    animation: plSweep 1.2s ease-in-out infinite;
+  }
+
+  /* ---- Baris status + persen ---- */
+  .pl-meta {
+    width: min(288px, 76vw);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .pl-meta-left { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+  .pl-status {
+    color: var(--text-faint);
+    font-size: 12.5px;
+    letter-spacing: 0.015em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pl-dots { display: inline-flex; gap: 3px; flex: none; margin-left: 1px; }
+  .pl-dots i {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    opacity: 0.28;
+    animation: plBlink 1.2s infinite;
+  }
+  .pl-dots i:nth-child(2) { animation-delay: 0.18s; }
+  .pl-dots i:nth-child(3) { animation-delay: 0.36s; }
+  .pl-percent {
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+    flex: none;
+  }
+
+  @keyframes plSpin { to { transform: rotate(360deg); } }
+  @keyframes plSweep { 0% { transform: translateX(-100%); } 60%, 100% { transform: translateX(220%); } }
+  @keyframes plBlink { 0%, 80%, 100% { opacity: 0.24; } 40% { opacity: 1; } }
+  @keyframes plBreath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  @keyframes plRise {
+    from { opacity: 0; transform: translateY(7px) scale(0.985); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pl-logo-ring, .pl-logo svg, .pl-fill::after, .pl-dots i,
+    .pl-overlay.is-visible:not(.is-hiding) .pl-stage { animation: none; }
+  }
+</style>

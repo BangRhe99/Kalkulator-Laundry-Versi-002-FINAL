@@ -1,0 +1,191 @@
+<!--
+===============================================================================
+FILE: Script_Fitur_Loader.html
+PROJECT: Kalkulator Laundry Versi 002
+ISI: Mesin loading "hyper-premium" dengan progres acak (Simulated Progress).
+
+API PUBLIK (dipanggil dari file lain):
+  premiumLoaderShow({ status, mode, minDuration, onDone })
+      mode "auto"  -> progres jalan sendiri sampai 100% lalu panggil onDone
+                      (dipakai splash awal bootApp - lama minimal minDuration).
+      mode "await" -> progres naik sampai ~92% lalu MENUNGGU; panggil
+                      premiumLoaderComplete() saat server sudah balas OK
+                      (dipakai verifikasi login - biar bar tidak "bohong"
+                      penuh sebelum server benar-benar selesai).
+  premiumLoaderComplete(onDone) -> khusus mode "await": lompat cepat ke 100%
+                      lalu fade-out & panggil onDone.
+  premiumLoaderFail()           -> sembunyikan cepat tanpa 100% (saat error).
+  premiumLoaderHideNow()        -> sembunyikan instan (dipakai penangkap error).
+  premiumLoaderRunBoot(onDone)  -> pintasan splash awal (mode auto).
+
+CATATAN: file ini TIDAK dibungkus IIFE (ikut aturan Index.html - semua
+Script_*.html berbagi 1 scope global). State internal diprefiks pl* supaya
+tidak bentrok. Semua pemanggil pakai `typeof x === "function"` sebagai
+pengaman kalau file ini kebetulan belum ter-include.
+Include SEBELUM Script_Boot_Main.html.
+===============================================================================
+-->
+<script>
+"use strict";
+  var plState_ = {
+    timer: null,
+    value: 0,
+    cap: 100,
+    mode: "auto",
+    startedAt: 0,
+    minDuration: 0,
+    onDone: null
+  };
+
+  function plEls_() {
+    return {
+      overlay: document.getElementById("premiumLoader"),
+      fill: document.getElementById("plFill"),
+      percent: document.getElementById("plPercent"),
+      status: document.getElementById("plStatus")
+    };
+  }
+
+  function plClearTimer_() {
+    if (plState_.timer) { clearTimeout(plState_.timer); plState_.timer = null; }
+  }
+
+  // Progres TIDAK PERNAH mundur - selalu ambil nilai terbesar.
+  function plSet_(v) {
+    if (v < plState_.value) v = plState_.value;
+    if (v > 100) v = 100;
+    plState_.value = v;
+    var els = plEls_();
+    if (els.fill) els.fill.style.width = v.toFixed(2) + "%";
+    if (els.percent) els.percent.textContent = Math.round(v) + "%";
+  }
+
+  // Satu "denyut" progres acak: langkah besar di awal, makin kecil mendekati
+  // cap (efek melambat alami), plus interval acak biar terasa organik.
+  function plTick_() {
+    var cap = plState_.cap;
+    if (plState_.mode === "auto") {
+      var elapsed = Date.now() - plState_.startedAt;
+      // Tahan mengisi sampai ~86% dulu (jeda kecil terasa "berpikir"), baru
+      // dilepas ke 100% setelah durasi minimum terlewati.
+      cap = elapsed < plState_.minDuration ? 88 : 100;
+    }
+
+    if (plState_.value < cap) {
+      var remaining = cap - plState_.value;
+      var step = Math.random() * remaining * 0.30 + 1.5;
+      plSet_(plState_.value + step);
+    }
+
+    if (plState_.mode === "auto" && cap >= 100 && plState_.value >= 99.6) {
+      plFinishFlourish_();
+      return;
+    }
+
+    var next = 60 + Math.random() * 90;
+    plState_.timer = setTimeout(plTick_, next);
+  }
+
+  // Urutan penutup: pastikan 100%, jeda kecil, panggil onDone (yang menyingkap
+  // konten di belakang), lalu fade-out overlay & reset.
+  function plFinishFlourish_() {
+    plClearTimer_();
+    plSet_(100);
+    var els = plEls_();
+    if (els.status) els.status.textContent = "Siap";
+
+    setTimeout(function () {
+      var cb = plState_.onDone;
+      plState_.onDone = null;
+      if (typeof cb === "function") { try { cb(); } catch (e) {} }
+
+      if (els.overlay) els.overlay.classList.add("is-hiding");
+      setTimeout(function () {
+        if (els.overlay) {
+          els.overlay.classList.remove("is-visible");
+          els.overlay.classList.remove("is-hiding");
+        }
+        plSet_(0);
+        plState_.value = 0;
+      }, 480);
+    }, 240);
+  }
+
+  window.premiumLoaderShow = function (opts) {
+    opts = opts || {};
+    var els = plEls_();
+    // Tanpa overlay (file markup belum ada) - langsung jalankan onDone utk
+    // mode auto supaya boot tidak macet; mode await biar pemanggil yang urus.
+    if (!els.overlay) {
+      if (opts.mode !== "await" && typeof opts.onDone === "function") opts.onDone();
+      return;
+    }
+
+    plClearTimer_();
+    plState_.mode = opts.mode === "await" ? "await" : "auto";
+    plState_.cap = plState_.mode === "await" ? 92 : 100;
+    plState_.value = 0;
+    plState_.startedAt = Date.now();
+    plState_.minDuration = Math.max(0, Number(opts.minDuration) || 0);
+    plState_.onDone = typeof opts.onDone === "function" ? opts.onDone : null;
+
+    if (els.status) els.status.textContent = opts.status || "Memuat";
+    els.overlay.classList.remove("is-hiding");
+    els.overlay.classList.add("is-visible");
+
+    plSet_(0);
+    plState_.value = 0;
+    plSet_(4 + Math.random() * 6); // lompatan awal kecil biar bar tidak diam di 0
+    plTick_();
+  };
+
+  window.premiumLoaderComplete = function (onDone) {
+    if (typeof onDone === "function") plState_.onDone = onDone;
+    plClearTimer_();
+    plState_.cap = 100;
+
+    // Naik cepat & mulus ke 100%, baru penutup.
+    var rush = function () {
+      if (plState_.value < 100) {
+        var jump = Math.max(2.5, (100 - plState_.value) * 0.28);
+        plSet_(plState_.value + jump);
+        plState_.timer = setTimeout(rush, 28);
+      } else {
+        plFinishFlourish_();
+      }
+    };
+    rush();
+  };
+
+  window.premiumLoaderFail = function () {
+    plClearTimer_();
+    var els = plEls_();
+    if (!els.overlay) return;
+    els.overlay.classList.add("is-hiding");
+    setTimeout(function () {
+      els.overlay.classList.remove("is-visible");
+      els.overlay.classList.remove("is-hiding");
+      plSet_(0);
+      plState_.value = 0;
+    }, 320);
+  };
+
+  window.premiumLoaderHideNow = function () {
+    plClearTimer_();
+    var els = plEls_();
+    if (!els.overlay) return;
+    els.overlay.classList.remove("is-visible");
+    els.overlay.classList.remove("is-hiding");
+    plSet_(0);
+    plState_.value = 0;
+  };
+
+  window.premiumLoaderRunBoot = function (onDone) {
+    window.premiumLoaderShow({
+      status: "Menyiapkan aplikasi",
+      mode: "auto",
+      minDuration: 700,
+      onDone: onDone
+    });
+  };
+</script>

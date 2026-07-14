@@ -42,6 +42,13 @@ supaya error di file manapun sesudahnya tetap tertangkap.
         loadingEl.style.display = "none";
       }
 
+      // Overlay splash loading (kalau ada) tidak boleh menutupi pesan error.
+      var premiumLoaderEl = document.getElementById("premiumLoader");
+      if (premiumLoaderEl) {
+        premiumLoaderEl.classList.remove("is-visible");
+        premiumLoaderEl.classList.remove("is-hiding");
+      }
+
       if (!appRootEl) {
         appRootEl = document.createElement("div");
         appRootEl.id = "appRoot";

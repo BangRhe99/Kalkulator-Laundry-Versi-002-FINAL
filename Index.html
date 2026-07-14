@@ -167,8 +167,39 @@ RIWAYAT PEMECAHAN FILE INI:
 <?!= include('Style_Module_HargaLayanan') ?>
 <?!= include('Style_Module_Auth') ?>
 <?!= include('Style_Module_Sidebar') ?>
+<?!= include('Style_Module_Loader') ?>
 </head>
 <body>
+
+<!-- Overlay loading hyper-premium (splash awal + verifikasi login).
+     Tampil default saat halaman pertama dibuka (splash), lalu dikendalikan
+     Script_Fitur_Loader.html. Lihat Style_Module_Loader.html. -->
+<div id="premiumLoader" class="pl-overlay is-visible" role="status" aria-live="polite" aria-label="Memuat">
+  <div class="pl-stage">
+    <div class="pl-logo">
+      <span class="pl-logo-ring" aria-hidden="true"></span>
+      <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <rect x="7" y="5" width="18" height="22" rx="4"></rect>
+        <path d="M11 9h2"></path>
+        <path d="M17 9h4"></path>
+        <circle cx="16" cy="18" r="6"></circle>
+        <path d="M12.5 18c1.2-1.4 2.4-1.4 3.5 0s2.3 1.4 3.5 0"></path>
+      </svg>
+    </div>
+    <div class="pl-brand">
+      <span class="pl-brand-main">Kalkulator</span>
+      <span class="pl-brand-accent">Laundry</span>
+    </div>
+    <div class="pl-track" aria-hidden="true"><div class="pl-fill" id="plFill"></div></div>
+    <div class="pl-meta">
+      <span class="pl-meta-left">
+        <span class="pl-status" id="plStatus">Menyiapkan aplikasi</span>
+        <span class="pl-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      </span>
+      <span class="pl-percent" id="plPercent">0%</span>
+    </div>
+  </div>
+</div>
 
 <?!= include('Screen_Sidebar') ?>
 
@@ -297,6 +328,7 @@ RIWAYAT PEMECAHAN FILE INI:
 <?!= include('Script_Fitur_AdminAfiliator') ?>
 <?!= include('Script_Fitur_OnboardingEstimasi') ?>
 <?!= include('Script_Fitur_Sidebar') ?>
+<?!= include('Script_Fitur_Loader') ?>
 <?!= include('Script_Boot_Main') ?>
 </body>
 </html>

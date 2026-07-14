@@ -20,6 +20,21 @@ menjalankan bootApp().
 -->
 <script>
 "use strict";
+  // bootReveal_: singkap layar yang benar (app kalau sudah login, atau layar
+  // Masuk/Daftar kalau belum). Dipisah dari bootApp supaya bisa dipanggil
+  // sebagai onDone splash loading (Script_Fitur_Loader.html) - konten
+  // disingkap DI BALIK overlay, lalu overlay-nya fade-out menyingkapnya.
+  function bootReveal_() {
+    var appRootEl = document.getElementById("appRoot");
+    var authRootEl = document.getElementById("authRoot");
+    if (typeof isAuthLoggedIn === "function" && isAuthLoggedIn() && typeof authEnterApp_ === "function") {
+      authEnterApp_();
+    } else {
+      if (authRootEl) authRootEl.style.display = "flex";
+      if (typeof authGoTo === "function") authGoTo("login");
+    }
+  }
+
   function bootApp() {
     var loadingEl = document.getElementById("loadingState");
     var appRootEl = document.getElementById("appRoot");
@@ -35,17 +50,17 @@ menjalankan bootApp().
 
       if (loadingEl) loadingEl.style.display = "none";
 
-      // Gerbang login: kalau belum pernah login sukses (localStorage kosong),
-      // tampilkan layar Masuk/Daftar dulu (#authRoot), BUKAN langsung
-      // Dashboard - lihat Script_Fitur_Auth.html (isAuthLoggedIn/authGoTo/
-      // authEnterApp_).
-      if (typeof isAuthLoggedIn === "function" && isAuthLoggedIn() && typeof authEnterApp_ === "function") {
-        authEnterApp_();
+      // Splash loading hyper-premium (progres acak) dulu, baru singkap layar
+      // via bootReveal_ sebagai onDone. Kalau file loader kebetulan tidak
+      // ter-include, langsung singkap tanpa splash (jangan sampai macet).
+      if (typeof premiumLoaderRunBoot === "function") {
+        premiumLoaderRunBoot(bootReveal_);
       } else {
-        if (authRootEl) authRootEl.style.display = "flex";
-        if (typeof authGoTo === "function") authGoTo("login");
+        bootReveal_();
       }
     } catch (err) {
+      // Pastikan overlay splash tidak menutupi pesan error di bawah.
+      if (typeof premiumLoaderHideNow === "function") premiumLoaderHideNow();
       var detail =
         "Message: " + (err && err.message ? err.message : String(err)) +
         "\nStack:\n" + (err && err.stack ? err.stack : "-");
