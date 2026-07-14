@@ -206,8 +206,7 @@ function createBiayaChemical_impl_(payload) {
       return { ok: false, error: validation.message, stage: "createBiayaChemical:validate_business_rules" };
     }
 
-    writeKey_(sheet, "biayaChemical_" + clean.id, JSON.stringify(clean));
-    appendToOrder_(sheet, KEY_BIAYA_CHEMICAL_ORDER, clean.id);
+    writeKeyAndAppendOrder_(sheet, "biayaChemical_" + clean.id, JSON.stringify(clean), KEY_BIAYA_CHEMICAL_ORDER, clean.id);
 
     return { ok: true, data: { record: clean, summary: computeBiayaChemicalSummary_(clean, cabang) } };
   } catch (err) {
@@ -290,6 +289,11 @@ function deleteBiayaChemical_impl_(id) {
  * Dipanggil dari deleteCabang() (Modul_Cabang.gs) agar tidak ada item chemical
  * "hantu" yang menunjuk ke cabangId yang sudah tidak ada.
  */
+// [2026-07-14 PERFORMA] Pakai _deleteKeyRowCore_/_writeOrderCore_ (TIDAK
+// mengunci sendiri per record) - fungsi ini SELALU dipanggil dari dalam
+// deleteCabang_impl_ (Modul_Cabang.gs) yang sudah memegang 1 kunci global utk
+// seluruh cascade hapus cabang. JANGAN panggil fungsi ini standalone dari
+// luar tanpa kunci aktif.
 function deleteBiayaChemicalByCabang_(sheet, cabangId) {
   const order = readOrder_(sheet, KEY_BIAYA_CHEMICAL_ORDER);
   const remaining = [];
@@ -305,12 +309,12 @@ function deleteBiayaChemicalByCabang_(sheet, cabangId) {
       belongsToCabang = false;
     }
     if (belongsToCabang) {
-      deleteKeyRow_(sheet, "biayaChemical_" + recId);
+      _deleteKeyRowCore_(sheet, "biayaChemical_" + recId);
     } else {
       remaining.push(recId);
     }
   }
-  writeOrder_(sheet, KEY_BIAYA_CHEMICAL_ORDER, remaining);
+  _writeOrderCore_(sheet, KEY_BIAYA_CHEMICAL_ORDER, remaining);
 }
 
 // ----------------------------------------------------------------------------

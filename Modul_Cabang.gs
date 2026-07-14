@@ -193,8 +193,7 @@ function createCabang_impl_(payload) {
     }
 
     const sheet = ensureDataSheet_();
-    writeKey_(sheet, "cabang_" + clean.id, JSON.stringify(clean));
-    appendToOrder_(sheet, KEY_CABANG_ORDER, clean.id);
+    writeKeyAndAppendOrder_(sheet, "cabang_" + clean.id, JSON.stringify(clean), KEY_CABANG_ORDER, clean.id);
 
     return { ok: true, data: { cabang: clean, summary: computeSummary_(clean) } };
   } catch (err) {
@@ -270,13 +269,22 @@ function deleteCabang_impl_(id) {
     }
     ensureMigrated_();
     const sheet = ensureDataSheet_();
-    deleteKeyRow_(sheet, "cabang_" + id);
-    removeFromOrder_(sheet, KEY_CABANG_ORDER, id);
-    deleteBiayaGasByCabang_(sheet, id);
-    deleteBiayaListrikByCabang_(sheet, id);
-    deleteBiayaAirByCabang_(sheet, id);
-    deleteBiayaChemicalByCabang_(sheet, id);
-    deleteBiayaPackingByCabang_(sheet, id);
+    // [2026-07-14 PERFORMA] SELURUH cascade (cabang + order + 5 modul biaya)
+    // dibungkus 1 siklus kunci - dulu bisa 7+ siklus kunci terpisah (tiap
+    // deleteKeyRow_/removeFromOrder_/deleteBiayaXByCabang_ kunci sendiri-
+    // sendiri), makin banyak record biaya (tabung Gas/item Chemical/Packing)
+    // makin banyak siklusnya. Fungsi deleteBiayaXByCabang_ di 5 modul biaya
+    // sudah diubah pakai primitive _xxxCore_ (TIDAK mengunci sendiri) supaya
+    // aman dipanggil di dalam kunci ini.
+    _withDataLock_(function () {
+      _deleteKeyRowCore_(sheet, "cabang_" + id);
+      _removeFromOrderCore_(sheet, KEY_CABANG_ORDER, id);
+      deleteBiayaGasByCabang_(sheet, id);
+      deleteBiayaListrikByCabang_(sheet, id);
+      deleteBiayaAirByCabang_(sheet, id);
+      deleteBiayaChemicalByCabang_(sheet, id);
+      deleteBiayaPackingByCabang_(sheet, id);
+    });
     return { ok: true, data: { id: id } };
   } catch (err) {
     return errorResponse_(err, "deleteCabang");

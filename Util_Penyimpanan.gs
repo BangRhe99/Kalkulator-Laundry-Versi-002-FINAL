@@ -148,23 +148,35 @@ function readKeysByPrefix_(sheet, prefix) {
   return out;
 }
 
-function deleteKeyRow_(sheet, key) {
-  return _withDataLock_(function () {
-    const cache = _loadSheetCache_(sheet);
-    for (let i = 0; i < cache.rows.length; i++) {
-      if (cache.rows[i][0] === key) {
-        sheet.deleteRow(i + 2);
-        cache.rows.splice(i, 1);
-        return;
-      }
+function _deleteKeyRowCore_(sheet, key) {
+  const cache = _loadSheetCache_(sheet);
+  for (let i = 0; i < cache.rows.length; i++) {
+    if (cache.rows[i][0] === key) {
+      sheet.deleteRow(i + 2);
+      cache.rows.splice(i, 1);
+      return;
     }
-  });
+  }
+}
+
+function deleteKeyRow_(sheet, key) {
+  return _withDataLock_(function () { return _deleteKeyRowCore_(sheet, key); });
 }
 
 /**
  * readOrder_ / writeOrder_ / appendToOrder_ / removeFromOrder_ generik untuk
  * key apapun (dipakai oleh cabang_order maupun biayaGas_order), supaya pola
  * "daftar urutan id" tidak perlu diduplikasi per jenis data.
+ *
+ * [2026-07-14 PERFORMA] Tiap fungsi *Core_ di bawah TIDAK mengunci sendiri -
+ * dipakai untuk MENGGABUNGKAN beberapa operasi storage jadi SATU siklus kunci
+ * (lihat writeKeyAndAppendOrder_ & deleteCabang_impl_/Modul_Cabang.gs) supaya
+ * operasi majemuk (mis. hapus cabang -> hapus banyak record biaya sekaligus)
+ * tidak antre-lepas kunci global berkali-kali secara terpisah - itu memperlama
+ * proses DAN memperlebar jendela kontensi kalau ada pengguna lain menyimpan
+ * di waktu yang sama. Fungsi TANPA "Core_" di bawah ini (dipakai standalone
+ * dari luar) perilakunya SAMA PERSIS seperti sebelumnya, cuma dibungkus tipis
+ * di atas versi Core_-nya.
  */
 function readOrder_(sheet, orderKey) {
   const raw = readKey_(sheet, orderKey);
@@ -177,26 +189,47 @@ function readOrder_(sheet, orderKey) {
   }
 }
 
+function _writeOrderCore_(sheet, orderKey, order) {
+  _writeKeyCore_(sheet, orderKey, JSON.stringify(order));
+}
+
 function writeOrder_(sheet, orderKey, order) {
-  writeKey_(sheet, orderKey, JSON.stringify(order));
+  return _withDataLock_(function () { return _writeOrderCore_(sheet, orderKey, order); });
+}
+
+function _appendToOrderCore_(sheet, orderKey, id) {
+  const order = readOrder_(sheet, orderKey);
+  if (order.indexOf(id) === -1) {
+    order.push(id);
+    _writeOrderCore_(sheet, orderKey, order);
+  }
 }
 
 function appendToOrder_(sheet, orderKey, id) {
   // Seluruh baca-putuskan-tulis dikunci sekaligus (bukan nested lock ke
   // writeKey_) supaya 2 appendToOrder_ bersamaan tidak saling menimpa hasil
   // satu sama lain (lost update pada array urutan).
-  return _withDataLock_(function () {
-    const order = readOrder_(sheet, orderKey);
-    if (order.indexOf(id) === -1) {
-      order.push(id);
-      _writeKeyCore_(sheet, orderKey, JSON.stringify(order));
-    }
-  });
+  return _withDataLock_(function () { return _appendToOrderCore_(sheet, orderKey, id); });
+}
+
+function _removeFromOrderCore_(sheet, orderKey, id) {
+  const order = readOrder_(sheet, orderKey).filter(function (x) { return x !== id; });
+  _writeOrderCore_(sheet, orderKey, order);
 }
 
 function removeFromOrder_(sheet, orderKey, id) {
+  return _withDataLock_(function () { return _removeFromOrderCore_(sheet, orderKey, id); });
+}
+
+/**
+ * writeKeyAndAppendOrder_: gabungan writeKey_ + appendToOrder_ dalam SATU
+ * siklus kunci - dipakai createCabang_impl_/createBiayaGas_impl_/dst yang
+ * SELALU menulis 1 record baru SEKALIGUS menambah id-nya ke daftar urutan
+ * (dulu 2 siklus kunci terpisah utk 1 tindakan pengguna, sekarang 1).
+ */
+function writeKeyAndAppendOrder_(sheet, key, value, orderKey, id) {
   return _withDataLock_(function () {
-    const order = readOrder_(sheet, orderKey).filter(function (x) { return x !== id; });
-    _writeKeyCore_(sheet, orderKey, JSON.stringify(order));
+    _writeKeyCore_(sheet, key, value);
+    _appendToOrderCore_(sheet, orderKey, id);
   });
 }

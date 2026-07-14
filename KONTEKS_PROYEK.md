@@ -502,6 +502,71 @@ dibiarkan idle, dipakai ulang nanti saat migrasi Supabase.
 
 ---
 
+### Optimasi Performa (2026-07-14)
+
+User minta app lebih cepat (6 area: pindah fitur, pindah outlet, loading
+pertama, simpan, edit, hapus). Audit dulu sebelum kerja - hasilnya:
+
+**SUDAH OPTIMAL (dikonfirmasi, jangan disentuh ulang tanpa alasan baru):**
+- Navigasi antar screen - murni client-side (show/hide DOM), instan.
+- Pindah outlet - SEMUA layar satu-outlet (Dashboard/Profil Outlet/Master
+  Biaya/Struktur HPP/Harga Layanan/Biaya Tetap) sudah konsisten pakai pola
+  instant-render-dari-cache-lalu-refresh (`cachedServerRead_`).
+- Kalau ini masih terasa lambat, itu keterbatasan bawaan Apps Script +
+  Spreadsheet (bukan bug kode) - baru benar-benar hilang setelah migrasi
+  Supabase nanti.
+
+**DIPERBAIKI - kontensi lock global di operasi tulis (Simpan/Edit/Hapus):**
+Semua write (`writeKey_`/`deleteKeyRow_`/`appendToOrder_`/`removeFromOrder_`
+di `Util_Penyimpanan.gs`) pakai `LockService.getScriptLock()` GLOBAL (bukan
+per-tenant) - user tenant A yang save antre di kunci yang SAMA dgn tenant B
+walau data mereka di spreadsheet fisik berbeda. Operasi majemuk (mis. Hapus
+Cabang) dulu bisa 7+ siklus kunci terpisah (tiap `deleteKeyRow_`/
+`removeFromOrder_`/tiap record biaya kunci sendiri-sendiri).
+
+Perbaikan yang SUDAH dikerjakan (bukan mengubah rumus/logic bisnis, murni
+menggabungkan siklus kunci):
+- `Util_Penyimpanan.gs`: tambah primitive unlocked `_deleteKeyRowCore_`,
+  `_writeOrderCore_`, `_appendToOrderCore_`, `_removeFromOrderCore_` (dipakai
+  utk MENGGABUNGKAN beberapa operasi storage dalam 1 siklus kunci) + helper
+  `writeKeyAndAppendOrder_` (gabung writeKey_+appendToOrder_ jadi 1 kunci).
+  Fungsi publik lama (`writeKey_`/`deleteKeyRow_`/dst) perilakunya TIDAK
+  berubah, cuma jadi wrapper tipis di atas versi Core_.
+- `createCabang_impl_`, `createBiayaGas_impl_`, `createBiayaChemical_impl_`,
+  `createBiayaPacking_impl_`: 2 siklus kunci -> 1 (pakai
+  `writeKeyAndAppendOrder_`).
+- `deleteCabang_impl_` (Modul_Cabang.gs): SELURUH cascade (hapus cabang +
+  hapus dari order + hapus semua record Gas/Listrik/Air/Chemical/Packing
+  milik cabang itu) dibungkus 1 `_withDataLock_`. 5 fungsi
+  `deleteBiayaXByCabang_` (satu di tiap Modul_BiayaX.gs) diubah pakai
+  primitive `_xxxCore_` (TIDAK mengunci sendiri lagi) - **PENTING: fungsi
+  `deleteBiayaXByCabang_` ini SEKARANG HANYA AMAN dipanggil dari dalam
+  `deleteCabang_impl_`** (yang sudah pegang kunci), JANGAN dipanggil
+  standalone dari tempat lain tanpa kunci aktif kalau nanti ada fitur baru
+  yang butuh manggilnya (sudah dikonfirmasi 2026-07-14 tidak ada pemanggil
+  lain saat ini).
+
+**BELUM dikerjakan (ditunda, sengaja):**
+- Kunci benar-benar terpisah per-tenant (bukan cuma dikurangi jumlah
+  siklusnya) - butuh custom lock via CacheService (LockService bawaan GAS
+  tidak punya "lock per key/tenant"). Risikonya lebih tinggi (bisa
+  deadlock/race kalau salah desain retry-nya) & manfaatnya baru kerasa kalau
+  BANYAK pelanggan aktif nulis bersamaan (belum terjadi saat ini, masih
+  tahap awal). Pertimbangkan lagi kalau traffic sudah signifikan, atau
+  sekalian dikerjakan pas migrasi Supabase (database sungguhan otomatis
+  punya row-level locking, masalah ini hilang total).
+- `cloneOnboardingTemplate_impl_` (Modul_OnboardingEstimasi.gs) - punya
+  10-20+ siklus kunci terpisah (banyak create* dipanggil beruntun), TAPI
+  fitur ini jarang dipakai (cuma sekali per user baru saat onboarding), jadi
+  prioritas rendah - belum disentuh.
+- Ukuran payload `Index.html` (gabungan 62 file, ±15.7k baris HTML+CSS+JS
+  dikirim sekaligus tiap `doGet()`) - dampak "sedang", bukan kontributor
+  utama. Belum ada tindakan (opsi masa depan: minifikasi HTML/CSS, TAPI
+  risiko regresi kalau minifier JS-aware tidak dipakai dgn hati-hati -
+  belum layak dikerjakan sekarang).
+
+---
+
 ### PRIORITAS BERIKUTNYA
 
 0. **[PENDING KEPUTUSAN USER - 2026-07-14, PALING BARU] Gap fitur "edukasi

@@ -234,8 +234,7 @@ function createBiayaPacking_impl_(payload) {
       return { ok: false, error: validation.message, stage: "createBiayaPacking:validate_business_rules" };
     }
 
-    writeKey_(sheet, "biayaPacking_" + clean.id, JSON.stringify(clean));
-    appendToOrder_(sheet, KEY_BIAYA_PACKING_ORDER, clean.id);
+    writeKeyAndAppendOrder_(sheet, "biayaPacking_" + clean.id, JSON.stringify(clean), KEY_BIAYA_PACKING_ORDER, clean.id);
 
     return { ok: true, data: { record: clean, summary: computeBiayaPackingSummary_(clean) } };
   } catch (err) {
@@ -311,6 +310,12 @@ function deleteBiayaPacking_impl_(id) {
 /**
  * Dipanggil dari deleteCabang() (Modul_Cabang.gs) agar tidak ada item packing
  * "hantu" yang menunjuk ke cabangId yang sudah tidak ada.
+ *
+ * [2026-07-14 PERFORMA] Pakai _deleteKeyRowCore_/_writeOrderCore_ (TIDAK
+ * mengunci sendiri per record) - fungsi ini SELALU dipanggil dari dalam
+ * deleteCabang_impl_ (Modul_Cabang.gs) yang sudah memegang 1 kunci global
+ * utk seluruh cascade hapus cabang. JANGAN panggil fungsi ini standalone
+ * dari luar tanpa kunci aktif.
  */
 function deleteBiayaPackingByCabang_(sheet, cabangId) {
   const order = readOrder_(sheet, KEY_BIAYA_PACKING_ORDER);
@@ -327,12 +332,12 @@ function deleteBiayaPackingByCabang_(sheet, cabangId) {
       belongsToCabang = false;
     }
     if (belongsToCabang) {
-      deleteKeyRow_(sheet, "biayaPacking_" + recId);
+      _deleteKeyRowCore_(sheet, "biayaPacking_" + recId);
     } else {
       remaining.push(recId);
     }
   }
-  writeOrder_(sheet, KEY_BIAYA_PACKING_ORDER, remaining);
+  _writeOrderCore_(sheet, KEY_BIAYA_PACKING_ORDER, remaining);
 }
 
 // ----------------------------------------------------------------------------

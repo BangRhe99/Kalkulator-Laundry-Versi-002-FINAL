@@ -185,8 +185,12 @@ function saveBiayaListrik_impl_(cabangId, payload) {
  * Dipanggil dari deleteCabang() (Modul_Cabang.gs) agar konfigurasi listrik
  * "hantu" milik cabang yang sudah dihapus tidak tertinggal di storage.
  */
+// [2026-07-14 PERFORMA] Pakai _deleteKeyRowCore_ (TIDAK mengunci sendiri) -
+// fungsi ini SELALU dipanggil dari dalam deleteCabang_impl_ (Modul_Cabang.gs)
+// yang sudah memegang 1 kunci global utk seluruh cascade hapus cabang. JANGAN
+// panggil fungsi ini standalone dari luar tanpa kunci aktif.
 function deleteBiayaListrikByCabang_(sheet, cabangId) {
-  deleteKeyRow_(sheet, "biayaListrik_" + cabangId);
+  _deleteKeyRowCore_(sheet, "biayaListrik_" + cabangId);
 }
 
 // ----------------------------------------------------------------------------

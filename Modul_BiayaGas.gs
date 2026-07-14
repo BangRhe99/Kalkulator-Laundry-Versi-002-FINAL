@@ -236,8 +236,7 @@ function createBiayaGas_impl_(payload) {
       return { ok: false, error: validation.message, stage: "createBiayaGas:validate_business_rules" };
     }
 
-    writeKey_(sheet, "biayaGas_" + clean.id, JSON.stringify(clean));
-    appendToOrder_(sheet, KEY_BIAYA_GAS_ORDER, clean.id);
+    writeKeyAndAppendOrder_(sheet, "biayaGas_" + clean.id, JSON.stringify(clean), KEY_BIAYA_GAS_ORDER, clean.id);
 
     return { ok: true, data: { record: clean, summary: computeBiayaGasSummary_(clean, cabang) } };
   } catch (err) {
@@ -323,6 +322,13 @@ function deleteBiayaGas_impl_(id) {
  * Dipanggil dari deleteCabang() (Modul_Cabang.gs) agar tidak ada record biaya
  * gas "hantu" yang menunjuk ke cabangId yang sudah tidak ada.
  */
+// [2026-07-14 PERFORMA] Pakai _deleteKeyRowCore_/_writeOrderCore_ (TIDAK
+// mengunci sendiri per record) - fungsi ini SELALU dipanggil dari dalam
+// deleteCabang_impl_ (Modul_Cabang.gs) yang sudah memegang 1 kunci global utk
+// seluruh cascade hapus cabang. Dulu tiap record gas milik cabang ini bikin 1
+// siklus kunci terpisah (bisa banyak kalau tabungnya banyak) - sekarang 0
+// (semua masuk 1 kunci besar punya deleteCabang_impl_). JANGAN panggil fungsi
+// ini standalone dari luar tanpa kunci aktif.
 function deleteBiayaGasByCabang_(sheet, cabangId) {
   const order = readOrder_(sheet, KEY_BIAYA_GAS_ORDER);
   const remaining = [];
@@ -338,12 +344,12 @@ function deleteBiayaGasByCabang_(sheet, cabangId) {
       belongsToCabang = false;
     }
     if (belongsToCabang) {
-      deleteKeyRow_(sheet, "biayaGas_" + recId);
+      _deleteKeyRowCore_(sheet, "biayaGas_" + recId);
     } else {
       remaining.push(recId);
     }
   }
-  writeOrder_(sheet, KEY_BIAYA_GAS_ORDER, remaining);
+  _writeOrderCore_(sheet, KEY_BIAYA_GAS_ORDER, remaining);
 }
 
 // ----------------------------------------------------------------------------
