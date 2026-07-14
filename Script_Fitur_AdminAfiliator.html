@@ -193,6 +193,16 @@ Include SEBELUM Script_Boot_Main.html.
       var actions = acc.pending ? "" :
         '<div class="actions"><button class="icon-btn" type="button" aria-label="Hapus akun" onclick="openConfirmDeleteAccount(\'' + escapeJsAttr(acc.email) + '\'); event.stopPropagation();">&#10005;</button></div>';
 
+      // [2026-07-14] SENGAJA tidak ada tombol aksi admin di sini utk akun yang
+      // belum tersambung - provisioning HARUS dipicu oleh akun itu sendiri
+      // saat login (lihat loginUser self-heal, Modul_Auth.gs), krn executeAs:
+      // USER_ACCESSING bikin spreadsheet yang dibuat ADMIN malah kepemilikan
+      // Drive admin & tidak bisa dibuka user itu. Cukup minta user coba login
+      // ulang - otomatis membetulkan diri sendiri.
+      if (!acc.pending && !acc.hasTenant) {
+        cells += '<div class="gas-result-cell"><div class="label">Data</div><div class="val" style="font-size:13px; color:var(--red);">Belum tersambung - minta user coba login ulang</div></div>';
+      }
+
       return '' +
         '<div class="gas-card">' +
           '<div class="gas-card-top">' +

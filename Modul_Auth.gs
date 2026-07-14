@@ -597,13 +597,25 @@ function loginUser(email, password) {
       return { ok: false, error: "Masa trial akun ini sudah berakhir. Hubungi admin untuk melanjutkan.", stage: "loginUser:trial_expired" };
     }
 
-    // Akun terverifikasi tapi BELUM punya spreadsheet tenant (mis. akun lama
-    // dari sebelum fitur multi-tenant ini ada) - JANGAN auto-provision di
-    // sini (beresiko membuat spreadsheet kosong baru & "memutus" akun dari
-    // data asli yang sudah ada). Harus disambungkan manual dulu lewat
-    // migrateOwnerToTenant_() dari editor Apps Script.
+    // [SELF-HEAL 2026-07-14] Akun terverifikasi tapi BELUM punya spreadsheet
+    // tenant - biasanya karena provisionTenantSpreadsheet_ di verifyOtp
+    // sempat gagal di tengah jalan (lihat riwayat bug hideSheet()). Coba lagi
+    // di SINI, bukan lewat panel admin - appsscript.json executeAs:
+    // USER_ACCESSING berarti skrip jalan sebagai akun yang login SEKARANG,
+    // jadi spreadsheet baru otomatis kepemilikannya benar (Drive akun ini
+    // sendiri). Kalau admin yang memicu provisioning (mis. dari panel admin),
+    // file baru itu malah kepemilikan Drive ADMIN & customer tidak akan bisa
+    // membukanya ("Anda tidak memiliki izin...") - JANGAN provision dari sisi
+    // admin lagi untuk akun lain.
     if (!user.tenantSpreadsheetId) {
-      return { ok: false, error: "Akun ini belum tersambung ke data. Hubungi admin untuk menyelesaikan penyiapan akun.", stage: "loginUser:missing_tenant" };
+      try {
+        provisionTenantSpreadsheet_(cleanEmail);
+        user = JSON.parse(readKey_(sheet, authKeyUser_(cleanEmail)));
+      } catch (provisionErr) {}
+
+      if (!user.tenantSpreadsheetId) {
+        return { ok: false, error: "Akun ini belum tersambung ke data. Hubungi admin untuk menyelesaikan penyiapan akun.", stage: "loginUser:missing_tenant" };
+      }
     }
 
     var sessionToken = createSession_(cleanEmail);
@@ -962,43 +974,6 @@ function adminDeleteAccount(sessionToken, targetEmail) {
     return { ok: true, data: { email: cleanEmail } };
   } catch (err) {
     return errorResponse_(err, "adminDeleteAccount");
-  }
-}
-
-/**
- * adminFixTenant: [2026-07-14] Tombol darurat di panel admin utk kasus akun
- * yang lolos verifikasi OTP tapi provisionTenantSpreadsheet_ (dipanggil dari
- * verifyOtp) gagal di tengah jalan (mis. timeout Drive) - akun jadi aktif
- * tapi tenantSpreadsheetId kosong, loginUser menolak dengan pesan "belum
- * tersambung ke data" (lihat loginUser:missing_tenant). Sebelumnya harus
- * dibetulkan manual lewat editor Apps Script (provisionTenantSpreadsheet_);
- * sekarang admin cukup klik dari panel. Idempoten & aman dipanggil berkali-
- * kali - provisionTenantSpreadsheet_ sendiri tidak akan membuat spreadsheet
- * baru kalau akun sudah punya salah satu.
- */
-function adminFixTenant(sessionToken, targetEmail) {
-  try {
-    var session = resolveSession_(sessionToken);
-    if (!session || authNormalizeEmail_(session.email) !== AUTH_ADMIN_EMAIL_) {
-      return { ok: false, error: "Akses ditolak.", stage: "adminFixTenant:forbidden", code: "FORBIDDEN" };
-    }
-
-    var cleanEmail = authNormalizeEmail_(targetEmail);
-    var sheet = ensureDataSheet_();
-    var raw = readKey_(sheet, authKeyUser_(cleanEmail));
-    if (!raw) {
-      return { ok: false, error: "Akun tidak ditemukan.", stage: "adminFixTenant:not_found" };
-    }
-
-    var user = JSON.parse(raw);
-    if (user.tenantSpreadsheetId) {
-      return { ok: true, data: { email: cleanEmail, alreadyFixed: true } };
-    }
-
-    provisionTenantSpreadsheet_(cleanEmail);
-    return { ok: true, data: { email: cleanEmail, alreadyFixed: false } };
-  } catch (err) {
-    return errorResponse_(err, "adminFixTenant");
   }
 }
 
