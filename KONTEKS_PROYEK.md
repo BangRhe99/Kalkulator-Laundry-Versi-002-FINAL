@@ -60,7 +60,8 @@ Edit file lokal
 7. **Tidak perlu jelaskan ulang** struktur atau alur kerja
 8. **Hemat token** — verifikasi cukup 1 baris atau radius kecil (±3 baris), JANGAN minta user paste ulang seluruh blok
 9. **Patch harus bersih sekali jalan** — hindari tambal-sulam baris per baris yang melelahkan
-10. **Semua eksekusi/edit/debug file dilakukan user sendiri via PowerShell** — Claude hanya analisis dan menyiapkan perintah siap-pakai
+10. **Semua eksekusi/edit/debug file dilakukan user sendiri via PowerShell** — Claude hanya analisis dan menyiapkan perintah siap-pakai (KECUALI user eksplisit bilang "Claude edit langsung" di sesi itu — jangan asumsikan izin ini lanjut ke sesi berikutnya)
+11. **Wajib sertakan blok perintah update di akhir SETIAP respons yang mengedit file** — siap-tempel: `git add <file spesifik>` → `git commit -m "..."` → `git push` → `clasp push` → `clasp open`, lalu instruksikan Deploy New Version manual di editor Apps Script. Tidak perlu diminta ulang tiap kali.
 
 ---
 
@@ -434,6 +435,35 @@ masuk/balik ke layar). HP/tablet (<1100px) TIDAK diubah - tetap pill kategori
 
 ### PRIORITAS BERIKUTNYA
 
+0. **[PENDING KEPUTUSAN USER - 2026-07-14, PALING BARU] Gap fitur "edukasi
+   pemula".** User (pemilik app) minta simpan dulu, JANGAN langsung kerjakan
+   salah satu tanpa ditanya dulu di sesi berikutnya. Visi besar user: app ini
+   harus bikin pemula laundry paham (a) harga jual ideal, (b) minimum order
+   ideal, (c) berapa % omset harus disisihkan utk perawatan & depresiasi
+   mesin, (d) harga sewa ideal (aman di kisaran berapa), (e) jumlah mesin
+   ideal yang perlu dibeli. Audit read-only (2026-07-14) hasilnya:
+   - **SUDAH ADA** (jangan disarankan ulang): status margin Rugi/Impas/
+     Tipis/Aman ambang 20% (`Modul_HargaLayanan.gs` `getHargaLayananMarginStatus_`)
+     - ini menjawab (a) harga jual ideal & warning "harga kurang untung"
+     sekaligus. Badge Wajar/Perhatian/Tinggi utk sewa (`fcSewaStatus_`,
+     Script_Fitur_BiayaTetapOutlet.html, dibuat sesi ini) - TAPI basisnya %
+     sewa thd TOTAL BIAYA TETAP, BUKAN thd omset (lihat gap poin 3 di bawah,
+     beda pertanyaan).
+   - **BELUM ADA (gap nyata)**:
+     1. Rekomendasi minimum order (sekarang cuma input manual owner + hitung
+        margin, tidak ada saran angka ideal dari HPP+biaya tetap).
+     2. Dana cadangan perawatan & depresiasi - belum ada rekomendasi "sisihkan
+        X% omset/bulan" terpisah dari profit yang boleh diambil owner.
+     3. Benchmark sewa VS OMSET bulanan (rule of thumb umum <10-15% omset) -
+        beda dari badge yang sudah ada (itu vs biaya tetap sendiri).
+     4. Jumlah mesin ideal dari target omset - `computeGroupLoad_`
+        (Modul_Cabang.gs:410) arahnya KEBALIK (kapasitas dihitung DARI mesin
+        yang sudah diisi user), belum ada arah sebaliknya (target omset ->
+        rekomendasi jumlah mesin, berguna utk yang BELUM buka usaha).
+   - **Tanyakan dulu prioritas** (khususnya poin 2 vs poin 4, dua ini paling
+     besar dampak DAN paling besar kerjanya - butuh keputusan rumus/bisnis
+     baru, bukan cuma UI) sebelum mulai kode di sesi berikutnya.
+
 1. **[PENDING KEPUTUSAN USER] Fitur "Kontribusi Omset" + garis Target Omset
    Maksimum di grafik BEP.** User berhenti di sini untuk istirahat, tinggal
    lanjutkan dari titik ini. Konteks:
@@ -624,22 +654,49 @@ oleh angka "Kapasitas maksimal/hari" di layar detail Profil Outlet).
 2. Tulis: **"Lanjutkan Kalkulator Laundry, lanjut dari yang kemarin."**
 3. Claude langsung paham tanpa penjelasan ulang — rule proyek dan rule desain sudah menyatu di file ini.
 
-### Titik berhenti sesi terakhir (2026-07-05):
-Ada **2 keputusan pending** yang harus ditanyakan dulu di awal sesi berikutnya
+### Titik berhenti sesi terakhir (2026-07-14, PALING BARU):
+Ada **3 keputusan pending** yang harus ditanyakan dulu di awal sesi berikutnya
 sebelum lanjut kerja, jangan langsung pilih salah satu:
-1. **Prioritas #1** — fitur "Kontribusi Omset" untuk grafik BEP (pending dari
+1. **Prioritas #0 (baru)** — gap fitur "edukasi pemula" (minimum order ideal,
+   dana cadangan perawatan/depresiasi, sewa vs omset, jumlah mesin ideal dari
+   target omset). User bilang "simpan dulu saja" - lihat detail lengkap di
+   Prioritas #0 atas & memory `project_gap_edukasi_pemula`.
+2. **Prioritas #1** — fitur "Kontribusi Omset" untuk grafik BEP (pending dari
    sesi 2026-07-04, belum berubah, lihat detail lengkap di Prioritas #1 atas).
-2. **Prioritas #6 (baru)** — UX validasi form Profil Outlet (collapsed
+3. **Prioritas #6** — UX validasi form Profil Outlet (collapsed
    default + validasi merah + shake, vs full wizard step-by-step). Claude
    sudah kasih rekomendasi (versi ringan) tapi user belum setuju/pilih.
 
-Progress besar sesi 2026-07-05 (semua sudah live-tested via preview browser
-sebelum diserahkan, lihat detail lengkap di STATUS FITUR DASHBOARD atas):
-fix bug BEP card navigasi, reorganisasi form Profil Outlet (kategori jadi
-card sendiri + fix layout desktop), card Setrika di Profil Outlet & Analisa
-Biaya Listrik, Card Kap. Setrika dashboard (Prioritas #2 lama - selesai),
-fix bug mesinSetrika hilang di listCabang, instant-render + anti-race-condition
-saat ganti outlet dashboard, fitur Chemical & Packing (Prioritas #4 lama -
-selesai, dgn beberapa detail teknis awal dari user utk Prioritas #3 backend
-HPP kategori kiloan - masih perlu tabel lengkap komponen per layanan sebelum
-mulai kode).
+Progress besar sesi 2026-07-14 (semua sudah verifikasi syntax Node, BELUM
+live-tested di browser - user yang jalankan clasp push & deploy sendiri):
+- **Sistem Kode Akses dirombak** (`Modul_Auth.gs`): kode akses jadi OPSIONAL
+  saat daftar (kosong = akses permanen gratis), `resolveSession_` sekarang
+  lacak `lastActivityAt` (throttle 1x/menit) utk status online, 3 fungsi
+  admin baru (`adminGenerateAccessCode` - generate 1 kode trial 7 hari TANPA
+  input email, `adminListAccessCodes` - riwayat kode, `adminDeleteAccount` -
+  hapus akun+sesi+trash spreadsheet tenant permanen, AUTH_ADMIN_EMAIL_
+  dilindungi tidak bisa dihapus lewat panel). Fungsi lama
+  `adminCreateAffiliateAccount` dihapus (dead code, alur email-input diganti).
+- **Panel Admin dirombak total** (`Screen_AdminAfiliator.html` +
+  `Script_Fitur_AdminAfiliator.html`, sekarang berlabel "Panel Admin" bukan
+  "Buat Akun Afiliator"): kartu ringkasan Total Aktif/Online Sekarang (klik
+  utk expand daftar akun - Progressive Disclosure), tombol Generate Kode
+  Akses + riwayat kode, tombol Hapus per akun (reuse `#confirmOverlay`
+  bersama sama spt hapus item Chemical/Packing).
+- **Master Biaya desktop** (`Script_Fitur_MasterBiaya.html`, HP TIDAK
+  disentuh): kartu Listrik +Watt Pompa Air, kartu Air +Konversi Air/Liter
+  +kebutuhan/biaya air setrika uap (utk outlet normal yg JUGA punya setrika
+  uap, bukan cuma kategori Jasa Setrika murni), kartu Chemical breakdown
+  Deterjen/Softener/Parfum/Pelicin per Load (exact-match nama, kondisional),
+  kartu Packing breakdown per item. SEMUA persentase kontribusi di kartu
+  Master Biaya desktop diformat 1 desimal + posisi kanan baris label (dulu
+  2 desimal + teks "dari total" di bawah nominal).
+- **Biaya Tetap Outlet desktop dirombak** (`Script_Fitur_BiayaTetapOutlet.html`
+  + `Style_Module_FixedCost.html`, HP TIDAK disentuh): total ringkasan atas
+  cuma Per Bulan/Per Hari (Per Tahun DIHAPUS - user takut angka tahunan bikin
+  owner syok), Sewa Outlet dipisah jadi baris "spotlight" sendiri (SATU-
+  SATUNYA komponen yg masih tampil /Tahun) + badge status Wajar(≤30%)/
+  Perhatian(30-45%)/Tinggi(>45%) dari % kontribusi sewa thd TOTAL BIAYA
+  TETAP (fungsi `fcSewaStatus_`) + catatan dampak ke Harga Layanan & BEP
+  kalau Perhatian/Tinggi. Tabel komponen lain kolom /Tahun dihapus, padding
+  dirapatkan (lebih premium, tidak longgar).
