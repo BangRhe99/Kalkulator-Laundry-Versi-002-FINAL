@@ -446,6 +446,15 @@ function verifyOtp(email, code) {
     var cleanEmail = authNormalizeEmail_(email);
     var cleanCode = String(code || "").trim();
 
+    // [RATE LIMIT 2026-07-14] Maks 5 kode salah / 15 menit / email - kode
+    // OTP cuma 4 angka (10.000 kombinasi), tanpa batas percobaan bisa
+    // ditebak habis-habisan oleh skrip otomatis (apalagi app sekarang bisa
+    // diakses anonim). Direset saat verifikasi sukses.
+    var otpRlKey = "rl_verifyotp_" + cleanEmail;
+    if (authRateLimitCount_(otpRlKey) >= 5) {
+      return { ok: false, error: "Terlalu banyak percobaan kode salah. Coba lagi dalam 15 menit.", stage: "verifyOtp:rate_limited" };
+    }
+
     var sheet = ensureDataSheet_();
     var raw = readKey_(sheet, authKeyOtp_(cleanEmail));
     if (!raw) {
@@ -463,8 +472,11 @@ function verifyOtp(email, code) {
     }
 
     if (cleanCode !== String(pending.otp || "")) {
+      authRateLimitBump_(otpRlKey, 15 * 60);
       return { ok: false, error: "Kode OTP salah. Coba lagi.", stage: "verifyOtp:mismatch" };
     }
+
+    authRateLimitReset_(otpRlKey);
 
     var accessType = pending.accessType || "paid";
     var accessExpiresAt = accessType === "affiliate_trial"
@@ -485,9 +497,15 @@ function verifyOtp(email, code) {
     deleteKeyRow_(sheet, authKeyOtp_(cleanEmail));
 
     // Akun baru aktif -> siapkan spreadsheet data khusus akun ini SEKARANG,
-    // supaya begitu login pertama kali, data sudah siap dipakai (bukan
-    // "kosong tanpa tenant" yang bikin loginUser menolak).
-    provisionTenantSpreadsheet_(cleanEmail);
+    // supaya begitu login pertama kali, data sudah siap dipakai. [2026-07-14]
+    // Dibungkus try/catch: akun SUDAH resmi aktif di titik ini - kalau
+    // pembuatan spreadsheet kebetulan gagal (timeout/quota Drive sesaat),
+    // JANGAN balas error ke user (membingungkan: "verifikasi gagal" padahal
+    // akun jadi) - biarkan lolos, self-heal di loginUser akan membuatkannya
+    // saat login berikutnya.
+    try {
+      provisionTenantSpreadsheet_(cleanEmail);
+    } catch (provisionErr) {}
 
     var sessionToken = createSession_(cleanEmail);
     return { ok: true, data: { email: cleanEmail, sessionToken: sessionToken } };
@@ -720,6 +738,16 @@ function confirmPasswordReset(email, code, newPassword) {
       return { ok: false, error: "Password baru minimal 6 karakter.", stage: "confirmPasswordReset:validate_password" };
     }
 
+    // [RATE LIMIT 2026-07-14] Maks 5 kode salah / 15 menit / email - PALING
+    // KRITIS dari semua rate limit di file ini: kode reset cuma 4 angka,
+    // tanpa batas percobaan penyerang bisa menembak 10.000 kombinasi dalam
+    // masa berlaku 5 menit & MENGAMBIL ALIH akun siapa pun (ganti password
+    // tanpa tahu password lama). Direset saat kode benar.
+    var resetRlKey = "rl_confirmreset_" + cleanEmail;
+    if (authRateLimitCount_(resetRlKey) >= 5) {
+      return { ok: false, error: "Terlalu banyak percobaan kode salah. Coba lagi dalam 15 menit.", stage: "confirmPasswordReset:rate_limited" };
+    }
+
     var sheet = ensureDataSheet_();
     var raw = readKey_(sheet, authKeyPasswordReset_(cleanEmail));
     if (!raw) {
@@ -732,8 +760,11 @@ function confirmPasswordReset(email, code, newPassword) {
       return { ok: false, error: "Kode reset sudah kedaluwarsa. Ulangi dari awal.", stage: "confirmPasswordReset:expired" };
     }
     if (cleanCode !== String(pending.otp || "")) {
+      authRateLimitBump_(resetRlKey, 15 * 60);
       return { ok: false, error: "Kode reset salah. Coba lagi.", stage: "confirmPasswordReset:mismatch" };
     }
+
+    authRateLimitReset_(resetRlKey);
 
     var userRaw = readKey_(sheet, authKeyUser_(cleanEmail));
     if (!userRaw) {
