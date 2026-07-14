@@ -434,36 +434,57 @@ masuk/balik ke layar). HP/tablet (<1100px) TIDAK diubah - tetap pill kategori
 
 ---
 
-### Custom Domain / Reverse Proxy (2026-07-14) - SUDAH DICOBA, TIDAK BISA DIPAKAI
+### Custom Domain / Link Pendek (2026-07-14)
 
-User rencana jual app ini & mau custom domain (bukan URL panjang
+User rencana jual app ini & mau custom domain/link pendek (bukan URL panjang
 `script.google.com/...`) + bungkus repo di GitHub Private (sudah, dikonfirmasi
-aman) supaya kode tidak gampang disalin. Sempat dicoba reverse proxy Vercel
-(folder `vercel-proxy/`, Edge Function `api/proxy.js` yang `fetch()` ke URL
-exec Apps Script lalu kirim ulang responsnya) supaya address bar browser
-tetap domain custom.
+aman) supaya kode tidak gampang disalin.
 
-**Hasil: GAGAL - jangan dicoba ulang dengan cara yang sama.** Saat diakses
-lewat proxy, yang muncul adalah halaman **Login Google** (bukan halaman
-Login Kalkulator Laundry). Penyebab: akses anonim "Anyone" di Apps Script
-mengandalkan negosiasi cookie yang normalnya terjadi LANGSUNG di browser
-pengunjung asli; begitu request dilewatkan `fetch()` server-side Vercel
-(request baru tanpa cookie/histori), Google menganggap ini mencurigakan dan
-minta login akun Google - padahal app ini pakai auth sendiri (email+OTP),
-TIDAK butuh akun Google sama sekali. URL exec LANGSUNG (tanpa proxy) tetap
-normal, jadi masalahnya murni di pendekatan proxy-nya, bukan aplikasi.
+**Percobaan 1 - Reverse proxy Vercel: GAGAL, jangan dicoba ulang dengan cara
+sama.** Folder `vercel-proxy/` (Edge Function `api/proxy.js` yang `fetch()`
+ke URL exec Apps Script lalu kirim ulang responsnya) supaya address bar
+browser tetap domain custom - saat diakses lewat proxy ini, yang muncul
+halaman **Login Google** (bukan Login Kalkulator Laundry). Penyebab: akses
+anonim "Anyone" di Apps Script mengandalkan negosiasi cookie yang normalnya
+terjadi LANGSUNG di browser pengunjung asli; begitu request dilewatkan
+`fetch()` server-side Vercel (request baru tanpa cookie/histori), Google
+menganggap ini mencurigakan dan minta login akun Google - padahal app ini
+pakai auth sendiri (email+OTP), TIDAK butuh akun Google sama sekali.
 
-**Keputusan sementara:** custom domain DITUNDA. Pakai URL exec Apps Script
-apa adanya untuk dibagikan ke pelanggan (tidak elegan tapi 100% jalan).
-Rencana ulang custom domain baru masuk akal lagi SETELAH migrasi ke
-Supabase + frontend sendiri (Next.js/dst di Vercel) - di titik itu tidak ada
-lagi ketergantungan ke mekanisme sandbox Apps Script, custom domain jadi
-langsung bisa dipasang normal tanpa proxy sama sekali.
+**Percobaan 2 - GitHub Pages redirect: BERHASIL, dipakai SEKARANG.**
+Halaman statis `docs/index.html` (redirect via `<meta http-equiv="refresh">`
++ `window.location.replace()`) di-hosting gratis GitHub Pages (Settings >
+Pages > Source: Deploy from branch > `main` / `/docs`), diakses lewat
+`https://rhe05.github.io/Kalkulator-Laundry-Versi-002-FINAL/` - link pendek
+ini AMAN dipakai (dites 2026-07-14, langsung masuk halaman Login Kalkulator
+Laundry, tidak ada layar Login Google) karena redirect terjadi LANGSUNG di
+browser pengunjung (bukan lewat server perantara spt proxy Vercel), jadi
+negosiasi cookie dgn Google tetap normal.
 
-File `vercel-proxy/` DIBIARKAN di repo (tidak dihapus) sebagai referensi,
-tapi JANGAN dipakai apa adanya tanpa perbaikan cookie-forwarding yang lebih
-lengkap kalau nanti mau dicoba lagi dengan pendekatan berbeda. Project
-Vercel-nya (`kalkulator-laundry-versi-002-final` di akun Vercel user) juga
+**Batasan yang harus diketahui:** ini REDIRECT, bukan proxy - begitu
+redirect terjadi, address bar browser BERUBAH jadi URL exec Apps Script yang
+panjang (bukan tetap di `github.io`/domain custom). Jadi ini cuma
+memendekkan LINK YANG DIBAGIKAN (WA/brosur/dst), bukan menyembunyikan URL
+asli selamanya. Kalau update URL exec Apps Script Anda (mis. redeploy versi
+baru dgn deployment ID beda), WAJIB update juga link di `docs/index.html`
+(2 tempat: `meta http-equiv="refresh"` & `window.location.replace`), commit,
+push - GitHub Pages auto-update dari branch `main` folder `/docs`.
+
+**Custom domain sungguhan** (ganti `github.io` jadi `laundry-anda.com`) bisa
+ditambah kapan saja tanpa proxy - tinggal file `CNAME` di folder `docs/`
+isinya nama domain, plus atur DNS (CNAME record) di registrar domain ke
+`rhe05.github.io`. BELUM dikerjakan (user belum punya domain custom saat
+sesi ini) - lanjutkan ini kalau user sudah beli domain.
+
+Rencana custom domain "asli" (tetap di domain sendiri, tidak redirect ke
+URL panjang) baru masuk akal lagi SETELAH migrasi ke Supabase + frontend
+sendiri (Next.js/dst) - di titik itu tidak ada lagi ketergantungan ke
+mekanisme sandbox Apps Script.
+
+File `vercel-proxy/` DIBIARKAN di repo (tidak dihapus, tidak dipakai) sebagai
+referensi gagal, JANGAN dipakai apa adanya tanpa perbaikan cookie-forwarding
+kalau nanti mau dicoba lagi dgn pendekatan berbeda. Project Vercel-nya
+(`kalkulator-laundry-versi-002-final` di akun Vercel user) juga
 dibiarkan idle, dipakai ulang nanti saat migrasi Supabase.
 
 ---
