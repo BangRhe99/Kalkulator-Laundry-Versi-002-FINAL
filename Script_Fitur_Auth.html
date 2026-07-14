@@ -143,10 +143,8 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
       authShowError_("authRegisterError", "Password minimal 6 karakter.");
       return;
     }
-    if (!accessCode) {
-      authShowError_("authRegisterError", "Kode akses wajib diisi (dari Lynk.id atau afiliator).");
-      return;
-    }
+    // [2026-07-14] Kode akses OPSIONAL - kosong tetap boleh lanjut daftar
+    // (backend registerUser kasih akses permanen gratis kalau kosong).
 
     if (btn) { btn.disabled = true; btn.textContent = "Mengirim OTP..."; }
     google.script.run
@@ -354,7 +352,7 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
     showScreen("menu");
   }
 
-  // [ADMIN UI] Tampilkan kartu "Buat Akun Afiliator" (HP, screenMenu) DAN
+  // [ADMIN UI] Tampilkan kartu "Panel Admin" (HP, screenMenu) DAN
   // item sidebar (desktop, Screen_Sidebar.html - navigasi desktop TERPISAH
   // dari kartu menu HP, makanya dua-duanya perlu di-toggle di sini) HANYA
   // kalau email yang login sama dengan AUTH_ADMIN_EMAIL_CLIENT_ - murni

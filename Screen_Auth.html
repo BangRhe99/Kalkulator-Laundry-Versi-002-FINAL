@@ -81,8 +81,14 @@ Script_Fitur_Auth.html.
           </div>
         </div>
         <div class="field">
-          <label for="authRegisterAccessCode">Kode Akses</label>
-          <input type="text" id="authRegisterAccessCode" placeholder="Kode dari Lynk.id / afiliator" autocomplete="off">
+          <div style="display:flex; align-items:center; gap:4px; margin-bottom:6px;">
+            <label for="authRegisterAccessCode" style="margin-bottom:0;">Kode Akses</label>
+            <span class="profil-kpi-okupansi" style="margin-top:0;">
+              <button type="button" class="okupansi-info-btn" onclick="toggleOkupansiTooltip(this, event)" aria-label="Info Kode Akses">?</button>
+              <div class="okupansi-tooltip">Boleh diisi atau tidak. Diisi (dari Lynk.id/afiliator) kalau Anda punya kode trial/promo - dikosongkan tetap bisa daftar dengan akses penuh.</div>
+            </span>
+          </div>
+          <input type="text" id="authRegisterAccessCode" placeholder="Opsional" autocomplete="off">
         </div>
 
         <div class="auth-error" id="authRegisterError" style="display:none;"></div>

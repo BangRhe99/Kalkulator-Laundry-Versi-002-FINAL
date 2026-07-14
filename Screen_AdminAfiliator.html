@@ -2,16 +2,22 @@
 ===============================================================================
 FILE: Screen_AdminAfiliator.html
 PROJECT: Kalkulator Laundry Versi 002
-ISI: Layar Admin - Buat & Kirim Akun Afiliator (KHUSUS admin)
+ISI: Panel Admin - Kode Akses & Kelola Akun (KHUSUS admin)
 
 FUNGSI:
-1. Form 2 field (email + nama afiliator) - klik "Buat & Kirim Akun" -> backend
-   adminCreateAffiliateAccount (Modul_Auth.gs) bikin akun trial 7 hari & kirim
-   email berisi email+password ke afiliator.
-2. Daftar SEMUA akun terdaftar (aktif/trial/menunggu OTP) - backend
-   adminListAccounts (Modul_Auth.gs), reuse komponen kanonik .gas-card/
-   .gas-grid (sama seperti Chemical/Packing) supaya responsif HP & desktop
-   tanpa CSS baru.
+1. Ringkasan (Total Aktif / Online Sekarang) - klik utk expand/collapse
+   Daftar Akun lengkap di bawahnya (Progressive Disclosure).
+2. Generate Kode Akses - 1 tombol, TANPA input email apa pun. Backend
+   adminGenerateAccessCode (Modul_Auth.gs) bikin 1 kode trial 7 hari, admin
+   salin & kirim manual ke calon user (yang lalu daftar sendiri pakai
+   emailnya + kode ini). Riwayat semua kode (adminListAccessCodes) tampil di
+   bawah tombol.
+3. Daftar Akun - backend adminListAccounts (Modul_Auth.gs), tiap kartu akun
+   punya tombol Hapus (adminDeleteAccount, reuse #confirmOverlay bersama)
+   yang menghapus akun + sesi + spreadsheet data tenant-nya permanen (email
+   bisa daftar ulang dari nol setelah dihapus).
+Reuse komponen kanonik .gas-card/.gas-grid (sama seperti Chemical/Packing)
+supaya responsif HP & desktop tanpa CSS baru.
 Layar ini SECARA UI cuma dimunculkan untuk email admin (lihat
 authApplyAdminUI_ di Script_Fitur_Auth.html) - keamanan SESUNGGUHNYA
 ditegakkan di backend (cek session.email di tiap fungsi admin), bukan cuma
@@ -23,36 +29,61 @@ tambah tag <script> atau <style> di file ini -- itu tugas file Style_*/Script_*.
 -->
     <section class="screen" id="screenAdminAfiliator">
       <div class="list-header">
-        <h1>Buat Akun Afiliator</h1>
+        <h1>Panel Admin</h1>
       </div>
 
-      <section class="panel">
+      <div class="gas-card" id="adminSummaryCard" onclick="toggleAdminAccountsDetail()" style="cursor:pointer;">
+        <div class="gas-card-top">
+          <div class="title-group"><span class="flame-dot" style="background:var(--sage);"></span><h3>Ringkasan Akun</h3></div>
+          <div class="actions"><button class="icon-btn hpp-mini-arrow" id="adminSummaryArrow" type="button" aria-label="Lihat detail" tabindex="-1">&#8964;</button></div>
+        </div>
+        <div class="gas-card-result">
+          <div class="gas-result-grid" style="grid-template-columns:1fr 1fr;">
+            <div class="gas-result-cell"><div class="label">Total Aktif</div><div class="val" id="adminStatTotalAktif">0</div></div>
+            <div class="gas-result-cell highlight"><div class="label">Online Sekarang</div><div class="val" id="adminStatOnline">0</div></div>
+          </div>
+        </div>
+      </div>
+
+      <section class="panel" style="margin-top:16px;">
         <div class="panel-body">
-          <div class="field">
-            <label for="adminAfiliatorEmail">Email Afiliator (Gmail)</label>
-            <input type="email" id="adminAfiliatorEmail" placeholder="nama@gmail.com" autocomplete="off">
+          <div class="list-header" style="margin:0 0 6px;">
+            <h1 style="font-size:15px;">Kode Akses</h1>
           </div>
-          <div class="field">
-            <label for="adminAfiliatorNama">Nama Afiliator</label>
-            <input type="text" id="adminAfiliatorNama" placeholder="Contoh: Budi" autocomplete="off">
+          <p style="font-size:12px; color:var(--text-faint); line-height:1.5; margin:0 0 10px;">Klik generate untuk membuat 1 kode trial 7 hari baru, lalu kirim manual ke calon user. Kode hanya bisa dipakai 1x - begitu satu email berhasil daftar dengannya, kode itu terkunci untuk email tersebut.</p>
+
+          <div class="auth-error" id="adminGenCodeError" style="display:none;"></div>
+          <div id="adminGenCodeResult" style="display:none; background: var(--panel-2); border-left: 3px solid var(--sage); padding: 10px 12px; border-radius: 4px; font-size: 13px; color: var(--text); margin-bottom: 10px;">
+            <div style="font-size:11px; color:var(--text-faint); margin-bottom:4px;">Kode baru dibuat - salin &amp; kirim ke calon user:</div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <code id="adminGenCodeValue" style="font-size:15px; font-weight:700; letter-spacing:0.5px;"></code>
+              <button class="btn-secondary" type="button" onclick="copyAdminGeneratedCode()" style="padding:4px 10px; font-size:12px;">Salin</button>
+            </div>
           </div>
 
-          <div class="auth-error" id="adminAfiliatorError" style="display:none;"></div>
-          <div id="adminAfiliatorResult" style="display:none; background: var(--panel-2); border-left: 3px solid var(--sage); padding: 10px 12px; border-radius: 4px; font-size: 13px; color: var(--text); line-height: 1.5; margin-top: 10px;"></div>
-
-          <button class="btn-primary" id="adminAfiliatorBtn" onclick="submitAdminAfiliator()" style="width:100%; margin-top:10px;">Buat &amp; Kirim Akun</button>
-          <p style="font-size: 12px; color: var(--text-faint); line-height: 1.5; margin-top: 10px;">Akun aktif otomatis, akses trial 7 hari. Email berisi email + password terkirim otomatis ke afiliator.</p>
+          <button class="btn-primary" id="adminGenCodeBtn" onclick="submitAdminGenerateCode()" style="width:100%;">Generate Kode Akses</button>
         </div>
       </section>
 
       <div class="list-header" style="margin-top:22px;">
-        <h1>Daftar Akun</h1>
-        <span class="count" id="adminAccountsCount">0 akun</span>
+        <h1 style="font-size:14px;">Riwayat Kode</h1>
+        <span class="count" id="adminCodesCount">0 kode</span>
       </div>
-      <div id="adminAccountsEmpty" class="empty-state" style="display:none;">
-        <div class="icon">&#128101;</div>
-        <p>Belum ada akun terdaftar.</p>
+      <div id="adminCodesEmpty" class="empty-state" style="display:none;">
+        <div class="icon">&#127915;</div>
+        <p>Belum ada kode akses dibuat.</p>
       </div>
-      <div class="gas-grid" id="adminAccountsList"></div>
-    </section>
+      <div class="gas-grid" id="adminCodesList"></div>
 
+      <div id="adminAccountsSection" style="display:none;">
+        <div class="list-header" style="margin-top:22px;">
+          <h1>Daftar Akun</h1>
+          <span class="count" id="adminAccountsCount">0 akun</span>
+        </div>
+        <div id="adminAccountsEmpty" class="empty-state" style="display:none;">
+          <div class="icon">&#128101;</div>
+          <p>Belum ada akun terdaftar.</p>
+        </div>
+        <div class="gas-grid" id="adminAccountsList"></div>
+      </div>
+    </section>

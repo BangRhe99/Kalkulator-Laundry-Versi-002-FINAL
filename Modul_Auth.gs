@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ============================================================================
  * MODUL: AUTH (Member Login/Daftar dengan verifikasi OTP email)
  * ============================================================================
@@ -34,20 +34,23 @@
  * fungsi backend lain, supaya baca/tulis data selalu diarahkan ke
  * spreadsheet tenant yang benar & tidak bisa dipalsukan dari client.
  *
- * [2026-07-13] AKSES/BILLING: pendaftaran WAJIB kode akses valid & belum
- * dipakai (dari pembelian Lynk.id atau kode trial afiliator). Kode dibuat
- * MANUAL dari editor Apps Script lewat generateLynkAccessCodes_(count)
- * (tipe "paid", akses permanen) atau generateAffiliateTrialCode_(nama)
- * (tipe "affiliate_trial", akses 7 hari lalu diblokir sampai admin
- * mengaktifkan permanen lewat activateAccountPermanent_(email)). Lihat
- * blok fungsi admin di akhir file (dekat migrateOwnerToTenant_).
+ * [2026-07-14] AKSES/BILLING: kode akses OPSIONAL saat pendaftaran (dulu
+ * wajib) - kosong = akses permanen gratis langsung. Kode dibuat MANUAL dari
+ * editor Apps Script lewat generateLynkAccessCodes_(count) (tipe "paid",
+ * akses permanen) atau generateAffiliateTrialCode_(nama) (tipe
+ * "affiliate_trial", akses 7 hari), ATAU dari panel admin (screenAdminAfiliator)
+ * lewat adminGenerateAccessCode (1 klik, tanpa input apa pun - selalu tipe
+ * "affiliate_trial" 7 hari). Semua kode HANYA bisa dipakai 1x (lihat
+ * registerUser). Lihat blok fungsi admin di akhir file (dekat
+ * migrateOwnerToTenant_).
  * ============================================================================
  */
 
 var AUTH_OTP_TTL_MS_ = 5 * 60 * 1000; // 5 menit
 
-// [ADMIN] Email pemilik app - satu-satunya yang boleh memanggil
-// adminCreateAffiliateAccount (lihat fungsi itu di bawah). Client (Script_
+// [ADMIN] Email pemilik app - satu-satunya yang boleh memanggil fungsi admin
+// (adminGenerateAccessCode/adminListAccessCodes/adminListAccounts/
+// adminDeleteAccount, lihat masing-masing di bawah). Client (Script_
 // Fitur_Auth.html, AUTH_ADMIN_EMAIL_CLIENT_) punya salinan email yang sama
 // HANYA untuk kosmetik (tampil/sembunyi kartu menu) - kalau email admin
 // berganti, ubah DUA-DUANYA supaya tetap sinkron.
@@ -146,6 +149,18 @@ function resolveSession_(token) {
   if (Date.now() > Number(session.expiresAt || 0)) {
     deleteKeyRow_(sheet, authKeySession_(cleanToken));
     return null;
+  }
+
+  // [ONLINE TRACKING - 2026-07-14] Update lastActivityAt PALING BANYAK 1x per
+  // menit per sesi, BUKAN di setiap pemanggilan - resolveSession_ dipanggil
+  // withTenant_ di SETIAP request backend, kalau ditulis tiap kali akan jadi
+  // "write storm" ke LockService.getScriptLock() (global, bukan per-user) saat
+  // banyak user aktif bersamaan. Ambang "online" di panel admin 5 menit, jadi
+  // akurasi 1 menit ini cukup, dipakai adminListAccounts (Modul_Auth.gs).
+  var now = Date.now();
+  if (now - Number(session.lastActivityAt || 0) > 60 * 1000) {
+    session.lastActivityAt = now;
+    writeKey_(sheet, authKeySession_(cleanToken), JSON.stringify(session));
   }
 
   return session;
@@ -304,18 +319,25 @@ function authSendOtpEmail_(email, otp) {
 }
 
 /**
- * registerUser: validasi email (WAJIB @gmail.com), password (min 6 karakter)
- * & kode akses (dari pembelian Lynk.id atau kode trial afiliator - lihat
- * generateLynkAccessCodes_/generateAffiliateTrialCode_), lalu kirim OTP 4
- * angka ke email tsb. Akun BELUM aktif sampai verifyOtp() dipanggil dengan
- * kode yang benar. Kalau email/kode tidak valid, OTP TIDAK PERNAH dikirim
- * (validasi terjadi sebelum MailApp dipanggil).
+ * registerUser: validasi email (WAJIB @gmail.com) & password (min 6
+ * karakter), lalu kirim OTP 4 angka ke email tsb. Akun BELUM aktif sampai
+ * verifyOtp() dipanggil dengan kode yang benar. Kalau email/kode tidak
+ * valid, OTP TIDAK PERNAH dikirim (validasi terjadi sebelum MailApp
+ * dipanggil).
  *
- * [AKSES/BILLING] Kode akses direservasi (ditandai used) DI SINI, SEBELUM
- * OTP dikirim - supaya 1 kode tidak bisa direbut 2 pendaftar sekaligus.
- * Kalau pengiriman OTP gagal ATAU pendaftar tidak pernah menyelesaikan
- * verifyOtp (OTP kedaluwarsa 5 menit), kode akan "menggantung" berstatus
- * used tanpa akun jadi - admin bisa lepas lagi lewat releaseAccessCode_().
+ * [2026-07-14] Kode akses sekarang OPSIONAL (dulu wajib). Kosong = akses
+ * permanen gratis langsung (accessType "paid", accessExpiresAt null - sama
+ * seperti kode Lynk.id berbayar), TANPA reservasi kode apa pun. Diisi =
+ * logika lama tetap berlaku (validasi kode ada/belum dipakai, ambil
+ * type/trialDays dari kode - dari pembelian Lynk.id atau kode trial
+ * afiliator, lihat generateLynkAccessCodes_/adminGenerateAccessCode).
+ *
+ * [AKSES/BILLING] Kode akses (kalau diisi) direservasi (ditandai used) DI
+ * SINI, SEBELUM OTP dikirim - supaya 1 kode tidak bisa direbut 2 pendaftar
+ * sekaligus. Kalau pengiriman OTP gagal ATAU pendaftar tidak pernah
+ * menyelesaikan verifyOtp (OTP kedaluwarsa 5 menit), kode akan "menggantung"
+ * berstatus used tanpa akun jadi - admin bisa lepas lagi lewat
+ * releaseAccessCode_().
  */
 function registerUser(email, password, accessCode) {
   try {
@@ -330,9 +352,6 @@ function registerUser(email, password, accessCode) {
     }
 
     var cleanAccessCode = String(accessCode || "").trim().toUpperCase();
-    if (!cleanAccessCode) {
-      return { ok: false, error: "Kode akses wajib diisi.", stage: "registerUser:validate_access_code" };
-    }
 
     // [RATE LIMIT] Jeda 60 detik antar percobaan daftar per email - cegah
     // klik berulang cepat menghabiskan kuota email OTP harian percuma.
@@ -348,21 +367,30 @@ function registerUser(email, password, accessCode) {
       return { ok: false, error: "Email ini sudah terdaftar. Silakan masuk.", stage: "registerUser:already_registered" };
     }
 
-    var codeRaw = readKey_(sheet, authKeyAccessCode_(cleanAccessCode));
-    if (!codeRaw) {
-      return { ok: false, error: "Kode akses tidak valid.", stage: "registerUser:invalid_access_code" };
-    }
-    var codeObj = JSON.parse(codeRaw);
-    if (codeObj.used) {
-      return { ok: false, error: "Kode akses ini sudah pernah dipakai.", stage: "registerUser:access_code_used" };
-    }
+    var accessType = "paid";
+    var trialDays = 0;
+    var codeObj = null;
 
-    // Reservasi kode SEKARANG (sebelum OTP terkirim) supaya tidak bisa
-    // direbut pendaftar lain di saat bersamaan.
-    codeObj.used = true;
-    codeObj.usedByEmail = cleanEmail;
-    codeObj.usedAt = new Date().toISOString();
-    writeKey_(sheet, authKeyAccessCode_(cleanAccessCode), JSON.stringify(codeObj));
+    if (cleanAccessCode) {
+      var codeRaw = readKey_(sheet, authKeyAccessCode_(cleanAccessCode));
+      if (!codeRaw) {
+        return { ok: false, error: "Kode akses tidak valid.", stage: "registerUser:invalid_access_code" };
+      }
+      codeObj = JSON.parse(codeRaw);
+      if (codeObj.used) {
+        return { ok: false, error: "Kode akses ini sudah pernah dipakai.", stage: "registerUser:access_code_used" };
+      }
+
+      // Reservasi kode SEKARANG (sebelum OTP terkirim) supaya tidak bisa
+      // direbut pendaftar lain di saat bersamaan.
+      codeObj.used = true;
+      codeObj.usedByEmail = cleanEmail;
+      codeObj.usedAt = new Date().toISOString();
+      writeKey_(sheet, authKeyAccessCode_(cleanAccessCode), JSON.stringify(codeObj));
+
+      accessType = codeObj.type || "paid";
+      trialDays = codeObj.trialDays || 0;
+    }
 
     var salt = Utilities.getUuid();
     var passwordHash = authHashPasswordV2_(cleanPassword, salt);
@@ -375,18 +403,15 @@ function registerUser(email, password, accessCode) {
     try {
       authSendOtpEmail_(cleanEmail, otp);
     } catch (mailErr) {
-      codeObj.used = false;
-      codeObj.usedByEmail = "";
-      codeObj.usedAt = "";
-      writeKey_(sheet, authKeyAccessCode_(cleanAccessCode), JSON.stringify(codeObj));
+      if (cleanAccessCode) releaseAccessCode_(cleanAccessCode);
       return { ok: false, error: "Gagal mengirim email OTP. Coba lagi beberapa saat.", stage: "registerUser:send_mail" };
     }
 
     writeKey_(sheet, authKeyOtp_(cleanEmail), JSON.stringify({
       email: cleanEmail,
       accessCode: cleanAccessCode,
-      accessType: codeObj.type || "paid",
-      trialDays: codeObj.trialDays || 0,
+      accessType: accessType,
+      trialDays: trialDays,
       otp: otp,
       expiresAt: Date.now() + AUTH_OTP_TTL_MS_,
       passwordHash: passwordHash,
@@ -701,100 +726,17 @@ function confirmPasswordReset(email, code, newPassword) {
   }
 }
 
-function authGenerateReadablePassword_() {
-  // Tanpa karakter membingungkan (0/O, 1/l/I) supaya gampang dibaca/diketik
-  // manual afiliator kalau perlu, walau normalnya tinggal salin dari email.
-  var chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-  var out = "";
-  for (var i = 0; i < 10; i++) {
-    out += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return out;
-}
-
-function authSendAffiliateCredentialsEmail_(email, password, afiliatorLabel) {
-  var appUrl = ScriptApp.getService().getUrl();
-  MailApp.sendEmail({
-    to: email,
-    subject: "Akun Kalkulator Laundry Anda (Trial Afiliator 7 Hari)",
-    body:
-      "Halo " + (afiliatorLabel || "") + ",\n\n" +
-      "Akun trial afiliator Kalkulator Laundry Anda sudah aktif, berlaku 7 hari:\n\n" +
-      "Link aplikasi : " + appUrl + "\n" +
-      "Email         : " + email + "\n" +
-      "Password      : " + password + "\n\n" +
-      "Setelah 7 hari, akun ini perlu diaktifkan admin dulu untuk lanjut dipakai.\n\n" +
-      "Selamat mencoba!"
-  });
-}
-
-/**
- * adminCreateAffiliateAccount: dipanggil dari layar "Buat Akun Afiliator"
- * (screenAdminAfiliator) - HANYA email AUTH_ADMIN_EMAIL_ yang lolos cek di
- * bawah, user lain akan ditolak walau sesi login-nya valid. Beda dari
- * registerUser: TIDAK butuh kode akses & TIDAK lewat verifikasi OTP (admin
- * yang membuat langsung dianggap tepercaya) - password acak dibuat di sini,
- * langsung dikirim ke email afiliator.
- *
- * SENGAJA TIDAK dibungkus withTenant_ (Code.gs) - fungsi ini menulis ke
- * spreadsheet Master (authUser_/dst), bukan ke tenant manapun, sama seperti
- * registerUser/loginUser/dkk lain di file ini.
- */
-function adminCreateAffiliateAccount(sessionToken, targetEmail, afiliatorLabel) {
-  try {
-    var session = resolveSession_(sessionToken);
-    if (!session || authNormalizeEmail_(session.email) !== AUTH_ADMIN_EMAIL_) {
-      return { ok: false, error: "Akses ditolak.", stage: "adminCreateAffiliateAccount:forbidden", code: "FORBIDDEN" };
-    }
-
-    var cleanEmail = authNormalizeEmail_(targetEmail);
-    if (!authIsValidGmail_(cleanEmail)) {
-      return { ok: false, error: "Email harus alamat Gmail yang valid (contoh: nama@gmail.com).", stage: "adminCreateAffiliateAccount:validate_email" };
-    }
-
-    var sheet = ensureDataSheet_();
-    if (readKey_(sheet, authKeyUser_(cleanEmail))) {
-      return { ok: false, error: "Email ini sudah terdaftar.", stage: "adminCreateAffiliateAccount:already_registered" };
-    }
-
-    var tempPassword = authGenerateReadablePassword_();
-    var salt = Utilities.getUuid();
-    var passwordHash = authHashPasswordV2_(tempPassword, salt);
-
-    writeKey_(sheet, authKeyUser_(cleanEmail), JSON.stringify({
-      email: cleanEmail,
-      passwordHash: passwordHash,
-      salt: salt,
-      hashVersion: 2,
-      accessType: "affiliate_trial",
-      accessExpiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
-      afiliatorLabel: String(afiliatorLabel || ""),
-      createdAt: new Date().toISOString(),
-      verifiedAt: new Date().toISOString(),
-      tenantSpreadsheetId: ""
-    }));
-
-    provisionTenantSpreadsheet_(cleanEmail);
-
-    try {
-      authSendAffiliateCredentialsEmail_(cleanEmail, tempPassword, afiliatorLabel);
-    } catch (mailErr) {
-      // Akun tetap valid & aktif walau email gagal terkirim - admin lihat
-      // tempPassword dari response ini & sampaikan manual ke afiliator.
-      return { ok: true, data: { email: cleanEmail, tempPassword: tempPassword, emailSent: false } };
-    }
-
-    return { ok: true, data: { email: cleanEmail, tempPassword: tempPassword, emailSent: true } };
-  } catch (err) {
-    return errorResponse_(err, "adminCreateAffiliateAccount");
-  }
-}
+var ADMIN_ONLINE_THRESHOLD_MS_ = 5 * 60 * 1000; // 5 menit
 
 /**
  * adminListAccounts: daftar SEMUA akun (aktif + yang masih menunggu
- * verifikasi OTP) buat layar "Buat Akun Afiliator" (screenAdminAfiliator) -
- * sama seperti adminCreateAffiliateAccount, HANYA AUTH_ADMIN_EMAIL_ yang
- * lolos. Read-only - tidak mengubah data apa pun.
+ * verifikasi OTP) buat panel admin (screenAdminAfiliator) - HANYA
+ * AUTH_ADMIN_EMAIL_ yang lolos. Read-only - tidak mengubah data apa pun.
+ *
+ * [2026-07-14] Tambah status "online" per akun (lastActiveAt dari sesi
+ * TERBARU milik email itu, lihat resolveSession_ - dianggap online kalau
+ * aktivitas terakhir <=5 menit) & totalOnline di ringkasan, dipakai kartu
+ * ringkasan panel admin.
  */
 function adminListAccounts(sessionToken) {
   try {
@@ -805,6 +747,20 @@ function adminListAccounts(sessionToken) {
 
     var sheet = ensureDataSheet_();
     var now = Date.now();
+
+    // Map email -> lastActivityAt TERBARU dari semua sesi aktifnya (1 akun
+    // bisa login di >1 device/browser sekaligus).
+    var lastActiveByEmail_ = {};
+    readKeysByPrefix_(sheet, "authSession_").forEach(function (row) {
+      var s;
+      try { s = JSON.parse(row.value); } catch (e) { return; }
+      if (!s || !s.email || now > Number(s.expiresAt || 0)) return;
+      var email = authNormalizeEmail_(s.email);
+      var la = Number(s.lastActivityAt || 0);
+      if (!lastActiveByEmail_[email] || la > lastActiveByEmail_[email]) {
+        lastActiveByEmail_[email] = la;
+      }
+    });
 
     var accounts = readKeysByPrefix_(sheet, authKeyUser_("")).map(function (row) {
       var u;
@@ -819,13 +775,18 @@ function adminListAccounts(sessionToken) {
         status = "Trial aktif";
       }
 
+      var lastActiveAt = lastActiveByEmail_[authNormalizeEmail_(u.email)] || null;
+      var online = !!lastActiveAt && (now - lastActiveAt) <= ADMIN_ONLINE_THRESHOLD_MS_;
+
       return {
         email: u.email || "",
         pending: false,
         status: status,
         accessExpiresAt: u.accessExpiresAt || null,
         afiliatorLabel: u.afiliatorLabel || "",
-        createdAt: u.createdAt || ""
+        createdAt: u.createdAt || "",
+        lastActiveAt: lastActiveAt,
+        online: online
       };
     }).filter(function (x) { return !!x; });
 
@@ -839,7 +800,9 @@ function adminListAccounts(sessionToken) {
         status: (now > Number(p.expiresAt || 0)) ? "OTP kedaluwarsa (belum coba lagi)" : "Menunggu verifikasi OTP",
         accessExpiresAt: null,
         afiliatorLabel: "",
-        createdAt: p.createdAt || ""
+        createdAt: p.createdAt || "",
+        lastActiveAt: null,
+        online: false
       };
     }).filter(function (x) { return !!x; });
 
@@ -848,9 +811,146 @@ function adminListAccounts(sessionToken) {
       return String(b.createdAt).localeCompare(String(a.createdAt));
     });
 
-    return { ok: true, data: { accounts: all, totalAktif: accounts.length, totalPending: pendingAccounts.length } };
+    var totalOnline = accounts.filter(function (a) { return a.online; }).length;
+
+    return { ok: true, data: { accounts: all, totalAktif: accounts.length, totalPending: pendingAccounts.length, totalOnline: totalOnline } };
   } catch (err) {
     return errorResponse_(err, "adminListAccounts");
+  }
+}
+
+/**
+ * adminGenerateAccessCode: [2026-07-14] Ganti alur lama (admin input email
+ * afiliator lalu akun langsung dibuat) - sekarang admin CUKUP klik 1 tombol
+ * di panel (screenAdminAfiliator), TANPA input email apa pun. Menghasilkan 1
+ * kode trial 7 hari (type "affiliate_trial") yang belum terikat email
+ * manapun - admin salin kode ini lalu kirim manual (WA/chat) ke calon user,
+ * yang nanti mendaftar sendiri lewat form Daftar biasa pakai emailnya
+ * sendiri + kode ini. Kode HANYA bisa dipakai 1x (lihat registerUser -
+ * ditandai used begitu ada yang berhasil daftar dengannya), jadi otomatis 1
+ * kode = 1 email, tidak bisa dipakai orang lain setelah itu.
+ */
+function adminGenerateAccessCode(sessionToken) {
+  try {
+    var session = resolveSession_(sessionToken);
+    if (!session || authNormalizeEmail_(session.email) !== AUTH_ADMIN_EMAIL_) {
+      return { ok: false, error: "Akses ditolak.", stage: "adminGenerateAccessCode:forbidden", code: "FORBIDDEN" };
+    }
+
+    var sheet = ensureDataSheet_();
+    var code = "TRIAL-" + authRandomCodeSuffix_(8);
+
+    writeKey_(sheet, authKeyAccessCode_(code), JSON.stringify({
+      code: code,
+      type: "affiliate_trial",
+      ownerLabel: "",
+      trialDays: 7,
+      used: false,
+      usedByEmail: "",
+      createdAt: new Date().toISOString(),
+      usedAt: ""
+    }));
+
+    return { ok: true, data: { code: code } };
+  } catch (err) {
+    return errorResponse_(err, "adminGenerateAccessCode");
+  }
+}
+
+/**
+ * adminListAccessCodes: riwayat SEMUA kode akses yang pernah dibuat (lewat
+ * adminGenerateAccessCode ATAU generateLynkAccessCodes_/
+ * generateAffiliateTrialCode_ manual dari editor) - dipakai panel admin
+ * supaya kode yang belum dipakai bisa disalin ulang kapan saja. Read-only.
+ */
+function adminListAccessCodes(sessionToken) {
+  try {
+    var session = resolveSession_(sessionToken);
+    if (!session || authNormalizeEmail_(session.email) !== AUTH_ADMIN_EMAIL_) {
+      return { ok: false, error: "Akses ditolak.", stage: "adminListAccessCodes:forbidden", code: "FORBIDDEN" };
+    }
+
+    var sheet = ensureDataSheet_();
+    var codes = readKeysByPrefix_(sheet, "accessCode_").map(function (row) {
+      var c;
+      try { c = JSON.parse(row.value); } catch (e) { return null; }
+      return {
+        code: c.code || "",
+        type: c.type || "paid",
+        used: !!c.used,
+        usedByEmail: c.usedByEmail || "",
+        createdAt: c.createdAt || "",
+        usedAt: c.usedAt || ""
+      };
+    }).filter(function (x) { return !!x; });
+
+    codes.sort(function (a, b) {
+      return String(b.createdAt).localeCompare(String(a.createdAt));
+    });
+
+    return { ok: true, data: { codes: codes } };
+  } catch (err) {
+    return errorResponse_(err, "adminListAccessCodes");
+  }
+}
+
+/**
+ * adminDeleteAccount: [2026-07-14] Hapus akun PERMANEN - authUser_<email>,
+ * sesi aktifnya (paksa logout semua device), pendaftaran OTP menggantung
+ * kalau ada, DAN spreadsheet data tenant-nya dipindah ke Trash Drive (bukan
+ * musnah instan - masih bisa dipulihkan manual dari Trash 30 hari kalau
+ * salah pilih akun). Setelah dihapus, email yang sama BISA daftar ulang dari
+ * nol (readKey_ authUser_ akan kosong, dianggap belum pernah terdaftar).
+ *
+ * [PROTEKSI] Akun AUTH_ADMIN_EMAIL_ (pemilik app) tidak boleh dihapus lewat
+ * sini - kalau terhapus, panel admin ini sendiri & 4 outlet Template
+ * Estimasi Cepat (Modul_OnboardingEstimasi.gs, disimpan di spreadsheet
+ * tenant admin) ikut tidak bisa diakses lagi.
+ */
+function adminDeleteAccount(sessionToken, targetEmail) {
+  try {
+    var session = resolveSession_(sessionToken);
+    if (!session || authNormalizeEmail_(session.email) !== AUTH_ADMIN_EMAIL_) {
+      return { ok: false, error: "Akses ditolak.", stage: "adminDeleteAccount:forbidden", code: "FORBIDDEN" };
+    }
+
+    var cleanEmail = authNormalizeEmail_(targetEmail);
+    if (cleanEmail === AUTH_ADMIN_EMAIL_) {
+      return { ok: false, error: "Akun admin utama tidak bisa dihapus dari sini.", stage: "adminDeleteAccount:protect_admin" };
+    }
+
+    var sheet = ensureDataSheet_();
+    var raw = readKey_(sheet, authKeyUser_(cleanEmail));
+    if (!raw) {
+      return { ok: false, error: "Akun tidak ditemukan.", stage: "adminDeleteAccount:not_found" };
+    }
+    var user = JSON.parse(raw);
+
+    if (user.tenantSpreadsheetId) {
+      try {
+        DriveApp.getFileById(user.tenantSpreadsheetId).setTrashed(true);
+      } catch (driveErr) {
+        // Spreadsheet mungkin sudah tidak ada/sudah di-trash sebelumnya -
+        // tetap lanjut hapus akunnya, jangan gagalkan seluruh operasi.
+      }
+    }
+
+    deleteKeyRow_(sheet, authKeyUser_(cleanEmail));
+
+    if (readKey_(sheet, authKeyOtp_(cleanEmail))) {
+      deleteKeyRow_(sheet, authKeyOtp_(cleanEmail));
+    }
+
+    readKeysByPrefix_(sheet, "authSession_").forEach(function (row) {
+      try {
+        var s = JSON.parse(row.value);
+        if (authNormalizeEmail_(s.email) === cleanEmail) deleteKeyRow_(sheet, row.key);
+      } catch (e) {}
+    });
+
+    return { ok: true, data: { email: cleanEmail } };
+  } catch (err) {
+    return errorResponse_(err, "adminDeleteAccount");
   }
 }
 
