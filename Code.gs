@@ -118,7 +118,25 @@ function withTenant_(sessionToken, fn) {
     if (!session.tenantSpreadsheetId) {
       return { ok: false, error: "Akun ini belum punya data tersendiri. Hubungi admin.", stage: "withTenant_:missing_tenant_spreadsheet" };
     }
-    const ss = SpreadsheetApp.openById(session.tenantSpreadsheetId);
+
+    // [SELF-HEAL 2026-07-14] Sesi menyimpan tenantSpreadsheetId SAAT DIBUAT
+    // (createSession_) - kalau ID itu ternyata tidak bisa dibuka oleh user
+    // ini (kasus nyata: sesi dibuat saat akun masih menunjuk spreadsheet
+    // salah milik Drive admin), JANGAN lempar error mentah Google ("Anda
+    // tidak memiliki izin...") ke layar. Matikan sesi rusak ini & balas
+    // UNAUTHORIZED supaya client memaksa login ulang - loginUser yang baru
+    // (Modul_Auth.gs) akan memverifikasi/memperbaiki tenant dengan benar
+    // sebagai user itu sendiri, lalu membuat sesi baru yang sehat.
+    let ss;
+    try {
+      ss = SpreadsheetApp.openById(session.tenantSpreadsheetId);
+    } catch (openErr) {
+      try {
+        deleteKeyRow_(ensureDataSheet_(), authKeySession_(String(sessionToken || "").trim()));
+      } catch (cleanupErr) {}
+      return { ok: false, error: "Sesi login perlu diperbarui. Silakan login ulang.", stage: "withTenant_:stale_tenant_session", code: "UNAUTHORIZED" };
+    }
+
     setActiveDataSpreadsheet_(ss);
     return fn();
   } catch (err) {
