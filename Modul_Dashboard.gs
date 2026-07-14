@@ -350,6 +350,7 @@ function getDashboardMasterBiayaSummary_impl_(cabangId) {
             if (listrikComplete && !isJasaSetrikaTanpaListrik_) {
               const listrikDetail = [
                 { label: "TDL per kWh", amount: dashboardRound2_(dashboardNumber_(listrikRecord.tdlPerKwh, 0)) },
+                { label: "Watt Pompa Air", text: dashboardNumber_(listrikRecord.wattPompaAir, 0) + " watt" },
                 { label: "Watt Mesin Cuci", text: dashboardNumber_(listrikRecord.wattMesinCuci, 0) + " watt" },
                 { label: "Watt Mesin Pengering", text: dashboardNumber_(listrikRecord.wattMesinPengering, 0) + " watt" }
               ];
@@ -395,6 +396,18 @@ function getDashboardMasterBiayaSummary_impl_(cabangId) {
                 airDetail.push({ label: "Kapasitas tangki", text: dashboardNumber_(airRecord.kapasitasTangkiLiter, 0) + " liter" });
                 airDetail.push({ label: "Kebutuhan air/load", text: dashboardNumber_(airRecord.kebutuhanAirPerLoad, 0) + " liter" });
               }
+              if (airSummary.sumberAir !== "sumur" && dashboardNumber_(airSummary.konversiPerLiter, 0) > 0) {
+                airDetail.push({ label: "Konversi Air / Liter", amount: dashboardRound2_(dashboardNumber_(airSummary.konversiPerLiter, 0)) });
+              }
+              // [2026-07-14] Outlet kategori NORMAL (punya mesin cuci) yang
+              // JUGA punya setrika uap - tampilkan kebutuhan/biaya air
+              // setrikanya SEBAGAI TAMBAHAN (bukan pengganti spt kasus
+              // pakaiAirSetrikaUap_ di atas yang KHUSUS Jasa Setrika murni
+              // tanpa mesin cuci sama sekali).
+              if (!pakaiAirSetrikaUap_ && airSummary.adaSetrikaUap) {
+                airDetail.push({ label: "Kebutuhan Air Setrika Uap/Jam", text: dashboardNumber_(airRecord.kebutuhanAirSetrikaUapPerJam, 0) + " liter" });
+                airDetail.push({ label: "Biaya Air Setrika Uap/Jam", amount: dashboardRound2_(dashboardNumber_(airSummary.biayaAirSetrikaUapPerJam, 0)) });
+              }
               komponenBiaya.push({
                 key: "air",
                 label: "Air",
@@ -438,13 +451,26 @@ function getDashboardMasterBiayaSummary_impl_(cabangId) {
               chemicalTotalPerLoad += dashboardNumber_(s.biayaPerLoad, 0);
             });
             if (chemicalComplete) {
-              const chemicalNames = chemicalItems.map(function(c) { return (c.record && c.record.nama) ? String(c.record.nama) : ""; }).filter(Boolean);
+              // [2026-07-14] Breakdown per Kg biaya deterjen/softener/parfum/
+              // pelicin (exact-match nama, case-insensitive - pola sama spt
+              // findStrukturHPPChemicalBiayaPerKg_ di Modul_StrukturBiayaHPP.gs)
+              // - baris cuma muncul kalau outlet memang punya item dgn nama
+              // itu, TIDAK memaksa 4 baris selalu tampil.
+              const chemicalNamedLabels_ = ["Deterjen", "Softener", "Parfum", "Pelicin"];
+              const chemicalNamedDetail_ = [];
+              chemicalNamedLabels_.forEach(function (nama) {
+                const target = nama.toLowerCase();
+                const totalNamed = chemicalItems.reduce(function (sum, c) {
+                  const entryNama = String((c.record && c.record.nama) || "").trim().toLowerCase();
+                  return entryNama === target ? sum + dashboardNumber_((c.summary || {}).biayaPerLoad, 0) : sum;
+                }, 0);
+                if (totalNamed > 0) {
+                  chemicalNamedDetail_.push({ label: "Biaya " + nama + " / Load", amount: dashboardRound2_(totalNamed) });
+                }
+              });
               komponenBiaya.push({
                 key: "chemical", label: "Chemical", biayaPerLoad: dashboardRound2_(chemicalTotalPerLoad),
-                detail: [
-                  { label: "Jumlah item", text: chemicalItems.length + " item" },
-                  { label: "Item tercatat", text: chemicalNames.length ? chemicalNames.join(", ") : "-" }
-                ]
+                detail: chemicalNamedDetail_.concat([{ label: "Jumlah item", text: chemicalItems.length + " item" }])
               });
               totalBiayaPerLoad += chemicalTotalPerLoad;
             }
@@ -463,18 +489,29 @@ function getDashboardMasterBiayaSummary_impl_(cabangId) {
             // Cover sengaja TIDAK diikutkan di sini.
             let packingTotalPerLoad = 0;
             let packingIncludedCount = 0;
+            const packingNamedDetail_ = [];
             dashboardArray_(packingRes.data.items).forEach(function(p) {
               const record = p.record || {};
               const s = p.summary || {};
               const isPlastik = typeof isPackingPlastikNama_ === "function" ? isPackingPlastikNama_(record.nama) : false;
               const layananArr = Array.isArray(record.layananPacking) ? record.layananPacking : ["kiloan", "bed_cover"];
               const included = !isPlastik || layananArr.indexOf("kiloan") >= 0;
-              if (included) { packingTotalPerLoad += dashboardNumber_(s.biayaPerLoad, 0); packingIncludedCount++; }
+              if (included) {
+                const itemPerLoad = dashboardNumber_(s.biayaPerLoad, 0);
+                packingTotalPerLoad += itemPerLoad;
+                packingIncludedCount++;
+                // [2026-07-14] Breakdown biaya per item packing (bukan cuma
+                // hitung + nama dipotong) - dipakai kartu Packing di Master
+                // Biaya desktop, sama pola dgn breakdown Chemical.
+                if (itemPerLoad > 0) {
+                  packingNamedDetail_.push({ label: "Biaya " + (record.nama || "Item") + " / Load", amount: dashboardRound2_(itemPerLoad) });
+                }
+              }
             });
             if (packingComplete) {
               komponenBiaya.push({
                 key: "packing", label: "Packing", biayaPerLoad: dashboardRound2_(packingTotalPerLoad),
-                detail: [{ label: "Item dihitung (layanan kiloan)", text: packingIncludedCount + " item" }]
+                detail: packingNamedDetail_.concat([{ label: "Item dihitung (layanan kiloan)", text: packingIncludedCount + " item" }])
               });
               totalBiayaPerLoad += packingTotalPerLoad;
             }

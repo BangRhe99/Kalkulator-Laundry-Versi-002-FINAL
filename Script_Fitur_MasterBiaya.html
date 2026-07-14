@@ -178,6 +178,13 @@ menjalankan bootApp().
   // Baris "Item tercatat" (Chemical) bisa panjang - kartu ini padat (6
   // kartu 1 layar), jadi teks detail dipotong supaya tidak mendorong tinggi
   // kartu. Daftar lengkapnya tetap ada di layar Chemical sendiri (Kelola).
+  // [2026-07-14] Format persentase kontribusi khusus layar Master Biaya
+  // desktop - 1 angka desimal (bukan 2), dipakai SEMUA sel highlight kartu
+  // komponen (Gas/Listrik/Air/Chemical/Packing/Nota/dst) supaya konsisten.
+  function formatPercent1_(value) {
+    return (Math.round(Number(value || 0) * 10) / 10).toFixed(1) + '%';
+  }
+
   function truncateDetailText_(text, maxLen) {
     if (!text || text.length <= maxLen) return text;
     return text.slice(0, maxLen - 1) + '…';
@@ -221,8 +228,8 @@ menjalankan bootApp().
     // satu yang ada, tetap 1 kolom penuh spt biasa. Persentase kontribusi
     // ke total biaya produksi ditampilkan sbg unit di bawah nominal.
     var highlightCellsHtml =
-      (gasCard.hasDryerRef ? '<div class="gas-result-cell highlight"><div class="label">Biaya Gas Dryer Per Load</div><div class="val">' + money0(gasCard.biayaGasDryerPerLoad) + '<span class="unit">' + escapeHtml(String(Number(gasCard.persenDryerPerLoad || 0))) + '% dari total</span></div></div>' : '') +
-      (gasCard.hasSetrikaRef ? '<div class="gas-result-cell highlight"><div class="label">Biaya Gas Setrika Per Jam</div><div class="val">' + money0(gasCard.biayaGasSetrikaPerJam) + '<span class="unit">' + escapeHtml(String(Number(gasCard.persenSetrikaPerJam || 0))) + '% dari total</span></div></div>' : '');
+      (gasCard.hasDryerRef ? '<div class="gas-result-cell highlight"><div class="label label-row"><span>Biaya Gas Dryer Per Load</span><span class="mb-desktop-percent-badge">' + formatPercent1_(gasCard.persenDryerPerLoad) + '</span></div><div class="val">' + money0(gasCard.biayaGasDryerPerLoad) + '</div></div>' : '') +
+      (gasCard.hasSetrikaRef ? '<div class="gas-result-cell highlight"><div class="label label-row"><span>Biaya Gas Setrika Per Jam</span><span class="mb-desktop-percent-badge">' + formatPercent1_(gasCard.persenSetrikaPerJam) + '</span></div><div class="val">' + money0(gasCard.biayaGasSetrikaPerJam) + '</div></div>' : '');
     var bothHighlights = gasCard.hasDryerRef && gasCard.hasSetrikaRef;
     var highlightHtml = highlightCellsHtml
       ? '<div class="gas-result-grid"' + (bothHighlights ? '' : ' style="grid-template-columns:1fr;"') + '>' + highlightCellsHtml + '</div>'
@@ -280,8 +287,8 @@ menjalankan bootApp().
         var resultHtml =
           '<div class="gas-result-grid" style="grid-template-columns:1fr;">' +
             '<div class="gas-result-cell highlight">' +
-              '<div class="label">Biaya ' + escapeHtml(meta.label) + ' Per ' + escapeHtml(unitLabel.charAt(0).toUpperCase() + unitLabel.slice(1)) + '</div>' +
-              '<div class="val">' + money0(k.biayaPerLoad) + '<span class="unit">' + escapeHtml(String(Number(k.persen || 0))) + '% dari total</span></div>' +
+              '<div class="label label-row"><span>Biaya ' + escapeHtml(meta.label) + ' Per ' + escapeHtml(unitLabel.charAt(0).toUpperCase() + unitLabel.slice(1)) + '</span><span class="mb-desktop-percent-badge">' + formatPercent1_(k.persen) + '</span></div>' +
+              '<div class="val">' + money0(k.biayaPerLoad) + '</div>' +
             '</div>' +
           '</div>';
         bodyHtml = '<div class="meta-rows-scroll">' + detailRowsHtml + '</div>' + '<div class="gas-card-result">' + resultHtml + '</div>';

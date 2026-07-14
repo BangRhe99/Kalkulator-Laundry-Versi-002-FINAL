@@ -283,6 +283,7 @@ function computeBiayaAirSummary_(record, cabang) {
     const kebutuhanLiter = toNumber_(record.kebutuhanAirPerLoad, 0);
     const biayaPerLiter = (kapasitasLiter > 0) ? hargaPerTangki / kapasitasLiter : 0;
     biayaPerLoad = round2_(biayaPerLiter * kebutuhanLiter);
+    konversiPerLiter = round2_(biayaPerLiter);
   } else if (sumberAir === "sumur") {
     // Sumur Bor: selalu Rp0
     biayaPerLoad = 0;
