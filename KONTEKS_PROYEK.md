@@ -432,6 +432,40 @@ masuk/balik ke layar). HP/tablet (<1100px) TIDAK diubah - tetap pill kategori
    (1366x768 ke atas) - kalau di window sangat kecil kontennya di-crop halus
    (`overflow:hidden`, BUKAN error) drpd memaksa scrollbar muncul.
 
+**[2026-07-15] Rekomendasi "edukasi pemula" di layar HARGA LAYANAN (inline).**
+3 fitur, semua ambang margin **>=20%** (Opsi B, nyambung status margin lama),
+reuse `.hl-reco-text`/`.hl-reco-chip` + container `.hl-minorder-reco`/
+`.hl-harga-reco` (`Style_Module_HargaLayanan.html`). Semua fungsi di
+`Script_Fitur_HargaLayanan.html` (`computeMinOrderRecommendation`,
+`updateMinOrderReco`, `updateHargaReco`, `applyMinOrderReco`, `applyHargaReco`
+- WAJIB `window.*` krn dipanggil dari `onclick`). TIDAK mengubah rumus/struktur
+data lama.
+1. **Minimum Order** (layanan per-Kg: kiloan/hybrid/jasa setrika): saran Kg
+   terkecil dari {3,4,5} yang bikin margin transaksi >=20%; maks 5 Kg; kalau 5
+   Kg pun belum 20% -> warning "harga per Kg terlalu rendah, naikkan harga".
+   Live ikut harga yang diketik. Murni client (data-hpp-siklus + input min
+   order). Deploy @331.
+2. **Harga Jual per-Kg + Bed Cover** (murni client): cost-plus = HPP siklus /
+   (0.8 x N), N = min order saat ini (kosong -> asumsi **3 Kg**, ditulis di UI),
+   dijepit RENTANG WAJAR per layanan: Cuci Saja 4-11rb, Cuci Kering Lipat
+   5-12rb, Cuci Kering Setrika 6-15rb, Setrika Saja 4-10rb (semua /Kg). Bed
+   Cover per ITEM: snap ke nilai terdekat KE ATAS dari daftar 20/22/25/28/30/32/
+   35/38/40/42/45/48/50 rb yang menutup HPP/0.8. Deploy @332.
+3. **Harga Jual Self Service** (per load, BUTUH backend): cost-plus = (HPP per
+   load + jatah fixed cost per siklus) / 0.8, dijepit rentang wajar (Cuci Saja
+   10-15rb, Kering Saja 10-20rb, Cuci Kering 20-30rb). Alokasi fixed cost
+   "model A": `fixedCostPerCycle = total biaya tetap/bulan / (loadCuci +
+   loadKering /bulan)`; Cuci Saja & Kering Saja x1 siklus, Cuci Kering x2 (pakai
+   2 mesin). Backend `buildSelfServiceRecoContext_` (Modul_HargaLayanan.gs,
+   panggil `getDashboardFixedCostSummary_impl_` + `getDashboardCabangSummary_impl_`,
+   ADITIF) -> field item `fixedCostPerCycle`/`hasFixedData` via param baru
+   `recoContext` di `buildHargaLayananItems_` -> atribut kartu
+   `data-self-fixed-per-cycle`/`data-self-has-fixed`. Gas naik -> HPP naik ->
+   saran naik (tanpa logika gas terpisah). Sewa naik -> jatah fixed cost naik ->
+   saran naik. Fixed cost belum diisi -> catatan "saran baru dari HPP". Deploy
+   @333. Catatan: response Self Service kini +2 baca sheet (fixed cost + summary
+   cabang), tertutup cache SWR, dampak minim.
+
 ---
 
 ### Custom Domain / Link Pendek (2026-07-14)
@@ -569,13 +603,13 @@ menggabungkan siklus kunci):
 
 ### PRIORITAS BERIKUTNYA
 
-0. **[PENDING KEPUTUSAN USER - 2026-07-14, PALING BARU] Gap fitur "edukasi
-   pemula".** User (pemilik app) minta simpan dulu, JANGAN langsung kerjakan
-   salah satu tanpa ditanya dulu di sesi berikutnya. Visi besar user: app ini
-   harus bikin pemula laundry paham (a) harga jual ideal, (b) minimum order
-   ideal, (c) berapa % omset harus disisihkan utk perawatan & depresiasi
-   mesin, (d) harga sewa ideal (aman di kisaran berapa), (e) jumlah mesin
-   ideal yang perlu dibeli. Audit read-only (2026-07-14) hasilnya:
+0. **[SEBAGIAN SELESAI 2026-07-15] Gap fitur "edukasi pemula".** Visi besar
+   user: app bikin pemula laundry paham (a) harga jual ideal, (b) minimum order
+   ideal, (c) % omset disisihkan utk perawatan & depresiasi, (d) harga sewa
+   ideal, (e) jumlah mesin ideal. **SUDAH DIKERJAKAN 2026-07-15: (a) harga jual
+   ideal (rekomendasi inline SEMUA kategori) + (b) minimum order ideal** - lihat
+   blok "[2026-07-15] Rekomendasi edukasi pemula" di STATUS FITUR. Sisa (c/d/e)
+   BELUM - tanyakan prioritas dulu. Audit read-only awal (2026-07-14):
    - **SUDAH ADA** (jangan disarankan ulang): status margin Rugi/Impas/
      Tipis/Aman ambang 20% (`Modul_HargaLayanan.gs` `getHargaLayananMarginStatus_`)
      - ini menjawab (a) harga jual ideal & warning "harga kurang untung"
@@ -583,9 +617,9 @@ menggabungkan siklus kunci):
      Script_Fitur_BiayaTetapOutlet.html, dibuat sesi ini) - TAPI basisnya %
      sewa thd TOTAL BIAYA TETAP, BUKAN thd omset (lihat gap poin 3 di bawah,
      beda pertanyaan).
-   - **BELUM ADA (gap nyata)**:
-     1. Rekomendasi minimum order (sekarang cuma input manual owner + hitung
-        margin, tidak ada saran angka ideal dari HPP+biaya tetap).
+   - **BELUM ADA (gap nyata)** [update 2026-07-15: no.1 SELESAI]:
+     1. ~~Rekomendasi minimum order~~ **SELESAI** (saran 3/4/5 Kg, margin >=20%,
+        deploy @331 - lihat STATUS FITUR [2026-07-15]).
      2. Dana cadangan perawatan & depresiasi - belum ada rekomendasi "sisihkan
         X% omset/bulan" terpisah dari profit yang boleh diambil owner.
      3. Benchmark sewa VS OMSET bulanan (rule of thumb umum <10-15% omset) -
@@ -788,7 +822,17 @@ oleh angka "Kapasitas maksimal/hari" di layar detail Profil Outlet).
 2. Tulis: **"Lanjutkan Kalkulator Laundry, lanjut dari yang kemarin."**
 3. Claude langsung paham tanpa penjelasan ulang — rule proyek dan rule desain sudah menyatu di file ini.
 
-### Titik berhenti sesi terakhir (2026-07-14, PALING BARU):
+### Titik berhenti sesi terakhir (2026-07-15, PALING BARU):
+Sesi 2026-07-15: SELESAI + deploy (@331/@332/@333) fitur rekomendasi "edukasi
+pemula" bagian HARGA di layar Harga Layanan - (a) harga jual ideal SEMUA
+kategori + (b) minimum order ideal. Detail lengkap di blok "[2026-07-15]" pada
+STATUS FITUR. User verifikasi via refresh; link redirect
+github.io/kalkulator-laundry sudah otomatis nyajikan @333 (deployment ID tetap,
+TIDAK perlu update redirect selama pakai `clasp deploy --deploymentId <yg itu>`).
+Sisa gap edukasi (dana cadangan #0.2, sewa vs omset #0.3, jumlah mesin #0.4) +
+fitur Kontribusi Omset (#1) BELUM - tanyakan prioritas dulu. Catatan sesi
+2026-07-14 (3 keputusan pending, masih relevan) di bawah:
+
 Ada **3 keputusan pending** yang harus ditanyakan dulu di awal sesi berikutnya
 sebelum lanjut kerja, jangan langsung pilih salah satu:
 1. **Prioritas #0 (baru)** — gap fitur "edukasi pemula" (minimum order ideal,
