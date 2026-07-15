@@ -88,7 +88,12 @@ function getHargaLayanan_(cabangId) {
     const konversi = hppResult && hppResult.ok && hppResult.data && hppResult.data.konversi
       ? hppResult.data.konversi
       : null;
-    const layanan = buildHargaLayananItems_(kategoriFinal, hppMap, stored.hargaJual || {}, aktifMap, konversi, stored.minimumOrderKg || {});
+    // Konteks rekomendasi harga jual Self Service (fixed cost per siklus mesin
+    // + load/bulan) -- dipakai frontend utk cost-plus. Hanya Self Service yang
+    // butuh (per load); kategori lain rekomendasinya sudah cukup dari HPP+min
+    // order di sisi client. Aditif, tidak mengubah field/rumus lama.
+    const recoContext = kategoriFinal === "self_service" ? buildSelfServiceRecoContext_(cleanCabangId) : null;
+    const layanan = buildHargaLayananItems_(kategoriFinal, hppMap, stored.hargaJual || {}, aktifMap, konversi, stored.minimumOrderKg || {}, recoContext);
 
     return {
       ok: true,
@@ -109,6 +114,46 @@ function getHargaLayanan_(cabangId) {
     };
   } catch (err) {
     return errorResponse_(err, "getHargaLayanan");
+  }
+}
+
+// Konteks rekomendasi harga jual Self Service: fixed cost per siklus mesin =
+// total biaya tetap/bulan dibagi total load/bulan (loadCuci + loadKering).
+// Alokasi "model A" (disepakati user): Cuci Saja & Kering Saja = 1 siklus,
+// Cuci Kering = 2 siklus (pakai mesin cuci + pengering). Selalu kembalikan
+// objek (tidak null) supaya kartu tetap dapat atribut walau data belum lengkap.
+function buildSelfServiceRecoContext_(cabangId) {
+  try {
+    var totalFixed = 0;
+    var hasFixed = false;
+    if (typeof getDashboardFixedCostSummary_impl_ === "function") {
+      var fc = getDashboardFixedCostSummary_impl_(cabangId);
+      if (fc && fc.ok && fc.data) {
+        totalFixed = toNumber_(fc.data.totalFixedCostPerBulan, 0);
+        var frows = fc.data.rows;
+        if (frows && frows.length) hasFixed = !!frows[0].hasData;
+      }
+    }
+    var loadCuci = 0;
+    var loadKering = 0;
+    if (typeof getDashboardCabangSummary_impl_ === "function") {
+      var cb = getDashboardCabangSummary_impl_(cabangId);
+      if (cb && cb.ok && cb.data && cb.data.rows && cb.data.rows.length) {
+        loadCuci = toNumber_(cb.data.rows[0].loadCuciPerBulan, 0);
+        loadKering = toNumber_(cb.data.rows[0].loadKeringPerBulan, 0);
+      }
+    }
+    var totalCycle = loadCuci + loadKering;
+    var perCycle = totalCycle > 0 ? round2_(totalFixed / totalCycle) : 0;
+    return {
+      fixedCostPerCycle: perCycle,
+      hasFixedData: hasFixed,
+      loadCuciPerBulan: round2_(loadCuci),
+      loadKeringPerBulan: round2_(loadKering),
+      totalFixedCostPerBulan: round2_(totalFixed),
+    };
+  } catch (err) {
+    return { fixedCostPerCycle: 0, hasFixedData: false, loadCuciPerBulan: 0, loadKeringPerBulan: 0, totalFixedCostPerBulan: 0 };
   }
 }
 
@@ -353,7 +398,7 @@ function getHargaLayananDefinitions_(kategori, aktifMap) {
   return defs;
 }
 
-function buildHargaLayananItems_(kategori, hppMap, storedHargaJual, aktifMap, konversi, storedMinimumOrderKg) {
+function buildHargaLayananItems_(kategori, hppMap, storedHargaJual, aktifMap, konversi, storedMinimumOrderKg, recoContext) {
   const defs = getHargaLayananDefinitions_(kategori, aktifMap);
   const items = [];
   const kapasitasKgPerLoad = toNumber_(konversi && konversi.kapasitasKgPerLoad, 0);
@@ -477,6 +522,14 @@ function buildHargaLayananItems_(kategori, hppMap, storedHargaJual, aktifMap, ko
         item.status = getHargaLayananMarginStatus_(marginMinimumOrder, marginPercentMinimumOrder);
         item.statusLabel = getHargaLayananMarginStatusLabel_(marginMinimumOrder, marginPercentMinimumOrder);
       }
+    }
+
+    // Self Service: sematkan konteks cost-plus (fixed cost per siklus mesin +
+    // apakah biaya tetap sudah diisi) supaya frontend bisa rekomendasi harga
+    // jual per load. Aditif -- tidak menyentuh margin/status yang sudah ada.
+    if (kategori === "self_service" && recoContext) {
+      item.fixedCostPerCycle = round2_(toNumber_(recoContext.fixedCostPerCycle, 0));
+      item.hasFixedData = !!recoContext.hasFixedData;
     }
 
     items.push(item);

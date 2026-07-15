@@ -326,7 +326,9 @@ menjalankan bootApp().
     var minimumOrderKg = Number(item.minimumOrderKg || 0);
 
     return (
-      '<div class="hl-service-card" data-harga-layanan-card="' + escapeHtml(key) + '" data-hpp="' + Number(item.hpp || 0) + '" data-hpp-siklus="' + Number(hppPerSiklus || 0) + '">' +
+      '<div class="hl-service-card" data-harga-layanan-card="' + escapeHtml(key) + '" data-hpp="' + Number(item.hpp || 0) + '" data-hpp-siklus="' + Number(hppPerSiklus || 0) + '"' +
+          (item.fixedCostPerCycle !== undefined ? ' data-self-fixed-per-cycle="' + Number(item.fixedCostPerCycle || 0) + '" data-self-has-fixed="' + (item.hasFixedData ? "1" : "0") + '"' : '') +
+          '>' +
         '<div class="hl-service-top">' +
           '<div>' +
             '<div class="hl-service-name">' + escapeHtml(item.title || "-") + '</div>' +
@@ -471,6 +473,14 @@ menjalankan bootApp().
   };
   var BED_COVER_WAJAR = [20000, 22000, 25000, 28000, 30000, 32000, 35000, 38000, 40000, 42000, 45000, 48000, 50000];
   var MIN_ORDER_ASUMSI = 3;
+  // Self Service (per load) -- rentang wajar pasar + jumlah siklus mesin per
+  // layanan (Cuci Kering pakai mesin cuci + pengering = 2 siklus).
+  var HARGA_WAJAR_SELF = {
+    cuci_saja: [10000, 15000],
+    kering_saja: [10000, 20000],
+    cuci_kering: [20000, 30000]
+  };
+  var CYCLES_SELF = { cuci_saja: 1, kering_saja: 1, cuci_kering: 2 };
 
   function updateHargaReco(card) {
     if (!card) return;
@@ -494,6 +504,35 @@ menjalankan bootApp().
           (overBc ? ' &mdash; biaya tinggi, ini batas atas wajar.' : '.') +
         '</span>' +
         '<button type="button" class="hl-reco-chip" data-hl-reco-harga="' + pickBc + '" onclick="applyHargaReco(this)">Pakai ' + formatRupiahTanpaDesimal(pickBc) + '</button>';
+      return;
+    }
+
+    // Self Service (per load): cost-plus HPP + jatah fixed cost per siklus,
+    // dijepit ke rentang wajar. Kartu ditandai data-self-fixed-per-cycle dari
+    // backend. Tidak bergantung harga yang diketik (stabil), jadi tidak live.
+    if (card.hasAttribute("data-self-fixed-per-cycle")) {
+      var rangeSs = HARGA_WAJAR_SELF[key];
+      if (!rangeSs) { box.className = "hl-harga-reco"; box.innerHTML = ""; return; }
+      var hppLoad = Number(card.getAttribute("data-hpp") || 0);
+      if (!(hppLoad > 0)) {
+        box.className = "hl-harga-reco";
+        box.innerHTML = '<span class="hl-reco-text muted">Lengkapi HPP dulu untuk melihat harga wajar.</span>';
+        return;
+      }
+      var fpc = Number(card.getAttribute("data-self-fixed-per-cycle") || 0);
+      var hasFixed = card.getAttribute("data-self-has-fixed") === "1";
+      var cyclesSs = CYCLES_SELF[key] || 1;
+      var costSs = hppLoad + fpc * cyclesSs;
+      var hargaMinSs = Math.ceil((costSs / 0.8) / 1000) * 1000;
+      var pickSs = Math.min(rangeSs[1], Math.max(rangeSs[0], hargaMinSs));
+      var overSs = hargaMinSs > rangeSs[1];
+      box.className = "hl-harga-reco " + (overSs ? "warn" : "suggest");
+      box.innerHTML =
+        '<span class="hl-reco-text">Kisaran wajar ' + formatRupiahTanpaDesimal(rangeSs[0]) + '&ndash;' + formatRupiahTanpaDesimal(rangeSs[1]) + '/load. Disarankan <b>' + formatRupiahTanpaDesimal(pickSs) + '/load</b>' +
+          (!hasFixed ? ' (biaya tetap belum diisi, saran ini baru dari HPP)' : '') +
+          (overSs ? ' &mdash; sewa/biaya tinggi; harga wajar tertinggi belum menutup margin 20%, tinjau sewa atau target volume.' : '.') +
+        '</span>' +
+        '<button type="button" class="hl-reco-chip" data-hl-reco-harga="' + pickSs + '" onclick="applyHargaReco(this)">Pakai ' + formatRupiahTanpaDesimal(pickSs) + '</button>';
       return;
     }
 
