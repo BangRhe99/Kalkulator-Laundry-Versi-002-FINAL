@@ -307,6 +307,7 @@ menjalankan bootApp().
     }
 
     listEl.innerHTML = layanan.map(renderHargaLayananServiceCard).join("");
+    document.querySelectorAll("[data-harga-layanan-card]").forEach(updateMinOrderReco);
   }
 
   function renderHargaLayananServiceCard(item) {
@@ -350,6 +351,7 @@ menjalankan bootApp().
             '<label>Minimum Order (Kg)</label>' +
             '<input type="number" inputmode="decimal" min="0" step="0.1" data-harga-layanan-minorder-key="' + escapeHtml(key) + '" value="' + (minimumOrderKg > 0 ? minimumOrderKg : "") + '" placeholder="Contoh: 3" oninput="onHargaLayananInput(event)">' +
             '<div class="field-hint">Margin di bawah dihitung dari Harga Jual &times; Minimum Order, dikurangi HPP per siklus mesin.</div>' +
+            '<div class="hl-minorder-reco" data-hl-minorder-reco="' + escapeHtml(key) + '"></div>' +
           '</div>'
         : '') +
 
@@ -415,6 +417,7 @@ menjalankan bootApp().
 
   function refreshHargaLayananPreview() {
     document.querySelectorAll("[data-harga-layanan-card]").forEach(function (card) {
+      updateMinOrderReco(card);
       var input = card.querySelector("[data-harga-layanan-key]");
       if (!input) return;
 
@@ -449,6 +452,69 @@ menjalankan bootApp().
       }
     });
   }
+
+  // === Rekomendasi Minimum Order (edukasi pemula) ===
+  // Kg terkecil dari 3/4/5 yang bikin margin transaksi >= 20% (Opsi B, konsisten
+  // dgn ambang status margin). Maks 5 Kg (patokan usaha laundry). Kalau 5 Kg pun
+  // belum 20% -> harga jual per Kg terlalu rendah. Hanya layanan per-Kg (isKgBased).
+  function computeMinOrderRecommendation(hargaJual, hppSiklus) {
+    if (!(hargaJual > 0)) return { state: "no-harga" };
+    var options = [3, 4, 5];
+    for (var i = 0; i < options.length; i++) {
+      var kg = options[i];
+      var omzet = hargaJual * kg;
+      var marginPercent = omzet > 0 ? ((omzet - hppSiklus) / omzet) * 100 : 0;
+      if (marginPercent >= 20) return { state: "ok", kg: kg };
+    }
+    return { state: "too-low" };
+  }
+
+  function updateMinOrderReco(card) {
+    if (!card) return;
+    var box = card.querySelector("[data-hl-minorder-reco]");
+    if (!box) return;
+
+    var hargaInput = card.querySelector("[data-harga-layanan-key]");
+    var hargaJual = hargaInput ? Number(String(hargaInput.value || "0").replace(/[^0-9]/g, "")) : 0;
+    var hppSiklus = Number(card.getAttribute("data-hpp-siklus") || 0);
+    var minInput = card.querySelector("[data-harga-layanan-minorder-key]");
+    var currentMin = minInput ? toNumber(minInput.value, 0) : 0;
+
+    var reco = computeMinOrderRecommendation(hargaJual, hppSiklus);
+
+    if (reco.state === "no-harga") {
+      box.className = "hl-minorder-reco";
+      box.innerHTML = '<span class="hl-reco-text muted">Isi Harga Jual dulu untuk melihat saran minimum order.</span>';
+      return;
+    }
+    if (reco.state === "too-low") {
+      box.className = "hl-minorder-reco warn";
+      box.innerHTML = '<span class="hl-reco-text">Sampai 5 Kg pun margin belum 20%. Harga jual per Kg kemungkinan terlalu rendah &mdash; sebaiknya naikkan harga, bukan minimum order.</span>';
+      return;
+    }
+
+    var sudahPas = currentMin >= reco.kg;
+    box.className = "hl-minorder-reco " + (sudahPas ? "ok" : "suggest");
+    box.innerHTML =
+      '<span class="hl-reco-text">Disarankan minimal <b>' + reco.kg + ' Kg</b>' +
+        (sudahPas ? ' &mdash; sudah pas.' : ' agar tiap transaksi untung wajar (margin &ge; 20%).') +
+      '</span>' +
+      (sudahPas ? '' :
+        '<button type="button" class="hl-reco-chip" data-hl-reco-kg="' + reco.kg + '" onclick="applyMinOrderReco(this)">Pakai ' + reco.kg + ' Kg</button>');
+  }
+
+  function applyMinOrderReco(btn) {
+    if (!btn) return;
+    var card = btn.closest("[data-harga-layanan-card]");
+    if (!card) return;
+    var minInput = card.querySelector("[data-harga-layanan-minorder-key]");
+    if (!minInput) return;
+    var kg = Number(btn.getAttribute("data-hl-reco-kg") || 0);
+    if (!(kg > 0)) return;
+    minInput.value = kg;
+    onHargaLayananInput({ target: minInput });
+  }
+  window.applyMinOrderReco = applyMinOrderReco;
 
   function getHargaLayananStatusClient(margin, marginPercent) {
     if (margin < 0) return { status: "rugi", label: "Rugi" };

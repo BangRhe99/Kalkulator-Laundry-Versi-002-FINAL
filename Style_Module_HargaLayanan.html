@@ -188,4 +188,20 @@ body:has(#screenHargaLayananDetail.active) .wrap { width: min(100%, 1080px); }
   }
   #screenHargaLayananList .hargalayanan-desktop-actions .btn-primary { flex: 0 0 auto; min-width: 180px; }
 }
+
+  /* Rekomendasi Minimum Order (inline, edukasi pemula) */
+  .hl-minorder-reco { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .hl-minorder-reco:empty { display: none; }
+  .hl-minorder-reco .hl-reco-text { font-size: 12px; line-height: 1.45; color: var(--text-dim); }
+  .hl-minorder-reco.suggest .hl-reco-text { color: var(--brass); }
+  .hl-minorder-reco.ok .hl-reco-text { color: var(--sage); }
+  .hl-minorder-reco.warn .hl-reco-text { color: var(--red); }
+  .hl-minorder-reco .hl-reco-text.muted { color: var(--text-faint); }
+  .hl-reco-chip {
+    border: 1px solid var(--brass); color: var(--brass); background: transparent;
+    border-radius: 999px; padding: 3px 12px; font-size: 12px; font-weight: 600;
+    line-height: 1.3; cursor: pointer; white-space: nowrap;
+    transition: background .15s ease, color .15s ease;
+  }
+  .hl-reco-chip:hover, .hl-reco-chip:active { background: var(--brass); color: #fff; }
 </style>
