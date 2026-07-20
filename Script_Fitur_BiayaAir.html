@@ -56,6 +56,7 @@ menjalankan bootApp().
   window.openAirForm = openAirForm;
 
   function selectAirSumber(sumber) {
+    if (!airFormState) return; // data belum selesai dimuat, tombol diklik terlalu cepat
     airFormState.sumberAir = sumber;
     renderAirForm();
   }
