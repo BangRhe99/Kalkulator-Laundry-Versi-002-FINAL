@@ -235,6 +235,16 @@ function handleFirestoreDiagnostic_(e) {
         hppToggles: firestoreGet_(path + "/config/hppToggles"),
       };
       payload = { ok: true, action: action, tenantId: tenantId, cabangId: cabangId, namaLaundry: doc && doc.profil && doc.profil.namaLaundry, hasComputed: !!(doc && doc.computed), hasProfil: !!(doc && doc.profil), configDocsFound: Object.keys(configDocs).filter(function (k) { return !!configDocs[k]; }) };
+    } else if (action === "cleanupTestTenant") {
+      // Hapus data uji dari eksperimen paling awal (path tenantId palsu
+      // "test-tenant", sebelum bug tenantId asli diperbaiki). Aman -- tidak
+      // ada kode produksi yang pernah membaca tenantId "test-tenant".
+      const path = "tenants/test-tenant/cabang/c_mrjdpfmp_1nsj";
+      firestoreDeleteDoc_(path + "/config/air");
+      firestoreDeleteDoc_(path + "/config/listrik");
+      firestoreDeleteDoc_(path + "/config/notaKasir");
+      firestoreDeleteDoc_(path);
+      payload = { ok: true, action: action, deleted: path };
     } else {
       throw new Error("action tidak dikenal: " + action);
     }
