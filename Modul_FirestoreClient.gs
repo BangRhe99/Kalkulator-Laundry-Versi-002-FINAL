@@ -52,6 +52,11 @@ function firestoreAccessToken_() {
   if (!clientEmail || !privateKey) {
     throw new Error("Kredensial Firestore belum di-setup (FIRESTORE_CLIENT_EMAIL / FIRESTORE_PRIVATE_KEY di Script Properties). Lihat komentar di atas file ini.");
   }
+  // File JSON service account menyimpan private_key dengan literal "\n"
+  // (dua karakter backslash+n), bukan baris baru sungguhan -- kalau di-paste
+  // apa adanya ke Script Properties, ubah balik jadi baris baru asli di sini
+  // supaya computeRsaSha256Signature tidak gagal parse PEM-nya.
+  privateKey = privateKey.replace(/\\n/g, "\n");
 
   var now = Math.floor(Date.now() / 1000);
   var header = { alg: "RS256", typ: "JWT" };
