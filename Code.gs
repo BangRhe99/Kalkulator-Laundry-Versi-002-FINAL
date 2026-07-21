@@ -198,6 +198,26 @@ function handleFirestoreDiagnostic_(e) {
       const cabangId = params.cabangId;
       if (!cabangId) throw new Error("Parameter cabangId wajib diisi (?cabangId=...).");
       payload = { ok: true, action: action, result: migrateCabangFullConfig_(cabangId) };
+    } else if (action === "verifyCabangFull") {
+      const cabangId = params.cabangId;
+      if (!cabangId) throw new Error("Parameter cabangId wajib diisi (?cabangId=...).");
+      const tenantId = activeDataSpreadsheetId_();
+      const path = firestoreCabangDocPath_(tenantId, cabangId);
+      const doc = firestoreGet_(path);
+      const configDocs = {
+        air: firestoreGet_(path + "/config/air"),
+        listrik: firestoreGet_(path + "/config/listrik"),
+        notaKasir: firestoreGet_(path + "/config/notaKasir"),
+        tetapOutlet: firestoreGet_(path + "/config/tetapOutlet"),
+        hargaLayanan: firestoreGet_(path + "/config/hargaLayanan"),
+        hppToggles: firestoreGet_(path + "/config/hppToggles"),
+      };
+      const subCounts = {
+        gas: firestoreListCollection_(path, "gas").length,
+        chemical: firestoreListCollection_(path, "chemical").length,
+        packing: firestoreListCollection_(path, "packing").length,
+      };
+      payload = { ok: true, action: action, cabangId: cabangId, hasComputed: !!(doc && doc.computed), hasProfil: !!(doc && doc.profil), configDocsFound: Object.keys(configDocs).filter(function (k) { return !!configDocs[k]; }), subCounts: subCounts };
     } else {
       throw new Error("action tidak dikenal: " + action);
     }
