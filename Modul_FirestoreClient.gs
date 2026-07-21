@@ -243,7 +243,7 @@ function firestoreListCollection_(parentRelPath, collectionId) {
  * data sungguhan.
  */
 function testFirestoreConnection_() {
-  var testPath = "tenants/_diagnostic/ping";
+  var testPath = "_diagnostic/ping";
   firestoreSet_(testPath, { pingAt: new Date(), ok: true });
   var readBack = firestoreGet_(testPath);
   Logger.log("Koneksi Firestore OK. Baca balik: %s", JSON.stringify(readBack));
