@@ -199,7 +199,7 @@ function handleFirestoreDiagnostic_(e) {
       throw new Error("action tidak dikenal: " + action);
     }
   } catch (err) {
-    payload = { ok: false, error: err && err.message ? err.message : String(err) };
+    payload = { ok: false, error: err && err.message ? err.message : String(err), stack: err && err.stack ? err.stack : null };
   }
 
   return ContentService
