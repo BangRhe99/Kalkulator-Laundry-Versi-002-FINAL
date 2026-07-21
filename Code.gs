@@ -215,6 +215,24 @@ function handleFirestoreDiagnostic_(e) {
       payload = { ok: true, action: action, cabangId: cabangId, hppAsli: hppAsli, dariFirestore: dariFirestore };
     } else if (action === "recomputeAll") {
       payload = { ok: true, action: action, result: recomputeAllCabang_() };
+    } else if (action === "benchmark") {
+      const cabangId = params.cabangId;
+      if (!cabangId) throw new Error("Parameter cabangId wajib diisi (?cabangId=...).");
+      // Jalur Sheets (hitung dari data, pakai cache getDataRange sekali)
+      if (typeof _strukturBiayaHPPCache_ !== "undefined" && _strukturBiayaHPPCache_) delete _strukturBiayaHPPCache_[cabangId];
+      const s0 = Date.now();
+      getStrukturBiayaHPP_impl_(cabangId);
+      const sheetsMs = Date.now() - s0;
+      // Waktu ambil token (harusnya ~0 kalau cache hit)
+      const tk0 = Date.now();
+      firestoreAccessToken_();
+      const tokenMs = Date.now() - tk0;
+      // Jalur Firestore (1 GET dokumen computed)
+      const f0 = Date.now();
+      const tenantId = activeDataSpreadsheetId_();
+      firestoreGet_(firestoreCabangDocPath_(tenantId, cabangId));
+      const firestoreMs = Date.now() - f0;
+      payload = { ok: true, action: action, cabangId: cabangId, sheetsMs: sheetsMs, tokenMs: tokenMs, firestoreGetMs: firestoreMs };
     } else if (action === "fastRead") {
       const cabangId = params.cabangId;
       if (!cabangId) throw new Error("Parameter cabangId wajib diisi (?cabangId=...).");
