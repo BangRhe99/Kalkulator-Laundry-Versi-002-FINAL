@@ -147,22 +147,6 @@ function withTenant_(sessionToken, fn) {
 }
 
 // ----------------------------------------------------------------------------
-// [SEMENTARA] PEMICU OTORISASI FIRESTORE
-// ----------------------------------------------------------------------------
-// Fungsi ini SENGAJA ditaruh di Code.gs (file ringan yang tidak membuat
-// toolbar editor "mati" seperti saat file Firestore besar dibuka). Menjalankan
-// fungsi APAPUN sekali setelah scope baru ditambah ke appsscript.json akan
-// memicu Google meminta persetujuan SEMUA izin sekaligus, termasuk
-// script.external_request yang dibutuhkan UrlFetchApp. Jadi cukup jalankan
-// fungsi ini SEKALI dari editor (dengan Code.gs tetap terbuka), setujui layar
-// izinnya, dan koneksi Firestore langsung ikut teruji. Aman dihapus setelah itu.
-// PENTING: nama TANPA garis bawah di belakang, supaya MUNCUL di dropdown
-// "pilih fungsi" editor. Apps Script menyembunyikan fungsi berakhiran "_".
-function otorisasiFirestore() {
-  return testFirestoreConnection_();
-}
-
-// ----------------------------------------------------------------------------
 // ENTRY POINT WEB APP
 // ----------------------------------------------------------------------------
 
@@ -182,80 +166,37 @@ function doGet(e) {
 }
 
 /**
- * [SEMENTARA -- HAPUS SETELAH TES FIRESTORE SELESAI] Editor Apps Script di
- * browser gagal dipakai untuk menjalankan fungsi manual (dropdown pemilih
- * fungsi tidak merespons klik, dialami juga oleh pemilik project di project
- * lain) -- jadi diagnostik ini dijalankan lewat HTTP (query param) sebagai
- * gantinya. Dikunci token acak supaya tidak bisa dipanggil orang lain.
- * TIDAK menyentuh withTenant_/sesi user manapun, hanya memanggil fungsi
- * eksperimen Firestore yang sudah ada di Modul_FirestoreClient.gs dan
- * Modul_Firestore_HPP_Eksperimen.gs.
+ * [SEMENTARA -- HAPUS SETELAH MIGRASI SEMUA TENANT SELESAI DIVERIFIKASI]
+ * Editor Apps Script sempat tidak bisa dipakai utk jalankan fungsi manual,
+ * jadi operasi migrasi/diagnostik Firestore dijalankan lewat HTTP (query
+ * param) sebagai gantinya. Dikunci token acak supaya tidak bisa dipanggil
+ * orang lain. TIDAK menyentuh withTenant_/sesi user manapun.
+ * Ruang lingkup dipersempit ke operasi migrasi yg masih relevan (bukan lagi
+ * debug per-langkah spt fase pembuktian awal) - lihat project_migrasi_firestore
+ * di memori untuk daftar lengkap yang perlu dihapus nanti.
  */
 function handleFirestoreDiagnostic_(e) {
   const params = (e && e.parameter) || {};
   const token = params.firestoreDiag;
   if (!token) return null;
-  if (token !== "8412188cde1b9f15bd1b4e16fab72db57634ba4dabf2966f") return null;
+  if (token !== "172f236702e084579016d5fabd8e8ea598af2a070b59a307") return null;
 
   let payload;
   try {
     const action = params.action || "testConnection";
     if (action === "testConnection") {
       payload = { ok: true, action: action, result: testFirestoreConnection_() };
-    } else if (action === "inspectKey") {
-      payload = { ok: true, action: action, result: firestoreDebugInspectKey_() };
     } else if (action === "listCabang") {
       payload = { ok: true, action: action, result: listCabangIdsForTest_() };
-    } else if (action === "hppRoundtrip") {
-      const cabangId = params.cabangId;
-      if (!cabangId) throw new Error("Parameter cabangId wajib diisi (?cabangId=...).");
-      firestoreMigrateCabangConfig_(cabangId);
-      const hppAsli = firestoreSnapshotHPP_(cabangId);
-      const dariFirestore = firestoreReadCabangWithHPP_(cabangId);
-      payload = { ok: true, action: action, cabangId: cabangId, hppAsli: hppAsli, dariFirestore: dariFirestore };
     } else if (action === "recomputeAll") {
       payload = { ok: true, action: action, result: recomputeAllCabang_() };
-    } else if (action === "testSaveRecompute") {
-      // Bukti wiring: re-save Air dgn nilai SAAT INI (idempotent) -> harus
-      // memicu recomputeCabangSummary_ -> computedAt di Firestore berubah/naik.
-      const cabangId = params.cabangId;
-      if (!cabangId) throw new Error("Parameter cabangId wajib diisi (?cabangId=...).");
-      const before = getStrukturBiayaHPPFast_(cabangId);
-      Utilities.sleep(1100); // pastikan timestamp berbeda
-      const airNow = getBiayaAir_impl_(cabangId);
-      if (!airNow.ok) throw new Error("getBiayaAir gagal: " + airNow.error);
-      const saveRes = saveBiayaAir_impl_(cabangId, airNow.data.record);
-      const after = getStrukturBiayaHPPFast_(cabangId);
-      payload = { ok: true, action: action, cabangId: cabangId, saveOk: saveRes.ok, sourceAfter: after && after._source, computedAtBefore: before && before._computedAt, computedAtAfter: after && after._computedAt };
-    } else if (action === "benchmark") {
-      const cabangId = params.cabangId;
-      if (!cabangId) throw new Error("Parameter cabangId wajib diisi (?cabangId=...).");
-      // Jalur Sheets (hitung dari data, pakai cache getDataRange sekali)
-      if (typeof _strukturBiayaHPPCache_ !== "undefined" && _strukturBiayaHPPCache_) delete _strukturBiayaHPPCache_[cabangId];
-      const s0 = Date.now();
-      getStrukturBiayaHPP_impl_(cabangId);
-      const sheetsMs = Date.now() - s0;
-      // Waktu ambil token (harusnya ~0 kalau cache hit)
-      const tk0 = Date.now();
-      firestoreAccessToken_();
-      const tokenMs = Date.now() - tk0;
-      // Jalur Firestore (1 GET dokumen computed)
-      const f0 = Date.now();
-      const tenantId = activeDataSpreadsheetId_();
-      firestoreGet_(firestoreCabangDocPath_(tenantId, cabangId));
-      const firestoreMs = Date.now() - f0;
-      payload = { ok: true, action: action, cabangId: cabangId, sheetsMs: sheetsMs, tokenMs: tokenMs, firestoreGetMs: firestoreMs };
-    } else if (action === "fastRead") {
-      const cabangId = params.cabangId;
-      if (!cabangId) throw new Error("Parameter cabangId wajib diisi (?cabangId=...).");
-      const t0 = Date.now();
-      const hasil = getStrukturBiayaHPPFast_(cabangId);
-      payload = { ok: true, action: action, cabangId: cabangId, ms: Date.now() - t0, source: hasil && hasil._source, computedAt: hasil && hasil._computedAt, hpp: hasil && hasil.data };
+    } else if (action === "migrateAllTenants") {
+      payload = { ok: true, action: action, result: migrateAllTenantsToFirestore_() };
     } else {
       throw new Error("action tidak dikenal: " + action);
     }
   } catch (err) {
-    payload = { ok: false, error: err && err.message ? err.message : String(err), stack: err && err.stack ? err.stack : null };
+    payload = { ok: false, error: err && err.message ? err.message : String(err) };
   }
 
   return ContentService

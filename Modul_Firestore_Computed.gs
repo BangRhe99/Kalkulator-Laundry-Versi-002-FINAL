@@ -104,6 +104,58 @@ function deleteCabangComputed_(cabangId) {
 }
 
 /**
+ * Backfill LINTAS-TENANT: baca semua akun terdaftar dari spreadsheet Master
+ * (authUser_ prefix, Modul_Auth.gs), lalu untuk tiap akun yang punya
+ * tenantSpreadsheetId, buka spreadsheet tenant itu dan recompute SEMUA
+ * cabangnya. Dipakai SEKALI untuk migrasi awal seluruh basis pengguna
+ * (bukan cuma akun pemilik). Read-only terhadap Sheets (cuma
+ * recomputeAllCabang_ per tenant, yang cuma menulis field `computed` di
+ * Firestore) -- tidak mengubah data Sheets tenant manapun.
+ *
+ * PENTING: dijalankan dari konteks Master (bound spreadsheet), BUKAN di
+ * dalam withTenant_ tenant manapun -- karena perlu baca daftar SEMUA akun.
+ * Set & reset _activeDataSpreadsheet_ manual per tenant, dibungkus
+ * try/finally supaya satu tenant gagal tidak menghentikan/mengacaukan
+ * konteks tenant berikutnya.
+ */
+function migrateAllTenantsToFirestore_() {
+  const masterSheet = ensureDataSheet_(); // _activeDataSpreadsheet_ null di sini -> jatuh ke bound (Master)
+  const accountRows = readKeysByPrefix_(masterSheet, "authUser_");
+
+  const hasil = [];
+  for (let i = 0; i < accountRows.length; i++) {
+    let user;
+    try { user = JSON.parse(accountRows[i].value); } catch (e) { continue; }
+    if (!user || !user.tenantSpreadsheetId) {
+      hasil.push({ email: user && user.email, ok: false, error: "Belum punya tenantSpreadsheetId (akun belum lengkap)" });
+      continue;
+    }
+
+    try {
+      const tenantSs = SpreadsheetApp.openById(user.tenantSpreadsheetId);
+      setActiveDataSpreadsheet_(tenantSs);
+      try {
+        const r = recomputeAllCabang_();
+        hasil.push({ email: user.email, tenantId: user.tenantSpreadsheetId, ok: !!(r && r.ok), totalCabang: r && r.total, detail: r && r.hasil, error: r && r.error });
+      } finally {
+        setActiveDataSpreadsheet_(null); // WAJIB direset sebelum lanjut ke tenant berikutnya
+      }
+    } catch (err) {
+      setActiveDataSpreadsheet_(null);
+      hasil.push({ email: user.email, tenantId: user.tenantSpreadsheetId, ok: false, error: err && err.message ? err.message : String(err) });
+    }
+  }
+
+  return {
+    ok: true,
+    totalAkun: accountRows.length,
+    totalTenantSukses: hasil.filter(function (h) { return h.ok; }).length,
+    totalTenantGagal: hasil.filter(function (h) { return !h.ok; }).length,
+    hasil: hasil,
+  };
+}
+
+/**
  * Backfill: recompute SEMUA cabang milik tenant aktif. Dipakai sekali saat
  * migrasi awal (mengisi computed.hpp untuk semua cabang yang sudah ada),
  * atau dari endpoint diagnostik. Return ringkasan per cabang.

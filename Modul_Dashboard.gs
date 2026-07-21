@@ -577,8 +577,12 @@ function getDashboardHPPSummary_impl_(cabangId) {
       let serviceToggles = [];
 
       try {
-        if (typeof getStrukturBiayaHPP_impl_ === "function") {
-          const hppRes = getStrukturBiayaHPP_impl_(cabangId);
+        // [2026-07-21 FIRESTORE] Dashboard bisa memuat BANYAK cabang sekaligus
+        // -- ini titik yang paling diuntungkan pindah ke cache Firestore (1 GET
+        // per cabang, bukan hitung ulang Sheets tiap cabang). Fallback otomatis
+        // ke Sheets kalau computed belum ada (lihat getStrukturBiayaHPPFast_).
+        if (typeof getStrukturBiayaHPPFast_ === "function") {
+          const hppRes = getStrukturBiayaHPPFast_(cabangId);
           if (hppRes && hppRes.ok && hppRes.data) {
             layanan = dashboardArray_(hppRes.data.layanan);
             warnings = dashboardArray_(hppRes.data.warnings);
@@ -590,7 +594,7 @@ function getDashboardHPPSummary_impl_(cabangId) {
             errorText = hppRes && hppRes.error ? hppRes.error : "HPP belum bisa dibaca.";
           }
         } else {
-          errorText = "Fungsi getStrukturBiayaHPP_impl_ belum tersedia.";
+          errorText = "Fungsi getStrukturBiayaHPPFast_ belum tersedia.";
         }
       } catch (e) {
         errorText = e && e.message ? e.message : String(e);

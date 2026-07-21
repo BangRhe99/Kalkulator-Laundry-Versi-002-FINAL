@@ -264,14 +264,16 @@ function getHargaLayananCabang_(cabangId) {
 
 function readHargaLayananHPP_(cabangId) {
   try {
-    if (typeof getStrukturBiayaHPP_impl_ !== "function") {
+    // [2026-07-21 FIRESTORE] Baca via cache Firestore (fallback otomatis ke
+    // Sheets kalau computed belum ada) -- konsisten dengan layar HPP & Dashboard.
+    if (typeof getStrukturBiayaHPPFast_ !== "function") {
       return {
         ok: false,
-        error: "Fungsi getStrukturBiayaHPP belum tersedia.",
+        error: "Fungsi getStrukturBiayaHPPFast_ belum tersedia.",
         stage: "readHargaLayananHPP_:missing_getStrukturBiayaHPP",
       };
     }
-    return getStrukturBiayaHPP_impl_(cabangId);
+    return getStrukturBiayaHPPFast_(cabangId);
   } catch (err) {
     return errorResponse_(err, "readHargaLayananHPP_");
   }
