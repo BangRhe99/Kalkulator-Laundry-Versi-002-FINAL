@@ -156,6 +156,51 @@ function migrateAllTenantsToFirestore_() {
 }
 
 /**
+ * Backfill LINTAS-TENANT data MENTAH (bukan cuma computed.hpp) -- sama pola
+ * dengan migrateAllTenantsToFirestore_, tapi memanggil
+ * migrateAllCabangFullConfig_ (Modul_Firestore_HPP_Eksperimen.gs) per tenant:
+ * salin profil cabang + config air/listrik/notaKasir/tetapOutlet/hargaLayanan/
+ * hppToggles + subkoleksi gas/chemical/packing. Read-only thd Sheets (cuma
+ * MENYALIN, tidak mengubah/menghapus apapun di Sheets tenant manapun).
+ */
+function migrateAllTenantsFullData_() {
+  const masterSheet = ensureDataSheet_();
+  const accountRows = readKeysByPrefix_(masterSheet, "authUser_");
+
+  const hasil = [];
+  for (let i = 0; i < accountRows.length; i++) {
+    let user;
+    try { user = JSON.parse(accountRows[i].value); } catch (e) { continue; }
+    if (!user || !user.tenantSpreadsheetId) {
+      hasil.push({ email: user && user.email, ok: false, error: "Belum punya tenantSpreadsheetId (akun belum lengkap)" });
+      continue;
+    }
+
+    try {
+      const tenantSs = SpreadsheetApp.openById(user.tenantSpreadsheetId);
+      setActiveDataSpreadsheet_(tenantSs);
+      try {
+        const r = migrateAllCabangFullConfig_();
+        hasil.push({ email: user.email, tenantId: user.tenantSpreadsheetId, ok: !!(r && r.ok), totalCabang: r && r.total, detail: r && r.hasil, error: r && r.error });
+      } finally {
+        setActiveDataSpreadsheet_(null);
+      }
+    } catch (err) {
+      setActiveDataSpreadsheet_(null);
+      hasil.push({ email: user.email, tenantId: user.tenantSpreadsheetId, ok: false, error: err && err.message ? err.message : String(err) });
+    }
+  }
+
+  return {
+    ok: true,
+    totalAkun: accountRows.length,
+    totalTenantSukses: hasil.filter(function (h) { return h.ok; }).length,
+    totalTenantGagal: hasil.filter(function (h) { return !h.ok; }).length,
+    hasil: hasil,
+  };
+}
+
+/**
  * Backfill: recompute SEMUA cabang milik tenant aktif. Dipakai sekali saat
  * migrasi awal (mengisi computed.hpp untuk semua cabang yang sudah ada),
  * atau dari endpoint diagnostik. Return ringkasan per cabang.

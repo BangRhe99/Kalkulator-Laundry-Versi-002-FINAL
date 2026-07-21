@@ -192,6 +192,12 @@ function handleFirestoreDiagnostic_(e) {
       payload = { ok: true, action: action, result: recomputeAllCabang_() };
     } else if (action === "migrateAllTenants") {
       payload = { ok: true, action: action, result: migrateAllTenantsToFirestore_() };
+    } else if (action === "migrateAllTenantsFullData") {
+      payload = { ok: true, action: action, result: migrateAllTenantsFullData_() };
+    } else if (action === "migrateOneCabangFull") {
+      const cabangId = params.cabangId;
+      if (!cabangId) throw new Error("Parameter cabangId wajib diisi (?cabangId=...).");
+      payload = { ok: true, action: action, result: migrateCabangFullConfig_(cabangId) };
     } else {
       throw new Error("action tidak dikenal: " + action);
     }
