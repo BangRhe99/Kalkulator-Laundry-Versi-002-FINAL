@@ -274,6 +274,29 @@ function handleFirestoreDiagnostic_(e) {
       const firestoreRecomputeMs = Date.now() - t3;
 
       payload = { ok: true, action: action, cabangId: cabangId, sheetsWriteMs: sheetsWriteMs, firestoreSyncConfigMs: firestoreSyncMs, sheetsHppComputeMs: sheetsHppComputeMs, firestoreRecomputeWriteMs: firestoreRecomputeMs, total: sheetsWriteMs + firestoreSyncMs + sheetsHppComputeMs + firestoreRecomputeMs };
+    } else if (action === "testReadFlip") {
+      // Verifikasi menyeluruh: panggil fungsi baca yg sudah di-flip, laporkan
+      // sumbernya (kalau ada) & angka-angka kunci utk dibandingkan manual.
+      const cabangId = params.cabangId;
+      if (!cabangId) throw new Error("Parameter cabangId wajib diisi (?cabangId=...).");
+
+      const listRes = listCabang_impl_();
+      const getCabangRes = getCabang_impl_(cabangId);
+      const airRes = getBiayaAir_impl_(cabangId);
+      const listrikRes = getBiayaListrik_impl_(cabangId);
+      const gasRes = listBiayaGas_impl_(cabangId);
+      const hppRes = getStrukturBiayaHPPFast_(cabangId);
+
+      payload = {
+        ok: true,
+        action: action,
+        listCabang: { ok: listRes.ok, total: listRes.ok ? listRes.data.length : null, error: listRes.error },
+        getCabang: { ok: getCabangRes.ok, namaLaundry: getCabangRes.ok ? getCabangRes.data.cabang.profil.namaLaundry : null, error: getCabangRes.error },
+        biayaAir: { ok: airRes.ok, hargaPerM3: airRes.ok ? airRes.data.record.hargaPerM3 : null, biayaPerLoad: airRes.ok ? airRes.data.summary.biayaPerLoad : null },
+        biayaListrik: { ok: listrikRes.ok, tdlPerKwh: listrikRes.ok ? listrikRes.data.record.tdlPerKwh : null },
+        listBiayaGas: { ok: gasRes.ok, totalItem: gasRes.ok ? gasRes.data.items.length : null },
+        hpp: { ok: hppRes.ok, source: hppRes._source, layananCuciSaja: hppRes.ok && hppRes.data.layanan ? (hppRes.data.layanan.find ? (hppRes.data.layanan.find(function(l){return l.key==="cuci_saja";}) || {}).total : null) : null },
+      };
     } else if (action === "cleanupTestTenant") {
       // Hapus data uji dari eksperimen paling awal (path tenantId palsu
       // "test-tenant", sebelum bug tenantId asli diperbaiki). Aman -- tidak
