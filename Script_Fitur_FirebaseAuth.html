@@ -1,0 +1,42 @@
+<!--
+===============================================================================
+FILE: Script_Fitur_FirebaseAuth.html
+EKSPERIMEN VALIDASI (2026-07-21): cek apakah Firebase Auth (magic link) bisa
+menyelesaikan proses sign-in dari DALAM iframe sandbox Apps Script
+(n-xxxx-script.googleusercontent.com), yang beda origin dari domain utama
+(script.google.com). TIDAK auto-jalan untuk user manapun -- cuma memuat SDK
+& expose 1 fungsi tes global (window.testFirebaseMagicLink_), dipicu manual
+lewat javascript_tool saat development. Akan dirapikan/diganti alur
+pendaftaran asli setelah validasi lolos, atau dihapus kalau ternyata gagal.
+===============================================================================
+-->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script>
+"use strict";
+try {
+  var firebaseConfig_ = {
+    apiKey: "AIzaSyC06_ALEXOK9R_aL7bSvII7u_d0ANlSyk",
+    authDomain: "secret-cipher-488105-f2.firebaseapp.com",
+    projectId: "secret-cipher-488105-f2",
+    storageBucket: "secret-cipher-488105-f2.firebasestorage.app",
+    messagingSenderId: "339840190577",
+    appId: "1:339840190577:web:191a61ca0302b8ba7533d0",
+  };
+  firebase.initializeApp(firebaseConfig_);
+  console.log("[FirebaseAuthTest] init OK, origin ini:", window.location.origin);
+} catch (e) {
+  console.error("[FirebaseAuthTest] init GAGAL:", e);
+}
+
+window.testFirebaseMagicLink_ = function (email) {
+  return firebase.auth().sendSignInLinkToEmail(email, {
+    url: window.location.href,
+    handleCodeInApp: true,
+  }).then(function () {
+    return { ok: true, origin: window.location.origin };
+  }).catch(function (err) {
+    return { ok: false, code: err.code, message: err.message, origin: window.location.origin };
+  });
+};
+</script>
