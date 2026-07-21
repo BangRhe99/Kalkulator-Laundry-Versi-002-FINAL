@@ -258,9 +258,11 @@ function saveBiayaTetapOutlet_impl_(cabangId, payload) {
       };
     });
     // best-effort DI LUAR lock (supaya HTTP Firestore tidak menahan kunci global)
+    // TIDAK perlu recompute HPP -- Biaya Tetap Outlet tidak memengaruhi
+    // rumus HPP per-load (hanya fixed cost/BEP di Dashboard), jadi cukup
+    // sinkron 1 dokumen ini saja, tanpa 1 write tambahan yang sia-sia.
     if (tetapResult && tetapResult.ok) {
-      firestoreSyncConfigDoc_(cabangId, "tetapOutlet", tetapResult.data.record);
-      refreshFirestoreForCabang_(cabangId);
+      firestoreSyncConfigDoc_(cabangId, "tetapOutlet", tetapResult.data.record); // best-effort (non-fatal)
     }
     return tetapResult;
   } catch (err) {

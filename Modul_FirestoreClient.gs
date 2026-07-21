@@ -205,6 +205,40 @@ function firestoreSet_(relPath, data, updateMaskFields) {
 }
 
 /**
+ * [OPTIMASI LATENSI, 2026-07-21] Gabungkan BEBERAPA operasi tulis/hapus
+ * (boleh ke dokumen BERBEDA-BEDA) jadi SATU HTTP call lewat endpoint
+ * `:commit` Firestore -- dipakai supaya 2 write yang tadinya berurutan
+ * (misal: simpan 1 config + update cache HPP) tidak jadi 2 round-trip
+ * network terpisah, cukup 1. Terbukti perlu: dual-write pertama kali
+ * (2 firestoreSet_ berurutan per simpan) diukur ~1 detik lebih lambat
+ * dari yang dibutuhkan.
+ *
+ * writeSpecs: array of either
+ *   { relPath, data, updateMaskFields? }  -> upsert/update
+ *   { deletePath }                        -> hapus dokumen itu
+ */
+function firestoreCommit_(writeSpecs) {
+  if (!writeSpecs || !writeSpecs.length) return null;
+  var projectId = firestoreProjectId_();
+  var writes = writeSpecs.map(function (spec) {
+    if (spec.deletePath) {
+      return { delete: "projects/" + projectId + "/databases/(default)/documents/" + spec.deletePath };
+    }
+    var write = {
+      update: {
+        name: "projects/" + projectId + "/databases/(default)/documents/" + spec.relPath,
+        fields: firestoreToFields_(spec.data),
+      },
+    };
+    if (spec.updateMaskFields && spec.updateMaskFields.length) {
+      write.updateMask = { fieldPaths: spec.updateMaskFields };
+    }
+    return write;
+  });
+  return firestoreFetch_("post", firestoreBaseUrl_() + ":commit", { writes: writes });
+}
+
+/**
  * Ambil banyak dokumen sekaligus dalam SATU HTTP call (bukan 1 request per
  * dokumen) -- ini yang dipakai recomputeCabangSummary_ nanti supaya baca
  * config/air + config/listrik + dst tidak jadi banyak round-trip terpisah.

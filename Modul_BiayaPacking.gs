@@ -236,8 +236,7 @@ function createBiayaPacking_impl_(payload) {
 
     writeKeyAndAppendOrder_(sheet, "biayaPacking_" + clean.id, JSON.stringify(clean), KEY_BIAYA_PACKING_ORDER, clean.id);
 
-    firestoreSyncSubItem_(clean.cabangId, "packing", clean); // best-effort (non-fatal)
-    refreshFirestoreForCabang_(clean.cabangId); // best-effort: perbarui cache HPP Firestore (non-fatal)
+    firestoreSyncSubItemAndRecompute_(clean.cabangId, "packing", clean); // best-effort, 1 HTTP call (non-fatal)
 
     return { ok: true, data: { record: clean, summary: computeBiayaPackingSummary_(clean) } };
   } catch (err) {
@@ -282,8 +281,7 @@ function updateBiayaPacking_impl_(id, payload) {
     }
 
     writeKey_(sheet, "biayaPacking_" + id, JSON.stringify(clean));
-    firestoreSyncSubItem_(clean.cabangId, "packing", clean); // best-effort (non-fatal)
-    refreshFirestoreForCabang_(clean.cabangId); // best-effort: perbarui cache HPP Firestore (non-fatal)
+    firestoreSyncSubItemAndRecompute_(clean.cabangId, "packing", clean); // best-effort, 1 HTTP call (non-fatal)
     return { ok: true, data: { record: clean, summary: computeBiayaPackingSummary_(clean) } };
   } catch (err) {
     return errorResponse_(err, "updateBiayaPacking");
@@ -310,8 +308,7 @@ function deleteBiayaPacking_impl_(id) {
     deleteKeyRow_(sheet, "biayaPacking_" + id);
     removeFromOrder_(sheet, KEY_BIAYA_PACKING_ORDER, id);
     if (cabangIdRec) {
-      firestoreDeleteSubDoc_(cabangIdRec, "packing", id); // best-effort: hapus dokumen Firestore-nya juga
-      refreshFirestoreForCabang_(cabangIdRec); // best-effort (non-fatal)
+      firestoreDeleteSubDocAndRecompute_(cabangIdRec, "packing", id); // best-effort, 1 HTTP call (non-fatal)
     }
     return { ok: true, data: { id: id } };
   } catch (err) {

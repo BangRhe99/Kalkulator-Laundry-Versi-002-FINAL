@@ -182,6 +182,130 @@ function firestoreSyncHppToggles_(cabangId) {
   }
 }
 
+// ============================================================================
+// [OPTIMASI BATCH, 2026-07-21] Versi gabungan di atas -- setiap titik simpan
+// yang butuh SYNC 1 dokumen + RECOMPUTE HPP (2 write ke dokumen berbeda)
+// digabung jadi SATU HTTP call lewat firestoreCommit_ (bukan 2 firestoreSet_
+// berurutan). Diukur: turun ~1 detik/simpan dibanding 2 panggilan terpisah.
+// ============================================================================
+
+/** Hitung HPP (Sheets) & bentuk write-spec `computed` -- TIDAK mengirim apapun, cuma menyiapkan. */
+function buildComputedWriteSpec_(tenantId, cabangId) {
+  if (typeof _strukturBiayaHPPCache_ !== "undefined" && _strukturBiayaHPPCache_ && _strukturBiayaHPPCache_[cabangId]) {
+    delete _strukturBiayaHPPCache_[cabangId];
+  }
+  const hppRes = getStrukturBiayaHPP_impl_(cabangId);
+  if (!hppRes || !hppRes.ok) return null;
+  return {
+    relPath: firestoreCabangDocPath_(tenantId, cabangId),
+    data: { computed: { hpp: hppRes.data, computedAt: new Date() } },
+    updateMaskFields: ["computed"],
+  };
+}
+
+/** Sinkron 1 dokumen config 1:1 + recompute HPP, DIGABUNG jadi 1 HTTP call. BEST-EFFORT. */
+function firestoreSyncConfigDocAndRecompute_(cabangId, docName, record) {
+  try {
+    const tenantId = activeDataSpreadsheetId_();
+    if (!tenantId) return;
+    const writeSpecs = [{ relPath: firestoreCabangDocPath_(tenantId, cabangId) + "/config/" + docName, data: record }];
+    const computedSpec = buildComputedWriteSpec_(tenantId, cabangId);
+    if (computedSpec) writeSpecs.push(computedSpec);
+    firestoreCommit_(writeSpecs);
+  } catch (err) {
+    console.warn("firestoreSyncConfigDocAndRecompute_(" + docName + ") gagal (non-fatal): " + err);
+  }
+}
+
+/** Sinkron 1 item subkoleksi (gas/chemical/packing) + recompute HPP, DIGABUNG. BEST-EFFORT. */
+function firestoreSyncSubItemAndRecompute_(cabangId, subcollection, record) {
+  try {
+    const tenantId = activeDataSpreadsheetId_();
+    if (!tenantId || !record || !record.id) return;
+    const writeSpecs = [{ relPath: firestoreCabangDocPath_(tenantId, cabangId) + "/" + subcollection + "/" + record.id, data: record }];
+    const computedSpec = buildComputedWriteSpec_(tenantId, cabangId);
+    if (computedSpec) writeSpecs.push(computedSpec);
+    firestoreCommit_(writeSpecs);
+  } catch (err) {
+    console.warn("firestoreSyncSubItemAndRecompute_(" + subcollection + ") gagal (non-fatal): " + err);
+  }
+}
+
+/** Hapus 1 item subkoleksi + recompute HPP, DIGABUNG (delete + update dlm 1 commit). BEST-EFFORT. */
+function firestoreDeleteSubDocAndRecompute_(cabangId, subcollection, itemId) {
+  try {
+    const tenantId = activeDataSpreadsheetId_();
+    if (!tenantId || !cabangId || !itemId) return;
+    const writeSpecs = [{ deletePath: firestoreCabangDocPath_(tenantId, cabangId) + "/" + subcollection + "/" + itemId }];
+    const computedSpec = buildComputedWriteSpec_(tenantId, cabangId);
+    if (computedSpec) writeSpecs.push(computedSpec);
+    firestoreCommit_(writeSpecs);
+  } catch (err) {
+    console.warn("firestoreDeleteSubDocAndRecompute_(" + subcollection + ") gagal (non-fatal): " + err);
+  }
+}
+
+/**
+ * Sinkron profil Cabang + recompute HPP -- KEDUANYA menyentuh dokumen Cabang
+ * yang SAMA, jadi cukup 1 PATCH biasa (bukan perlu :commit sama sekali,
+ * lebih murah lagi dari kasus lain yg beda dokumen). BEST-EFFORT.
+ */
+function firestoreSyncCabangProfilAndRecompute_(cabangId, cabang) {
+  try {
+    const tenantId = activeDataSpreadsheetId_();
+    if (!tenantId) return;
+    if (typeof _strukturBiayaHPPCache_ !== "undefined" && _strukturBiayaHPPCache_ && _strukturBiayaHPPCache_[cabangId]) {
+      delete _strukturBiayaHPPCache_[cabangId];
+    }
+    const hppRes = getStrukturBiayaHPP_impl_(cabangId);
+    const data = {
+      profil: cabang.profil,
+      mesinCuci: cabang.mesinCuci,
+      mesinPengering: cabang.mesinPengering,
+      mesinSetrika: cabang.mesinSetrika,
+      kategoriLayanan: cabang.kategoriLayanan,
+      okupansi: cabang.okupansi,
+      createdAt: cabang.createdAt,
+      updatedAt: cabang.updatedAt,
+    };
+    const maskFields = ["profil", "mesinCuci", "mesinPengering", "mesinSetrika", "kategoriLayanan", "okupansi", "createdAt", "updatedAt"];
+    if (hppRes && hppRes.ok) {
+      data.computed = { hpp: hppRes.data, computedAt: new Date() };
+      maskFields.push("computed");
+    }
+    firestoreSet_(firestoreCabangDocPath_(tenantId, cabangId), data, maskFields);
+  } catch (err) {
+    console.warn("firestoreSyncCabangProfilAndRecompute_ gagal (non-fatal): " + err);
+  }
+}
+
+/** Sinkron config/hppToggles + recompute HPP, DIGABUNG jadi 1 HTTP call. BEST-EFFORT. */
+function firestoreSyncHppTogglesAndRecompute_(cabangId) {
+  try {
+    const tenantId = activeDataSpreadsheetId_();
+    if (!tenantId) return;
+    const layananAktif = {};
+    STRUKTUR_HPP_TOGGLABLE_KEYS_.forEach(function (key) {
+      if (key === STRUKTUR_HPP_SERVICE_KEYS_.BED_COVER) return;
+      layananAktif[key] = isHPPLayananAktif_(cabangId, key);
+    });
+    const bepMixRaw = readKey_(ensureDataSheet_(), "bepMix_" + cabangId);
+    let bepMix = null;
+    if (bepMixRaw) {
+      try { bepMix = JSON.parse(bepMixRaw).mix || null; } catch (e) { bepMix = null; }
+    }
+    const writeSpecs = [{
+      relPath: firestoreCabangDocPath_(tenantId, cabangId) + "/config/hppToggles",
+      data: { bedCoverAktif: isBedCoverAktif_(cabangId), layananAktif: layananAktif, bepMix: bepMix || {} },
+    }];
+    const computedSpec = buildComputedWriteSpec_(tenantId, cabangId);
+    if (computedSpec) writeSpecs.push(computedSpec);
+    firestoreCommit_(writeSpecs);
+  } catch (err) {
+    console.warn("firestoreSyncHppTogglesAndRecompute_ gagal (non-fatal): " + err);
+  }
+}
+
 /**
  * Hapus 1 dokumen di subkoleksi (gas/chemical/packing) cabang tertentu --
  * dipanggil SEBELUM refreshFirestoreForCabang_ saat user menghapus 1 item,
