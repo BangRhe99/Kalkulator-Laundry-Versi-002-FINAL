@@ -247,6 +247,33 @@ function handleFirestoreDiagnostic_(e) {
       const saveRes = saveBiayaAir_impl_(cabangId, airNow.data.record);
       const totalMs = Date.now() - t0;
       payload = { ok: true, action: action, cabangId: cabangId, saveOk: saveRes.ok, totalMs: totalMs };
+    } else if (action === "breakdownSave") {
+      // Urai latensi: berapa dari Sheets (writeKey_ + hitung HPP) vs berapa
+      // dari 2 panggilan Firestore (sync config doc + recompute).
+      const cabangId = params.cabangId;
+      if (!cabangId) throw new Error("Parameter cabangId wajib diisi (?cabangId=...).");
+      const airNow = getBiayaAir_impl_(cabangId);
+      if (!airNow.ok) throw new Error("getBiayaAir gagal: " + airNow.error);
+
+      const t0 = Date.now();
+      const sheet = ensureDataSheet_();
+      writeKey_(sheet, "biayaAir_" + cabangId, JSON.stringify(airNow.data.record));
+      const sheetsWriteMs = Date.now() - t0;
+
+      const t1 = Date.now();
+      firestoreSyncConfigDoc_(cabangId, "air", airNow.data.record);
+      const firestoreSyncMs = Date.now() - t1;
+
+      const t2 = Date.now();
+      if (typeof _strukturBiayaHPPCache_ !== "undefined") delete _strukturBiayaHPPCache_[cabangId];
+      const hppRes = getStrukturBiayaHPP_impl_(cabangId);
+      const sheetsHppComputeMs = Date.now() - t2;
+
+      const t3 = Date.now();
+      recomputeCabangSummary_(cabangId);
+      const firestoreRecomputeMs = Date.now() - t3;
+
+      payload = { ok: true, action: action, cabangId: cabangId, sheetsWriteMs: sheetsWriteMs, firestoreSyncConfigMs: firestoreSyncMs, sheetsHppComputeMs: sheetsHppComputeMs, firestoreRecomputeWriteMs: firestoreRecomputeMs, total: sheetsWriteMs + firestoreSyncMs + sheetsHppComputeMs + firestoreRecomputeMs };
     } else if (action === "cleanupTestTenant") {
       // Hapus data uji dari eksperimen paling awal (path tenantId palsu
       // "test-tenant", sebelum bug tenantId asli diperbaiki). Aman -- tidak
