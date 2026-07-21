@@ -156,7 +156,9 @@ function withTenant_(sessionToken, fn) {
 // script.external_request yang dibutuhkan UrlFetchApp. Jadi cukup jalankan
 // fungsi ini SEKALI dari editor (dengan Code.gs tetap terbuka), setujui layar
 // izinnya, dan koneksi Firestore langsung ikut teruji. Aman dihapus setelah itu.
-function otorisasiFirestore_() {
+// PENTING: nama TANPA garis bawah di belakang, supaya MUNCUL di dropdown
+// "pilih fungsi" editor. Apps Script menyembunyikan fungsi berakhiran "_".
+function otorisasiFirestore() {
   return testFirestoreConnection_();
 }
 
