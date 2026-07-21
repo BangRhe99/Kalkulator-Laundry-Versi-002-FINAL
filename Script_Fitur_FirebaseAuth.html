@@ -45,7 +45,7 @@ window.testFirebaseMagicLink_ = function (email) {
 
 (function () {
   var DEBUG_TOKEN_ = "fbtest-9a41c7e2";
-  var tplToken = "<?= debugFirebaseTestToken ?>";
+  var tplToken = window.__debugFirebaseTestToken || "";
   if (tplToken !== DEBUG_TOKEN_) return; // user biasa -- berhenti di sini, tidak jalan apapun
 
   function reportFirebaseTest_(ok, code, message) {
