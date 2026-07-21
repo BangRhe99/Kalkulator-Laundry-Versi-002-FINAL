@@ -90,23 +90,96 @@ function getStrukturBiayaHPPFast_(cabangId) {
 }
 
 /**
- * [DUAL-WRITE, 2026-07-21] Sinkronkan SEMUA data mentah 1 cabang (profil +
- * config air/listrik/notaKasir/tetapOutlet/hargaLayanan/hppToggles +
- * subkoleksi gas/chemical/packing, lihat migrateCabangFullConfig_ di
- * Modul_Firestore_HPP_Eksperimen.gs) DAN cache HPP-nya ke Firestore dalam
- * SATU panggilan. Dipanggil di SETIAP fungsi simpan yang menyentuh data
- * cabang -- supaya Firestore tidak lagi cuma snapshot sekali migrasi,
- * tapi ikut hidup/terbarui tiap kali user menyimpan. BEST-EFFORT PENUH:
- * kegagalan Firestore (jaringan/kuota) TIDAK PERNAH menggagalkan
- * penyimpanan ke Sheets (yang tetap sumber kebenaran).
+ * [DUAL-WRITE RINGAN, 2026-07-21 -- REVISI setelah diukur] Versi PERTAMA
+ * fungsi ini memanggil migrateCabangFullConfig_ (nulis ULANG SEMUA config +
+ * semua item gas/chemical/packing) di SETIAP simpan -- diukur 12 DETIK per
+ * simpan (15+ HTTP call berurutan ke Firestore). Itu regresi besar, BUKAN
+ * percepatan. Diganti total: sekarang cuma menyentuh DOKUMEN YANG BENAR-BENAR
+ * BERUBAH (lihat firestoreSyncConfigDoc_/firestoreSyncSubItem_/
+ * firestoreSyncCabangProfil_/firestoreSyncHppToggles_ di bawah) + 1 write
+ * recompute HPP -- total 2 HTTP call per simpan (~0.5-1 detik), BUKAN 15+.
+ *
+ * refreshFirestoreForCabang_ TETAP ADA (dipanggil dari titik yang TIDAK tahu
+ * field spesifik mana yang berubah, mis. delete Gas/Chemical/Packing) --
+ * TAPI sekarang cuma memanggil recomputeCabangSummary_ (murah), TIDAK LAGI
+ * migrateCabangFullConfig_ yang mahal. Sinkron dokumen spesifik dilakukan
+ * oleh firestoreSyncXxx_ di titik simpannya masing-masing.
  */
 function refreshFirestoreForCabang_(cabangId) {
+  return recomputeCabangSummary_(cabangId);
+}
+
+/** Sinkron 1 dokumen config 1:1 (air/listrik/notaKasir/tetapOutlet/hargaLayanan). BEST-EFFORT. */
+function firestoreSyncConfigDoc_(cabangId, docName, record) {
   try {
-    migrateCabangFullConfig_(cabangId);
+    const tenantId = activeDataSpreadsheetId_();
+    if (!tenantId) return;
+    firestoreSet_(firestoreCabangDocPath_(tenantId, cabangId) + "/config/" + docName, record);
   } catch (err) {
-    console.warn("refreshFirestoreForCabang_ (sync config) gagal utk " + cabangId + ": " + err);
+    console.warn("firestoreSyncConfigDoc_(" + docName + ") gagal (non-fatal): " + err);
   }
-  return recomputeCabangSummary_(cabangId); // sudah best-effort sendiri, sekaligus hitung HPP terbaru
+}
+
+/** Sinkron 1 item subkoleksi (gas/chemical/packing) setelah create/update. BEST-EFFORT. */
+function firestoreSyncSubItem_(cabangId, subcollection, record) {
+  try {
+    const tenantId = activeDataSpreadsheetId_();
+    if (!tenantId || !record || !record.id) return;
+    firestoreSet_(firestoreCabangDocPath_(tenantId, cabangId) + "/" + subcollection + "/" + record.id, record);
+  } catch (err) {
+    console.warn("firestoreSyncSubItem_(" + subcollection + ") gagal (non-fatal): " + err);
+  }
+}
+
+/** Sinkron field profil dokumen Cabang (bukan config/computed). BEST-EFFORT. */
+function firestoreSyncCabangProfil_(cabangId, cabang) {
+  try {
+    const tenantId = activeDataSpreadsheetId_();
+    if (!tenantId) return;
+    firestoreSet_(firestoreCabangDocPath_(tenantId, cabangId), {
+      profil: cabang.profil,
+      mesinCuci: cabang.mesinCuci,
+      mesinPengering: cabang.mesinPengering,
+      mesinSetrika: cabang.mesinSetrika,
+      kategoriLayanan: cabang.kategoriLayanan,
+      okupansi: cabang.okupansi,
+      createdAt: cabang.createdAt,
+      updatedAt: cabang.updatedAt,
+    }, ["profil", "mesinCuci", "mesinPengering", "mesinSetrika", "kategoriLayanan", "okupansi", "createdAt", "updatedAt"]);
+  } catch (err) {
+    console.warn("firestoreSyncCabangProfil_ gagal (non-fatal): " + err);
+  }
+}
+
+/**
+ * Sinkron config/hppToggles (gabungan bedCoverAktif + 6 toggle layanan +
+ * bepMix dari 3 sumber Sheets berbeda) -- dipanggil dari setBedCoverAktif_impl_
+ * / setHPPLayananAktif_impl_ / saveBepServiceMix_impl_ karena ketiganya
+ * berbagi SATU dokumen Firestore yang sama. Baca ulang dari Sheets murah
+ * (bukan Firestore), cuma 1 Firestore WRITE di akhir. BEST-EFFORT.
+ */
+function firestoreSyncHppToggles_(cabangId) {
+  try {
+    const tenantId = activeDataSpreadsheetId_();
+    if (!tenantId) return;
+    const layananAktif = {};
+    STRUKTUR_HPP_TOGGLABLE_KEYS_.forEach(function (key) {
+      if (key === STRUKTUR_HPP_SERVICE_KEYS_.BED_COVER) return;
+      layananAktif[key] = isHPPLayananAktif_(cabangId, key);
+    });
+    const bepMixRaw = readKey_(ensureDataSheet_(), "bepMix_" + cabangId);
+    let bepMix = null;
+    if (bepMixRaw) {
+      try { bepMix = JSON.parse(bepMixRaw).mix || null; } catch (e) { bepMix = null; }
+    }
+    firestoreSet_(firestoreCabangDocPath_(tenantId, cabangId) + "/config/hppToggles", {
+      bedCoverAktif: isBedCoverAktif_(cabangId),
+      layananAktif: layananAktif,
+      bepMix: bepMix || {},
+    });
+  } catch (err) {
+    console.warn("firestoreSyncHppToggles_ gagal (non-fatal): " + err);
+  }
 }
 
 /**

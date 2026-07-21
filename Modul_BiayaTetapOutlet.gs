@@ -258,7 +258,10 @@ function saveBiayaTetapOutlet_impl_(cabangId, payload) {
       };
     });
     // best-effort DI LUAR lock (supaya HTTP Firestore tidak menahan kunci global)
-    if (tetapResult && tetapResult.ok) refreshFirestoreForCabang_(cabangId);
+    if (tetapResult && tetapResult.ok) {
+      firestoreSyncConfigDoc_(cabangId, "tetapOutlet", tetapResult.data.record);
+      refreshFirestoreForCabang_(cabangId);
+    }
     return tetapResult;
   } catch (err) {
     return biayaTetapErrorResponse_(err, "saveBiayaTetapOutlet");

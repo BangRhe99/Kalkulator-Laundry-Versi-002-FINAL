@@ -238,6 +238,7 @@ function createBiayaGas_impl_(payload) {
 
     writeKeyAndAppendOrder_(sheet, "biayaGas_" + clean.id, JSON.stringify(clean), KEY_BIAYA_GAS_ORDER, clean.id);
 
+    firestoreSyncSubItem_(clean.cabangId, "gas", clean); // best-effort (non-fatal)
     refreshFirestoreForCabang_(clean.cabangId); // best-effort: perbarui cache HPP Firestore (non-fatal)
 
     return { ok: true, data: { record: clean, summary: computeBiayaGasSummary_(clean, cabang) } };
@@ -292,6 +293,7 @@ function updateBiayaGas_impl_(id, payload) {
     }
 
     writeKey_(sheet, "biayaGas_" + id, JSON.stringify(clean));
+    firestoreSyncSubItem_(clean.cabangId, "gas", clean); // best-effort (non-fatal)
     refreshFirestoreForCabang_(clean.cabangId); // best-effort: perbarui cache HPP Firestore (non-fatal)
     return { ok: true, data: { record: clean, summary: computeBiayaGasSummary_(clean, cabang) } };
   } catch (err) {

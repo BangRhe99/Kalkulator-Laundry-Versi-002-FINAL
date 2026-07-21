@@ -236,6 +236,7 @@ function createBiayaPacking_impl_(payload) {
 
     writeKeyAndAppendOrder_(sheet, "biayaPacking_" + clean.id, JSON.stringify(clean), KEY_BIAYA_PACKING_ORDER, clean.id);
 
+    firestoreSyncSubItem_(clean.cabangId, "packing", clean); // best-effort (non-fatal)
     refreshFirestoreForCabang_(clean.cabangId); // best-effort: perbarui cache HPP Firestore (non-fatal)
 
     return { ok: true, data: { record: clean, summary: computeBiayaPackingSummary_(clean) } };
@@ -281,6 +282,7 @@ function updateBiayaPacking_impl_(id, payload) {
     }
 
     writeKey_(sheet, "biayaPacking_" + id, JSON.stringify(clean));
+    firestoreSyncSubItem_(clean.cabangId, "packing", clean); // best-effort (non-fatal)
     refreshFirestoreForCabang_(clean.cabangId); // best-effort: perbarui cache HPP Firestore (non-fatal)
     return { ok: true, data: { record: clean, summary: computeBiayaPackingSummary_(clean) } };
   } catch (err) {

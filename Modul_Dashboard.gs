@@ -937,7 +937,7 @@ function saveBepServiceMix_impl_(cabangId, mixMap) {
       updatedAt: new Date().toISOString()
     }));
 
-    refreshFirestoreForCabang_(cleanId); // best-effort: sinkronkan Firestore (non-fatal)
+    firestoreSyncHppToggles_(cleanId); // best-effort (non-fatal)
 
     return { ok: true, data: { cabangId: cleanId, mix: cleanMix } };
   } catch (err) {

@@ -208,6 +208,7 @@ function createBiayaChemical_impl_(payload) {
 
     writeKeyAndAppendOrder_(sheet, "biayaChemical_" + clean.id, JSON.stringify(clean), KEY_BIAYA_CHEMICAL_ORDER, clean.id);
 
+    firestoreSyncSubItem_(clean.cabangId, "chemical", clean); // best-effort (non-fatal)
     refreshFirestoreForCabang_(clean.cabangId); // best-effort: perbarui cache HPP Firestore (non-fatal)
 
     return { ok: true, data: { record: clean, summary: computeBiayaChemicalSummary_(clean, cabang) } };
@@ -259,6 +260,7 @@ function updateBiayaChemical_impl_(id, payload) {
     }
 
     writeKey_(sheet, "biayaChemical_" + id, JSON.stringify(clean));
+    firestoreSyncSubItem_(clean.cabangId, "chemical", clean); // best-effort (non-fatal)
     refreshFirestoreForCabang_(clean.cabangId); // best-effort: perbarui cache HPP Firestore (non-fatal)
     return { ok: true, data: { record: clean, summary: computeBiayaChemicalSummary_(clean, cabang) } };
   } catch (err) {

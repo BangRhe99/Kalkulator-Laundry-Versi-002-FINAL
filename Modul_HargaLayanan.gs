@@ -193,7 +193,7 @@ function saveHargaLayanan_impl_(cabangId, payload) {
 
     writeKey_(sheet, getHargaLayananKey_(cleanCabangId), JSON.stringify(record));
 
-    refreshFirestoreForCabang_(cleanCabangId); // best-effort: sinkronkan Firestore (non-fatal)
+    firestoreSyncConfigDoc_(cleanCabangId, "hargaLayanan", record); // best-effort (non-fatal)
 
     return getHargaLayanan_impl_(cleanCabangId);
   } catch (err) {
