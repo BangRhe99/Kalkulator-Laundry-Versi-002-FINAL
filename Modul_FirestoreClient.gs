@@ -245,6 +245,16 @@ function firestoreBatchGet_(relPaths) {
   return out;
 }
 
+/** Hapus 1 dokumen di relPath. Tidak error kalau dokumen memang tidak ada. */
+function firestoreDeleteDoc_(relPath) {
+  try {
+    firestoreFetch_("delete", firestoreBaseUrl_() + "/" + relPath);
+  } catch (err) {
+    if (String(err).indexOf("(404)") !== -1) return;
+    throw err;
+  }
+}
+
 /** List semua dokumen di subkoleksi, mis. parentRelPath="tenants/x/cabang/y", collectionId="gas". */
 function firestoreListCollection_(parentRelPath, collectionId) {
   var url = firestoreBaseUrl_() + "/" + parentRelPath + "/" + collectionId;

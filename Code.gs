@@ -213,6 +213,14 @@ function handleFirestoreDiagnostic_(e) {
       const hppAsli = firestoreSnapshotHPP_(cabangId);
       const dariFirestore = firestoreReadCabangWithHPP_(cabangId);
       payload = { ok: true, action: action, cabangId: cabangId, hppAsli: hppAsli, dariFirestore: dariFirestore };
+    } else if (action === "recomputeAll") {
+      payload = { ok: true, action: action, result: recomputeAllCabang_() };
+    } else if (action === "fastRead") {
+      const cabangId = params.cabangId;
+      if (!cabangId) throw new Error("Parameter cabangId wajib diisi (?cabangId=...).");
+      const t0 = Date.now();
+      const hasil = getStrukturBiayaHPPFast_(cabangId);
+      payload = { ok: true, action: action, cabangId: cabangId, ms: Date.now() - t0, source: hasil && hasil._source, computedAt: hasil && hasil._computedAt, hpp: hasil && hasil.data };
     } else {
       throw new Error("action tidak dikenal: " + action);
     }

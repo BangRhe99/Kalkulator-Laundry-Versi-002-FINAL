@@ -60,6 +60,15 @@ function setActiveDataSpreadsheet_(ss) {
   _activeDataSpreadsheet_ = ss || null;
 }
 
+// [2026-07-21] ID spreadsheet tenant yang sedang aktif -- dipakai layer
+// Firestore sebagai tenantId (unik & stabil per tenant). Baca-saja. Menjaga
+// aturan "hanya file ini yang menyentuh SpreadsheetApp": modul lain memanggil
+// helper ini, bukan mengakses _activeDataSpreadsheet_ / SpreadsheetApp langsung.
+function activeDataSpreadsheetId_() {
+  const ss = _activeDataSpreadsheet_ || SpreadsheetApp.getActiveSpreadsheet();
+  return ss ? ss.getId() : null;
+}
+
 function ensureDataSheet_() {
   const ss = _activeDataSpreadsheet_ || SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(DATA_SHEET_NAME);
