@@ -151,6 +151,9 @@ function withTenant_(sessionToken, fn) {
 // ----------------------------------------------------------------------------
 
 function doGet(e) {
+  const diag = handleFirestoreDiagnostic_(e);
+  if (diag) return diag;
+
   return HtmlService
     .createTemplateFromFile("Index")
     .evaluate()
@@ -160,6 +163,48 @@ function doGet(e) {
       "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
     )
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/**
+ * [SEMENTARA -- HAPUS SETELAH TES FIRESTORE SELESAI] Editor Apps Script di
+ * browser gagal dipakai untuk menjalankan fungsi manual (dropdown pemilih
+ * fungsi tidak merespons klik, dialami juga oleh pemilik project di project
+ * lain) -- jadi diagnostik ini dijalankan lewat HTTP (query param) sebagai
+ * gantinya. Dikunci token acak supaya tidak bisa dipanggil orang lain.
+ * TIDAK menyentuh withTenant_/sesi user manapun, hanya memanggil fungsi
+ * eksperimen Firestore yang sudah ada di Modul_FirestoreClient.gs dan
+ * Modul_Firestore_HPP_Eksperimen.gs.
+ */
+function handleFirestoreDiagnostic_(e) {
+  const params = (e && e.parameter) || {};
+  const token = params.firestoreDiag;
+  if (!token) return null;
+  if (token !== "8412188cde1b9f15bd1b4e16fab72db57634ba4dabf2966f") return null;
+
+  let payload;
+  try {
+    const action = params.action || "testConnection";
+    if (action === "testConnection") {
+      payload = { ok: true, action: action, result: testFirestoreConnection_() };
+    } else if (action === "listCabang") {
+      payload = { ok: true, action: action, result: listCabangIdsForTest_() };
+    } else if (action === "hppRoundtrip") {
+      const cabangId = params.cabangId;
+      if (!cabangId) throw new Error("Parameter cabangId wajib diisi (?cabangId=...).");
+      firestoreMigrateCabangConfig_(cabangId);
+      const hppAsli = firestoreSnapshotHPP_(cabangId);
+      const dariFirestore = firestoreReadCabangWithHPP_(cabangId);
+      payload = { ok: true, action: action, cabangId: cabangId, hppAsli: hppAsli, dariFirestore: dariFirestore };
+    } else {
+      throw new Error("action tidak dikenal: " + action);
+    }
+  } catch (err) {
+    payload = { ok: false, error: err && err.message ? err.message : String(err) };
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify(payload, null, 2))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function include(filename) {
