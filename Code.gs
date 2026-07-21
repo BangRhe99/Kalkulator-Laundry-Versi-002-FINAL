@@ -235,6 +235,18 @@ function handleFirestoreDiagnostic_(e) {
         hppToggles: firestoreGet_(path + "/config/hppToggles"),
       };
       payload = { ok: true, action: action, tenantId: tenantId, cabangId: cabangId, namaLaundry: doc && doc.profil && doc.profil.namaLaundry, hasComputed: !!(doc && doc.computed), hasProfil: !!(doc && doc.profil), configDocsFound: Object.keys(configDocs).filter(function (k) { return !!configDocs[k]; }) };
+    } else if (action === "timeSaveAir") {
+      // Ukur latensi SESUNGGUHNYA saat menyimpan Air, sekarang dgn dual-write
+      // penuh (bukan cuma recompute HPP) -- utk pastikan tidak ada regresi
+      // kecepatan simpan yang tidak disadari.
+      const cabangId = params.cabangId;
+      if (!cabangId) throw new Error("Parameter cabangId wajib diisi (?cabangId=...).");
+      const airNow = getBiayaAir_impl_(cabangId);
+      if (!airNow.ok) throw new Error("getBiayaAir gagal: " + airNow.error);
+      const t0 = Date.now();
+      const saveRes = saveBiayaAir_impl_(cabangId, airNow.data.record);
+      const totalMs = Date.now() - t0;
+      payload = { ok: true, action: action, cabangId: cabangId, saveOk: saveRes.ok, totalMs: totalMs };
     } else if (action === "cleanupTestTenant") {
       // Hapus data uji dari eksperimen paling awal (path tenantId palsu
       // "test-tenant", sebelum bug tenantId asli diperbaiki). Aman -- tidak
