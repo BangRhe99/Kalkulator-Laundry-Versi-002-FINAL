@@ -186,6 +186,8 @@ function handleFirestoreDiagnostic_(e) {
     const action = params.action || "testConnection";
     if (action === "testConnection") {
       payload = { ok: true, action: action, result: testFirestoreConnection_() };
+    } else if (action === "inspectKey") {
+      payload = { ok: true, action: action, result: firestoreDebugInspectKey_() };
     } else if (action === "listCabang") {
       payload = { ok: true, action: action, result: listCabangIdsForTest_() };
     } else if (action === "hppRoundtrip") {

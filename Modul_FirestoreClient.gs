@@ -88,6 +88,23 @@ function firestoreAccessToken_() {
   return body.access_token;
 }
 
+/** [SEMENTARA -- debug] Cek bentuk private key yang tersimpan TANPA membocorkan isinya. */
+function firestoreDebugInspectKey_() {
+  var props = PropertiesService.getScriptProperties();
+  var raw = props.getProperty("FIRESTORE_PRIVATE_KEY") || "";
+  var normalized = raw.replace(/\\n/g, "\n");
+  return {
+    rawLength: raw.length,
+    rawFirst25: raw.slice(0, 25),
+    rawLast25: raw.slice(-25),
+    hasLiteralBackslashN: raw.indexOf("\\n") !== -1,
+    hasRealNewline: raw.indexOf("\n") !== -1,
+    normalizedLineCount: normalized.split("\n").length,
+    startsWithBegin: normalized.trim().indexOf("-----BEGIN PRIVATE KEY-----") === 0,
+    endsWithEnd: normalized.trim().slice(-25) === "-----END PRIVATE KEY-----",
+  };
+}
+
 function firestoreBase64Url_(str) {
   return Utilities.base64EncodeWebSafe(Utilities.newBlob(str).getBytes()).replace(/=+$/, "");
 }
