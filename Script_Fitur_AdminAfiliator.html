@@ -13,6 +13,12 @@ FUNGSI:
 2. openConfirmDeleteAccount/confirmDeleteAccountNow: hapus akun permanen
    (adminDeleteAccount) - reuse #confirmOverlay bersama (sama seperti hapus
    item Chemical/Packing/dst, lihat Script_Fitur_Cabang.html utk closeConfirm).
+3. adminSendPasswordReset: [2026-07-22] admin kirim link reset password ke
+   user yang lupa password - SENGAJA TIDAK ADA fitur lihat password (password
+   di-hash satu-arah, tidak mungkin & tidak boleh dibalik ke bentuk asli).
+   Reuse alur publik requestPasswordReset + authFirebaseSendMagicLink_ yang
+   sama persis dgn "Lupa Password" biasa (Script_Fitur_Auth.html) - admin
+   cuma memicu, TIDAK PERNAH melihat/menyimpan password.
 Backend yang menegakkan "hanya admin boleh" (cek session.email) - kartu menu
 & layar ini di client cuma disembunyikan utk user lain (authApplyAdminUI_,
 Script_Fitur_Auth.html), BUKAN satu-satunya lapisan keamanan.
@@ -80,7 +86,10 @@ Include SEBELUM Script_Boot_Main.html.
       cells += '<div class="gas-result-cell"><div class="label">Terdaftar</div><div class="val" style="font-size:13px;">' + escapeHtml(adminFormatDate_(acc.createdAt)) + '</div></div>';
 
       var actions = acc.pending ? "" :
-        '<div class="actions"><button class="icon-btn" type="button" aria-label="Hapus akun" onclick="openConfirmDeleteAccount(\'' + escapeJsAttr(acc.email) + '\'); event.stopPropagation();">&#10005;</button></div>';
+        '<div class="actions">' +
+          '<button class="icon-btn" type="button" aria-label="Kirim link reset password" title="Kirim link reset password" onclick="adminSendPasswordReset(\'' + escapeJsAttr(acc.email) + '\', this); event.stopPropagation();">&#128231;</button>' +
+          '<button class="icon-btn" type="button" aria-label="Hapus akun" onclick="openConfirmDeleteAccount(\'' + escapeJsAttr(acc.email) + '\'); event.stopPropagation();">&#10005;</button>' +
+        '</div>';
 
       // [2026-07-14] SENGAJA tidak ada tombol aksi admin di sini utk akun yang
       // belum tersambung - provisioning HARUS dipicu oleh akun itu sendiri
@@ -116,6 +125,38 @@ Include SEBELUM Script_Boot_Main.html.
       if (onlineEl) onlineEl.textContent = String(res.data.totalOnline || 0);
     }, function () {});
   }
+
+  /**
+   * adminSendPasswordReset: admin bantu user yang lupa password TANPA
+   * pernah tahu password lama/barunya - reuse alur "Lupa Password" publik
+   * (requestPasswordReset, Modul_Auth.gs) lalu kirim magic link-nya lewat
+   * Firebase (authFirebaseSendMagicLink_, Script_Fitur_FirebaseAuth.html).
+   * User yang klik link itu sendiri yang set password baru (authScreenResetPassword)
+   * - admin sama sekali tidak terlibat di langkah itu.
+   */
+  window.adminSendPasswordReset = function (email, btn) {
+    if (btn) { btn.disabled = true; }
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok) {
+          if (btn) { btn.disabled = false; }
+          if (typeof showToast === "function") showToast((res && res.error) || "Gagal memproses permintaan.", "error");
+          return;
+        }
+        authFirebaseSendMagicLink_(email, "resetPassword").then(function () {
+          if (btn) { btn.disabled = false; }
+          if (typeof showToast === "function") showToast("Link reset password terkirim ke " + email + ".", "ok");
+        }).catch(function (err) {
+          if (btn) { btn.disabled = false; }
+          if (typeof showToast === "function") showToast(authMapFirebaseError_(err), "error");
+        });
+      })
+      .withFailureHandler(function (err) {
+        if (btn) { btn.disabled = false; }
+        if (typeof showToast === "function") showToast(err && err.message ? err.message : String(err), "error");
+      })
+      .requestPasswordReset(email);
+  };
 
   window.openConfirmDeleteAccount = function (email) {
     document.getElementById("confirmTitle").textContent = "Hapus akun ini?";
