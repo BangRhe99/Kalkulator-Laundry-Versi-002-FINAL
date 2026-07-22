@@ -164,27 +164,73 @@ Script_Fitur_FirebaseAuth.html (perlu wrapper authFirebase*_ dari situ).
       premiumLoaderShow({ status: "Memverifikasi akun Anda", mode: "await" });
     }
 
+    function loginFail_(msg) {
+      if (btn) { btn.disabled = false; btn.textContent = "Masuk"; }
+      if (typeof premiumLoaderFail === "function") premiumLoaderFail();
+      authShowError_("authLoginError", msg);
+    }
+    function loginOk_(res) {
+      if (btn) { btn.disabled = false; btn.textContent = "Masuk"; }
+      authSetLoggedIn_(res.data.email, res.data.sessionToken);
+      if (typeof premiumLoaderComplete === "function") {
+        premiumLoaderComplete(function () { authEnterApp_(); });
+      } else {
+        authEnterApp_();
+      }
+    }
+
+    // [2026-07-22 - PERFORMA] 2 jalur: kalau akun sudah hashVersion 3, hash
+    // dihitung DI BROWSER (authDeriveHash_, ~10ms) & server tinggal
+    // membandingkan string (loginUserV3, TANPA hashing di server -
+    // menghilangkan 6+ detik). Akun LAMA (belum pernah lewat sini) tetap
+    // pakai jalur lambat SEKALI (loginUser, password mentah, server yang
+    // hash) - lalu otomatis di-upgrade ke v3 di belakang layar supaya
+    // login BERIKUTNYA sudah cepat juga.
     google.script.run
-      .withSuccessHandler(function (res) {
-        if (btn) { btn.disabled = false; btn.textContent = "Masuk"; }
-        if (!res || !res.ok) {
-          if (typeof premiumLoaderFail === "function") premiumLoaderFail();
-          authShowError_("authLoginError", (res && res.error) || "Gagal masuk.");
+      .withSuccessHandler(function (saltRes) {
+        if (!saltRes || !saltRes.ok) {
+          loginFail_((saltRes && saltRes.error) || "Gagal memeriksa akun.");
           return;
         }
-        authSetLoggedIn_(res.data.email, res.data.sessionToken);
-        if (typeof premiumLoaderComplete === "function") {
-          premiumLoaderComplete(function () { authEnterApp_(); });
-        } else {
-          authEnterApp_();
+        if (saltRes.data.hashVersion === 3) {
+          authDeriveHash_(password, saltRes.data.salt).then(function (hash) {
+            google.script.run
+              .withSuccessHandler(function (res) {
+                if (!res || !res.ok) { loginFail_((res && res.error) || "Gagal masuk."); return; }
+                loginOk_(res);
+              })
+              .withFailureHandler(function (err) { loginFail_(err && err.message ? err.message : String(err)); })
+              .loginUserV3(email, hash);
+          }).catch(function (err) {
+            loginFail_(err && err.message ? err.message : String(err));
+          });
+          return;
         }
+
+        // Jalur lambat (akun belum ter-upgrade) - SAMA seperti sebelumnya.
+        google.script.run
+          .withSuccessHandler(function (res) {
+            if (!res || !res.ok) { loginFail_((res && res.error) || "Gagal masuk."); return; }
+            loginOk_(res);
+            // Upgrade ke hashVersion 3 di belakang layar - TIDAK menunda
+            // masuk app, gagal pun tidak masalah (tetap lewat jalur lambat
+            // lagi di login berikutnya, dicoba ulang otomatis nanti).
+            if (res.data.needsHashUpgrade && res.data.salt) {
+              authDeriveHash_(password, res.data.salt).then(function (hash) {
+                google.script.run
+                  .withSuccessHandler(function () {})
+                  .withFailureHandler(function () {})
+                  .upgradeAuthHashV3(res.data.sessionToken, hash);
+              }).catch(function () {});
+            }
+          })
+          .withFailureHandler(function (err) { loginFail_(err && err.message ? err.message : String(err)); })
+          .loginUser(email, password);
       })
       .withFailureHandler(function (err) {
-        if (btn) { btn.disabled = false; btn.textContent = "Masuk"; }
-        if (typeof premiumLoaderFail === "function") premiumLoaderFail();
-        authShowError_("authLoginError", err && err.message ? err.message : String(err));
+        loginFail_(err && err.message ? err.message : String(err));
       })
-      .loginUser(email, password);
+      .getAuthSalt(email);
   };
 
   window.submitAuthRegister = function () {
@@ -219,22 +265,30 @@ Script_Fitur_FirebaseAuth.html (perlu wrapper authFirebase*_ dari situ).
       authShowError_(elId || "authRegisterError", msg);
     }
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
-          doneFail_((res && res.error) || "Gagal mendaftar.");
-          return;
-        }
-        authFirebaseSendMagicLink_(res.data.email, "register").then(function () {
-          doneOk_(function () { authShowCheckEmail_(res.data.email, "register"); });
-        }).catch(function (err) {
-          doneFail_(authMapFirebaseError_(err));
-        });
-      })
-      .withFailureHandler(function (err) {
-        doneFail_(err && err.message ? err.message : String(err));
-      })
-      .registerUser(email, password);
+    // [2026-07-22 - PERFORMA] Hash dihitung DI BROWSER (~10ms) sebelum
+    // dikirim - server tidak pernah lihat password mentah utk akun baru,
+    // langsung hashVersion 3 (tidak pernah lewat jalur lambat).
+    var salt = authGenerateSalt_();
+    authDeriveHash_(password, salt).then(function (hash) {
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res || !res.ok) {
+            doneFail_((res && res.error) || "Gagal mendaftar.");
+            return;
+          }
+          authFirebaseSendMagicLink_(res.data.email, "register").then(function () {
+            doneOk_(function () { authShowCheckEmail_(res.data.email, "register"); });
+          }).catch(function (err) {
+            doneFail_(authMapFirebaseError_(err));
+          });
+        })
+        .withFailureHandler(function (err) {
+          doneFail_(err && err.message ? err.message : String(err));
+        })
+        .registerUser(email, salt, hash);
+    }).catch(function (err) {
+      doneFail_(err && err.message ? err.message : String(err));
+    });
   };
 
   // authShowCheckEmail_: tampilkan layar "Cek email Anda" (dipakai baik
@@ -326,27 +380,36 @@ Script_Fitur_FirebaseAuth.html (perlu wrapper authFirebase*_ dari situ).
     }
 
     if (btn) { btn.disabled = true; btn.textContent = "Memproses..."; }
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (btn) { btn.disabled = false; btn.textContent = "Reset Password"; }
-        if (!res || !res.ok) {
-          authShowError_("authResetError", (res && res.error) || "Gagal reset password.");
-          return;
-        }
-        var loginEmailEl = document.getElementById("authLoginEmail");
-        var loginPasswordEl = document.getElementById("authLoginPassword");
-        if (loginEmailEl) loginEmailEl.value = res.data.email;
-        if (loginPasswordEl) loginPasswordEl.value = "";
-        authPendingResetEmail_ = "";
-        authPendingResetIdToken_ = "";
-        authGoTo("login");
-        if (typeof showToast === "function") showToast("Password berhasil direset. Silakan masuk.", "ok");
-      })
-      .withFailureHandler(function (err) {
-        if (btn) { btn.disabled = false; btn.textContent = "Reset Password"; }
-        authShowError_("authResetError", err && err.message ? err.message : String(err));
-      })
-      .confirmPasswordResetMagicLink(authPendingResetIdToken_, authPendingResetEmail_, newPassword);
+
+    // [2026-07-22 - PERFORMA] Salt baru + hash dihitung DI BROWSER (~10ms) -
+    // password baru langsung hashVersion 3, tidak pernah lewat jalur lambat.
+    var salt = authGenerateSalt_();
+    authDeriveHash_(newPassword, salt).then(function (hash) {
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (btn) { btn.disabled = false; btn.textContent = "Reset Password"; }
+          if (!res || !res.ok) {
+            authShowError_("authResetError", (res && res.error) || "Gagal reset password.");
+            return;
+          }
+          var loginEmailEl = document.getElementById("authLoginEmail");
+          var loginPasswordEl = document.getElementById("authLoginPassword");
+          if (loginEmailEl) loginEmailEl.value = res.data.email;
+          if (loginPasswordEl) loginPasswordEl.value = "";
+          authPendingResetEmail_ = "";
+          authPendingResetIdToken_ = "";
+          authGoTo("login");
+          if (typeof showToast === "function") showToast("Password berhasil direset. Silakan masuk.", "ok");
+        })
+        .withFailureHandler(function (err) {
+          if (btn) { btn.disabled = false; btn.textContent = "Reset Password"; }
+          authShowError_("authResetError", err && err.message ? err.message : String(err));
+        })
+        .confirmPasswordResetMagicLink(authPendingResetIdToken_, authPendingResetEmail_, salt, hash);
+    }).catch(function (err) {
+      if (btn) { btn.disabled = false; btn.textContent = "Reset Password"; }
+      authShowError_("authResetError", err && err.message ? err.message : String(err));
+    });
   };
 
   window.authLogout = function () {

@@ -347,23 +347,36 @@ function authHashPasswordV2_(password, salt) {
 }
 
 /**
- * registerUser: validasi email (WAJIB @gmail.com) & password (min 6
- * karakter), simpan pendaftaran PENDING (belum aktif). Pengiriman email
+ * registerUser: [2026-07-22 - PERFORMA] Password TIDAK PERNAH dikirim mentah
+ * ke sini lagi - client (authDeriveHash_, Script_Fitur_AuthCrypto.html) yang
+ * menghitung PBKDF2-HMAC-SHA256 10.000 iterasi via Web Crypto API browser
+ * (~10ms, native/hardware-accelerated) lalu kirim salt+hash JADI ke sini.
+ * Alasan: Apps Script punya overhead besar per panggilan fungsi native -
+ * menghitung 10.000 iterasi HMAC DI SERVER (skema lama, lihat
+ * authHashPasswordV2_) makan 6+ DETIK per hash (diukur nyata, bukan
+ * estimasi) - di browser hal SAMA PERSIS cuma ~10ms. Kekuatan kriptografi
+ * (10.000 iterasi) TIDAK berkurang sama sekali, cuma pindah tempat eksekusi.
+ * Konsekuensi: validasi panjang password (min 6 karakter) TIDAK BISA lagi
+ * dicek di sini (server tidak pernah lihat password mentah) - PINDAH ke
+ * client SEBELUM hashing (lihat submitAuthRegister, Script_Fitur_Auth.html).
+ *
+ * Simpan pendaftaran PENDING (belum aktif, hashVersion 3 langsung - akun
+ * BARU tidak pernah lewat skema lama sama sekali). Pengiriman email
  * verifikasi (magic link Firebase) dipicu CLIENT-SIDE setelah fungsi ini
- * sukses (lihat submitAuthRegister, Script_Fitur_Auth.html) - fungsi ini
- * sendiri TIDAK mengirim email apa pun. Akun baru aktif setelah
- * verifyEmailMagicLink() dipanggil dengan idToken yang valid.
+ * sukses - fungsi ini sendiri TIDAK mengirim email apa pun. Akun baru aktif
+ * setelah verifyEmailMagicLink() dipanggil dengan idToken yang valid.
  */
-function registerUser(email, password) {
+function registerUser(email, salt, derivedHash) {
   try {
     var cleanEmail = authNormalizeEmail_(email);
     if (!authIsValidGmail_(cleanEmail)) {
       return { ok: false, error: "Email harus alamat Gmail yang valid (contoh: nama@gmail.com).", stage: "registerUser:validate_email" };
     }
 
-    var cleanPassword = typeof password === "string" ? password : "";
-    if (cleanPassword.length < 6) {
-      return { ok: false, error: "Password minimal 6 karakter.", stage: "registerUser:validate_password" };
+    var cleanSalt = typeof salt === "string" ? salt.trim() : "";
+    var cleanHash = typeof derivedHash === "string" ? derivedHash.trim() : "";
+    if (!cleanSalt || !cleanHash) {
+      return { ok: false, error: "Data pendaftaran tidak lengkap.", stage: "registerUser:validate_hash" };
     }
 
     // [RATE LIMIT] Jeda 60 detik antar percobaan daftar per email - cegah
@@ -380,15 +393,12 @@ function registerUser(email, password) {
       return { ok: false, error: "Email ini sudah terdaftar. Silakan masuk.", stage: "registerUser:already_registered" };
     }
 
-    var salt = Utilities.getUuid();
-    var passwordHash = authHashPasswordV2_(cleanPassword, salt);
-
     writeKey_(sheet, authKeyOtp_(cleanEmail), JSON.stringify({
       email: cleanEmail,
       expiresAt: Date.now() + AUTH_PENDING_TTL_MS_,
-      passwordHash: passwordHash,
-      salt: salt,
-      hashVersion: 2,
+      passwordHash: cleanHash,
+      salt: cleanSalt,
+      hashVersion: 3,
       createdAt: new Date().toISOString()
     }));
 
@@ -460,11 +470,100 @@ function verifyEmailMagicLink(idToken, email) {
   }
 }
 
+// [MAGIC LINK/PERFORMA] Pepper server-only (TIDAK PERNAH dikirim ke client)
+// dipakai getAuthSalt bikin salt PALSU deterministik utk email yang belum
+// terdaftar - supaya bentuk respons SELALU sama persis (email ada/tidak ada
+// tidak bisa dibedakan dari luar), sama seperti prinsip pesan error
+// loginUser/requestPasswordReset yang sudah digeneralkan.
+var AUTH_SALT_PEPPER_ = "kl-salt-pepper-9f3a1c7e-jangan-kirim-ke-client";
+
+function authFakeSalt_(email) {
+  var bytes = Utilities.computeHmacSha256Signature(email, AUTH_SALT_PEPPER_);
+  return authBytesToHex_(bytes);
+}
+
 /**
- * loginUser: cocokkan email + password terhadap akun yang SUDAH aktif
- * (lolos verifikasi OTP). Pesan error sengaja digeneralkan (tidak bilang
- * "email tidak ditemukan" vs "password salah" terpisah) supaya tidak bocor
- * info email mana yang terdaftar.
+ * getAuthSalt: [2026-07-22] Langkah PERTAMA alur login cepat - client perlu
+ * tahu salt akun (buat hitung PBKDF2 lokal, lihat authDeriveHash_) SEBELUM
+ * tahu password-nya benar atau tidak. Public (tanpa sessionToken, sama
+ * seperti loginUser/requestPasswordReset) - salt BUKAN rahasia (itu memang
+ * fungsinya di skema hash begini), yang rahasia cuma passwordHash-nya.
+ * Anti-enumeration: email yang TIDAK terdaftar tetap dapat balasan berbentuk
+ * SAMA (salt palsu deterministik dari AUTH_SALT_PEPPER_) - tidak ada cara
+ * membedakan dari luar apakah email itu benar-benar terdaftar.
+ */
+function getAuthSalt(email) {
+  try {
+    var cleanEmail = authNormalizeEmail_(email);
+    var sheet = ensureDataSheet_();
+    var raw = readKey_(sheet, authKeyUser_(cleanEmail));
+    if (!raw) {
+      return { ok: true, data: { salt: authFakeSalt_(cleanEmail), hashVersion: 1 } };
+    }
+    var user = JSON.parse(raw);
+    return { ok: true, data: { salt: user.salt, hashVersion: user.hashVersion || 1 } };
+  } catch (err) {
+    return errorResponse_(err, "getAuthSalt");
+  }
+}
+
+/**
+ * loginFinish_: bagian akhir login yang SAMA PERSIS dipakai loginUser
+ * (jalur lambat/legacy) & loginUserV3 (jalur cepat) SETELAH password
+ * terverifikasi cocok - self-heal tenant spreadsheet + buat sesi. Diekstrak
+ * supaya tidak duplikasi logic self-heal antar 2 fungsi.
+ */
+function loginFinish_(sheet, user, cleanEmail) {
+  // [SELF-HEAL 2026-07-14] Spreadsheet tenant terisi tapi TIDAK bisa
+  // dibuka oleh eksekusi saat ini. Sejak pindah ke executeAs:
+  // USER_DEPLOYING (semua eksekusi sebagai akun pemilik app), kasus ini
+  // terjadi utk akun era USER_ACCESSING yang spreadsheet-nya kadung dibuat
+  // di Drive CUSTOMER sendiri (pemilik app tidak punya akses). Buang ID
+  // yang tak terjangkau itu supaya jatuh ke blok provisioning ulang di
+  // bawah - dibuatkan spreadsheet baru di Drive pemilik app. Konsekuensi:
+  // data di spreadsheet lama (kalau ada isinya) tidak terbawa - file lama
+  // tetap utuh di Drive customer, bisa diminta di-share manual kalau
+  // datanya perlu diselamatkan.
+  if (user.tenantSpreadsheetId) {
+    try {
+      SpreadsheetApp.openById(user.tenantSpreadsheetId).getName();
+    } catch (accessErr) {
+      user.tenantSpreadsheetId = "";
+      writeKey_(sheet, authKeyUser_(cleanEmail), JSON.stringify(user));
+    }
+  }
+
+  // [SELF-HEAL 2026-07-14] Akun terverifikasi tapi BELUM punya spreadsheet
+  // tenant - biasanya karena provisionTenantSpreadsheet_ di verifyOtp
+  // sempat gagal di tengah jalan (lihat riwayat bug hideSheet()). Coba
+  // lagi di sini. Sejak executeAs: USER_DEPLOYING, spreadsheet dibuat di
+  // Drive pemilik app - selalu bisa diakses eksekusi berikutnya, tidak ada
+  // lagi masalah kepemilikan silang seperti era USER_ACCESSING.
+  if (!user.tenantSpreadsheetId) {
+    try {
+      provisionTenantSpreadsheet_(cleanEmail);
+      user = JSON.parse(readKey_(sheet, authKeyUser_(cleanEmail)));
+    } catch (provisionErr) {}
+
+    if (!user.tenantSpreadsheetId) {
+      return { ok: false, error: "Akun ini belum tersambung ke data. Hubungi admin untuk menyelesaikan penyiapan akun.", stage: "loginFinish_:missing_tenant" };
+    }
+  }
+
+  var sessionToken = createSession_(cleanEmail);
+  return { ok: true, data: { email: cleanEmail, sessionToken: sessionToken } };
+}
+
+/**
+ * loginUser: jalur LAMBAT/legacy - dipakai HANYA utk akun yang belum
+ * ter-upgrade ke hashVersion 3 (hash masih dihitung DI SERVER, ~6-7 detik
+ * sekali - lihat catatan performa di registerUser). Begitu sukses, response
+ * kasih tahu client (`needsHashUpgrade`) supaya client hitung hash v3 di
+ * browser & panggil upgradeAuthHashV3 di belakang layar - SEKALI itu saja
+ * per akun, login-login berikutnya otomatis lewat loginUserV3 yang cepat.
+ * Pesan error sengaja digeneralkan (tidak bilang "email tidak ditemukan" vs
+ * "password salah" terpisah) supaya tidak bocor info email mana yang
+ * terdaftar.
  */
 function loginUser(email, password) {
   try {
@@ -513,46 +612,93 @@ function loginUser(email, password) {
 
     authRateLimitReset_(loginRlKey);
 
-    // [SELF-HEAL 2026-07-14] Spreadsheet tenant terisi tapi TIDAK bisa
-    // dibuka oleh eksekusi saat ini. Sejak pindah ke executeAs:
-    // USER_DEPLOYING (semua eksekusi sebagai akun pemilik app), kasus ini
-    // terjadi utk akun era USER_ACCESSING yang spreadsheet-nya kadung dibuat
-    // di Drive CUSTOMER sendiri (pemilik app tidak punya akses). Buang ID
-    // yang tak terjangkau itu supaya jatuh ke blok provisioning ulang di
-    // bawah - dibuatkan spreadsheet baru di Drive pemilik app. Konsekuensi:
-    // data di spreadsheet lama (kalau ada isinya) tidak terbawa - file lama
-    // tetap utuh di Drive customer, bisa diminta di-share manual kalau
-    // datanya perlu diselamatkan.
-    if (user.tenantSpreadsheetId) {
-      try {
-        SpreadsheetApp.openById(user.tenantSpreadsheetId).getName();
-      } catch (accessErr) {
-        user.tenantSpreadsheetId = "";
-        writeKey_(sheet, authKeyUser_(cleanEmail), JSON.stringify(user));
-      }
+    var result = loginFinish_(sheet, user, cleanEmail);
+    if (result.ok) {
+      // [2026-07-22] Kasih tahu client supaya upgrade ke hashVersion 3 di
+      // belakang layar (fire-and-forget, TIDAK menunda masuk app) - salt
+      // TETAP salt lama, cuma hash-nya yang nanti dihitung ulang di client.
+      result.data.needsHashUpgrade = true;
+      result.data.salt = user.salt;
     }
-
-    // [SELF-HEAL 2026-07-14] Akun terverifikasi tapi BELUM punya spreadsheet
-    // tenant - biasanya karena provisionTenantSpreadsheet_ di verifyOtp
-    // sempat gagal di tengah jalan (lihat riwayat bug hideSheet()). Coba
-    // lagi di sini. Sejak executeAs: USER_DEPLOYING, spreadsheet dibuat di
-    // Drive pemilik app - selalu bisa diakses eksekusi berikutnya, tidak ada
-    // lagi masalah kepemilikan silang seperti era USER_ACCESSING.
-    if (!user.tenantSpreadsheetId) {
-      try {
-        provisionTenantSpreadsheet_(cleanEmail);
-        user = JSON.parse(readKey_(sheet, authKeyUser_(cleanEmail)));
-      } catch (provisionErr) {}
-
-      if (!user.tenantSpreadsheetId) {
-        return { ok: false, error: "Akun ini belum tersambung ke data. Hubungi admin untuk menyelesaikan penyiapan akun.", stage: "loginUser:missing_tenant" };
-      }
-    }
-
-    var sessionToken = createSession_(cleanEmail);
-    return { ok: true, data: { email: cleanEmail, sessionToken: sessionToken } };
+    return result;
   } catch (err) {
     return errorResponse_(err, "loginUser");
+  }
+}
+
+/**
+ * loginUserV3: [2026-07-22] Jalur CEPAT - dipakai kalau akun sudah
+ * hashVersion 3 (client sudah tahu ini via getAuthSalt). Client SUDAH
+ * menghitung PBKDF2 10.000 iterasi di browser (~10ms) & kirim hasilnya ke
+ * sini - server TINGGAL BANDINGKAN STRING, TIDAK ADA hashing sama sekali di
+ * server. Ini yang menghilangkan 6+ detik dari proses login. Rate limit &
+ * pesan error SAMA seperti loginUser (anti brute-force & anti-enumeration).
+ */
+function loginUserV3(email, derivedHash) {
+  try {
+    var cleanEmail = authNormalizeEmail_(email);
+    var cleanHash = typeof derivedHash === "string" ? derivedHash.trim() : "";
+
+    var loginRlKey = "rl_login_" + cleanEmail;
+    if (authRateLimitCount_(loginRlKey) >= 5) {
+      return { ok: false, error: "Terlalu banyak percobaan gagal. Coba lagi dalam 15 menit.", stage: "loginUserV3:rate_limited" };
+    }
+
+    var sheet = ensureDataSheet_();
+    var raw = readKey_(sheet, authKeyUser_(cleanEmail));
+    if (!raw) {
+      authRateLimitBump_(loginRlKey, 15 * 60);
+      return { ok: false, error: "Email atau password salah.", stage: "loginUserV3:not_found" };
+    }
+
+    var user = JSON.parse(raw);
+    if ((user.hashVersion || 1) !== 3 || !cleanHash || cleanHash !== user.passwordHash) {
+      authRateLimitBump_(loginRlKey, 15 * 60);
+      return { ok: false, error: "Email atau password salah.", stage: "loginUserV3:mismatch" };
+    }
+
+    authRateLimitReset_(loginRlKey);
+    return loginFinish_(sheet, user, cleanEmail);
+  } catch (err) {
+    return errorResponse_(err, "loginUserV3");
+  }
+}
+
+/**
+ * upgradeAuthHashV3: [2026-07-22] Dipanggil client SEKALI di belakang layar
+ * (fire-and-forget) tepat setelah loginUser (jalur legacy) sukses & memberi
+ * flag needsHashUpgrade - client hitung PBKDF2 pakai salt LAMA (dari
+ * response loginUser) di browser, kirim hash-nya ke sini. TIDAK perlu
+ * verifikasi password lagi (sessionToken yang baru dibuat loginUser SUDAH
+ * bukti kepemilikan akun) - tinggal simpan & tandai hashVersion 3. Setelah
+ * ini akun tsb SELAMANYA lewat jalur cepat loginUserV3.
+ */
+function upgradeAuthHashV3(sessionToken, derivedHash) {
+  try {
+    var session = resolveSession_(sessionToken);
+    if (!session) {
+      return { ok: false, error: "Sesi tidak valid.", stage: "upgradeAuthHashV3:invalid_session", code: "UNAUTHORIZED" };
+    }
+    var cleanHash = typeof derivedHash === "string" ? derivedHash.trim() : "";
+    if (!cleanHash) {
+      return { ok: false, error: "Data upgrade tidak lengkap.", stage: "upgradeAuthHashV3:validate_hash" };
+    }
+
+    var cleanEmail = authNormalizeEmail_(session.email);
+    var sheet = ensureDataSheet_();
+    var raw = readKey_(sheet, authKeyUser_(cleanEmail));
+    if (!raw) {
+      return { ok: false, error: "Akun tidak ditemukan.", stage: "upgradeAuthHashV3:user_not_found" };
+    }
+
+    var user = JSON.parse(raw);
+    user.passwordHash = cleanHash;
+    user.hashVersion = 3;
+    writeKey_(sheet, authKeyUser_(cleanEmail), JSON.stringify(user));
+
+    return { ok: true, data: { email: cleanEmail } };
+  } catch (err) {
+    return errorResponse_(err, "upgradeAuthHashV3");
   }
 }
 
@@ -604,18 +750,21 @@ function requestPasswordReset(email) {
  * confirmPasswordResetMagicLink: dipanggil client SETELAH user klik link
  * Firebase & berhasil signInWithEmailLink (lihat authHandleBootAuth_,
  * Script_Fitur_Auth.html). idToken diverifikasi ke server Google
- * (firebaseVerifyIdToken_) untuk memastikan benar-benar pemilik email itu,
- * lalu password diganti (salt baru + hash v2). Semua sesi login lama milik
- * email ini DIHAPUS PAKSA (scan authSession_ lewat readKeysByPrefix_) supaya
- * device manapun yang masih pakai password lama otomatis ter-logout.
+ * (firebaseVerifyIdToken_) untuk memastikan benar-benar pemilik email itu.
+ * [2026-07-22 - PERFORMA] Password baru TIDAK PERNAH dikirim mentah - client
+ * generate salt baru & hitung PBKDF2 (authDeriveHash_) SEBELUM memanggil ini
+ * (sama seperti registerUser) - langsung hashVersion 3, tidak pernah lewat
+ * skema lambat. Semua sesi login lama milik email ini DIHAPUS PAKSA (scan
+ * authSession_ lewat readKeysByPrefix_) supaya device manapun yang masih
+ * pakai password lama otomatis ter-logout.
  */
-function confirmPasswordResetMagicLink(idToken, email, newPassword) {
+function confirmPasswordResetMagicLink(idToken, email, salt, derivedHash) {
   try {
     var claimedEmail = authNormalizeEmail_(email);
-    var cleanPassword = typeof newPassword === "string" ? newPassword : "";
-
-    if (cleanPassword.length < 6) {
-      return { ok: false, error: "Password baru minimal 6 karakter.", stage: "confirmPasswordResetMagicLink:validate_password" };
+    var cleanSalt = typeof salt === "string" ? salt.trim() : "";
+    var cleanHash = typeof derivedHash === "string" ? derivedHash.trim() : "";
+    if (!cleanSalt || !cleanHash) {
+      return { ok: false, error: "Data password tidak lengkap.", stage: "confirmPasswordResetMagicLink:validate_hash" };
     }
 
     var verified;
@@ -648,10 +797,9 @@ function confirmPasswordResetMagicLink(idToken, email, newPassword) {
     }
 
     var user = JSON.parse(userRaw);
-    var salt = Utilities.getUuid();
-    user.passwordHash = authHashPasswordV2_(cleanPassword, salt);
-    user.salt = salt;
-    user.hashVersion = 2;
+    user.passwordHash = cleanHash;
+    user.salt = cleanSalt;
+    user.hashVersion = 3;
     writeKey_(sheet, authKeyUser_(cleanEmail), JSON.stringify(user));
     deleteKeyRow_(sheet, authKeyPasswordReset_(cleanEmail));
 

@@ -1,0 +1,70 @@
+<!--
+===============================================================================
+FILE: Script_Fitur_AuthCrypto.html
+ISI: Hashing password PBKDF2-HMAC-SHA256 (10.000 iterasi) DI BROWSER lewat
+Web Crypto API bawaan (window.crypto.subtle) - TIDAK terikat Firebase, murni
+fungsi kripto.
+
+[2026-07-22 - PERFORMA] Sebelumnya hashing 10.000 iterasi dihitung DI SERVER
+(Apps Script, authHashPasswordV2_ - Modul_Auth.gs). Diukur nyata makan 6+
+DETIK per hash, karena Apps Script punya overhead besar tiap panggilan
+fungsi native berulang-ulang. Browser modern menjalankan PBKDF2 asli lewat
+Web Crypto (dipercepat hardware) - hal SAMA PERSIS (10.000 iterasi
+SHA-256) cuma makan ~5-20 milidetik. KEKUATAN KRIPTOGRAFI TIDAK BERKURANG
+SAMA SEKALI - iterasi tetap 10.000, cuma pindah tempat eksekusi dari server
+yang lambat ke browser yang cepat.
+
+Password mentah TIDAK PERNAH dikirim ke server lagi untuk daftar/reset
+password (lihat registerUser/confirmPasswordResetMagicLink, Modul_Auth.gs) -
+yang dikirim adalah salt + hasil hash saja. Untuk LOGIN akun lama yang belum
+ter-upgrade (hashVersion < 3), password mentah SEMENTARA masih dikirim lewat
+loginUser (skema lama) - SEKALI saja per akun, lalu otomatis upgrade di
+belakang layar (lihat submitAuthLogin, Script_Fitur_Auth.html).
+
+Include SEBELUM Script_Fitur_Auth.html (yang memanggil fungsi di file ini).
+===============================================================================
+-->
+<script>
+"use strict";
+  var AUTH_PBKDF2_ITERATIONS_ = 10000;
+
+  function authBytesToHexClient_(buffer) {
+    return Array.prototype.map.call(new Uint8Array(buffer), function (b) {
+      return b.toString(16).padStart(2, "0");
+    }).join("");
+  }
+
+  /**
+   * authGenerateSalt_: salt acak baru (16 byte, hex 32 karakter) - dipakai
+   * SEKALI per akun baru (registerUser) atau tiap kali reset password
+   * (confirmPasswordResetMagicLink). Tidak perlu round-trip ke server -
+   * salt bukan rahasia, boleh dibuat client, server cuma menyimpannya.
+   */
+  window.authGenerateSalt_ = function () {
+    var bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    return authBytesToHexClient_(bytes);
+  };
+
+  /**
+   * authDeriveHash_: PBKDF2-HMAC-SHA256, 10.000 iterasi, keluaran 256-bit
+   * (hex 64 karakter) - format SAMA (hex string) baik utk salt baru
+   * (authGenerateSalt_) maupun salt LAMA yang dikirim balik server (UUID
+   * string, dipakai apa adanya sbg teks salt, tetap valid krn PBKDF2 cuma
+   * butuh salt berupa bytes, tidak harus format tertentu).
+   */
+  window.authDeriveHash_ = function (password, saltString) {
+    var enc = new TextEncoder();
+    return window.crypto.subtle.importKey(
+      "raw", enc.encode(String(password || "")), { name: "PBKDF2" }, false, ["deriveBits"]
+    ).then(function (keyMaterial) {
+      return window.crypto.subtle.deriveBits(
+        { name: "PBKDF2", salt: enc.encode(String(saltString || "")), iterations: AUTH_PBKDF2_ITERATIONS_, hash: "SHA-256" },
+        keyMaterial,
+        256
+      );
+    }).then(function (bits) {
+      return authBytesToHexClient_(bits);
+    });
+  };
+</script>
