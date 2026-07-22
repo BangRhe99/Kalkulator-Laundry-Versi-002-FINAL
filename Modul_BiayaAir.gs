@@ -181,7 +181,7 @@ function saveBiayaAir_impl_(cabangId, payload) {
 
     writeKey_(sheet, "biayaAir_" + cabangId, JSON.stringify(clean));
 
-    firestoreSyncConfigDocAndRecompute_(cabangId, "air", clean); // best-effort, 1 HTTP call (non-fatal)
+    firestoreSyncConfigDocAndRecompute_(cabangId, "air", clean, DASHBOARD_RECOMPUTE_HPP_GROUP_); // best-effort, 1 HTTP call (non-fatal)
 
     return { ok: true, data: { record: clean, summary: computeBiayaAirSummary_(clean, cabang) } };
   } catch (err) {

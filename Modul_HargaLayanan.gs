@@ -194,6 +194,11 @@ function saveHargaLayanan_impl_(cabangId, payload) {
     writeKey_(sheet, getHargaLayananKey_(cleanCabangId), JSON.stringify(record));
 
     firestoreSyncConfigDoc_(cleanCabangId, "hargaLayanan", record); // best-effort (non-fatal)
+    // [2026-07-22] HargaLayanan/BEP/PotensiOmset (computed.*, Modul_Firestore_
+    // Computed.gs) bergantung ke data ini - sebelumnya TIDAK PERNAH ter-
+    // refresh saat harga jual disimpan (celah lama). recomputeCabangSummary_
+    // best-effort (tidak pernah melempar).
+    recomputeCabangSummary_(cleanCabangId, DASHBOARD_RECOMPUTE_HARGALAYANAN_GROUP_);
 
     return getHargaLayanan_impl_(cleanCabangId);
   } catch (err) {

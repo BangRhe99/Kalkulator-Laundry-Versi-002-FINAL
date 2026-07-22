@@ -191,7 +191,7 @@ function saveBiayaListrik_impl_(cabangId, payload) {
 
     writeKey_(sheet, "biayaListrik_" + cabangId, JSON.stringify(clean));
 
-    firestoreSyncConfigDocAndRecompute_(cabangId, "listrik", clean); // best-effort, 1 HTTP call (non-fatal)
+    firestoreSyncConfigDocAndRecompute_(cabangId, "listrik", clean, DASHBOARD_RECOMPUTE_HPP_GROUP_); // best-effort, 1 HTTP call (non-fatal)
 
     return { ok: true, data: { record: clean, summary: computeBiayaListrikSummary_(clean, cabang) } };
   } catch (err) {

@@ -167,18 +167,27 @@ function getDashboardFullSummary(sessionToken, cabangId) {
   return withTenant_(sessionToken, function () { return getDashboardFullSummary_impl_(cabangId); });
 }
 
+/**
+ * [2026-07-22 - PERFORMA] Entry point SESUNGGUHNYA saat buka/ganti cabang
+ * di Dashboard - pakai fast-reader (Modul_Firestore_Computed.gs) utk 5 dari
+ * 6 ringkasan (HPP sudah dari awal). Diukur nyata SEBELUM perbaikan ini:
+ * 78 panggilan Firestore/64 detik utk 1 cabang; SESUDAH (cache "hangat"):
+ * cukup 1 panggilan (dashboardGetComputedDoc_ dibagi ke-6 fast-reader).
+ * Fallback otomatis ke `_impl_` live + self-heal kalau cache kosong/gagal -
+ * TIDAK PERNAH gagal total, sama seperti pola HPP yang sudah terbukti.
+ */
 function getDashboardFullSummary_impl_(cabangId) {
   try {
     return {
       ok: true,
       data: {
         cabang: getDashboardCabangSummary_impl_(cabangId),
-        masterBiaya: getDashboardMasterBiayaSummary_impl_(cabangId),
+        masterBiaya: getDashboardMasterBiayaSummaryFast_(cabangId),
         hpp: getDashboardHPPSummary_impl_(cabangId),
-        hargaLayanan: getDashboardHargaLayananSummary_impl_(cabangId),
-        fixedCost: getDashboardFixedCostSummary_impl_(cabangId),
-        bep: getDashboardBEPSummary_impl_(cabangId),
-        potensiOmset: getDashboardPotensiOmsetSummary_impl_(cabangId)
+        hargaLayanan: getDashboardHargaLayananSummaryFast_(cabangId),
+        fixedCost: getDashboardFixedCostSummaryFast_(cabangId),
+        bep: getDashboardBEPSummaryFast_(cabangId),
+        potensiOmset: getDashboardPotensiOmsetSummaryFast_(cabangId)
       }
     };
   } catch (err) {
@@ -187,7 +196,7 @@ function getDashboardFullSummary_impl_(cabangId) {
 }
 
 function getDashboardMasterBiayaSummary(sessionToken, cabangId) {
-  return withTenant_(sessionToken, function () { return getDashboardMasterBiayaSummary_impl_(cabangId); });
+  return withTenant_(sessionToken, function () { return getDashboardMasterBiayaSummaryFast_(cabangId); });
 }
 
 function getDashboardMasterBiayaSummary_impl_(cabangId) {
@@ -202,58 +211,38 @@ function getDashboardMasterBiayaSummary_impl_(cabangId) {
       const missing = [];
       let lengkapCount = 0;
 
-      let gasComplete = false;
-      try {
-        if (typeof listBiayaGas_impl_ === "function") {
-          const gasRes = listBiayaGas_impl_(cabangId);
-          gasComplete = !!(gasRes && gasRes.ok && gasRes.data && Array.isArray(gasRes.data.items) && gasRes.data.items.length > 0);
-        }
-      } catch (e) {}
+      // [2026-07-22 - PERFORMA] Tiap sumber (Gas/Listrik/Air/Nota/Chemical/
+      // Packing) dulu dipanggil 2x TERPISAH (sekali cek "lengkap belum",
+      // sekali lagi ambil detail datanya) - bug fan-out ganda murni, sekarang
+      // dipanggil SEKALI, hasilnya dipakai ulang utk kedua keperluan.
+      let gasRes = null;
+      try { if (typeof listBiayaGas_impl_ === "function") gasRes = listBiayaGas_impl_(cabangId); } catch (e) {}
+      const gasComplete = !!(gasRes && gasRes.ok && gasRes.data && Array.isArray(gasRes.data.items) && gasRes.data.items.length > 0);
       if (gasComplete) lengkapCount++; else missing.push("Gas");
 
-      let listrikComplete = false;
-      try {
-        if (typeof getBiayaListrik_impl_ === "function") {
-          const listrikRes = getBiayaListrik_impl_(cabangId);
-          listrikComplete = !!(listrikRes && listrikRes.ok && listrikRes.data && listrikRes.data.record && listrikRes.data.record.updatedAt);
-        }
-      } catch (e) {}
+      let listrikRes = null;
+      try { if (typeof getBiayaListrik_impl_ === "function") listrikRes = getBiayaListrik_impl_(cabangId); } catch (e) {}
+      const listrikComplete = !!(listrikRes && listrikRes.ok && listrikRes.data && listrikRes.data.record && listrikRes.data.record.updatedAt);
       if (listrikComplete) lengkapCount++; else missing.push("Listrik");
 
-      let airComplete = false;
-      try {
-        if (typeof getBiayaAir_impl_ === "function") {
-          const airRes = getBiayaAir_impl_(cabangId);
-          airComplete = !!(airRes && airRes.ok && airRes.data && airRes.data.record && airRes.data.record.updatedAt);
-        }
-      } catch (e) {}
+      let airRes = null;
+      try { if (typeof getBiayaAir_impl_ === "function") airRes = getBiayaAir_impl_(cabangId); } catch (e) {}
+      const airComplete = !!(airRes && airRes.ok && airRes.data && airRes.data.record && airRes.data.record.updatedAt);
       if (airComplete) lengkapCount++; else missing.push("Air");
 
-      let notaComplete = false;
-      try {
-        if (typeof getBiayaNotaKasir_impl_ === "function") {
-          const notaRes = getBiayaNotaKasir_impl_(cabangId);
-          notaComplete = !!(notaRes && notaRes.ok && notaRes.data && notaRes.data.record && notaRes.data.record.updatedAt);
-        }
-      } catch (e) {}
+      let notaRes = null;
+      try { if (typeof getBiayaNotaKasir_impl_ === "function") notaRes = getBiayaNotaKasir_impl_(cabangId); } catch (e) {}
+      const notaComplete = !!(notaRes && notaRes.ok && notaRes.data && notaRes.data.record && notaRes.data.record.updatedAt);
       if (notaComplete) lengkapCount++; else missing.push("Nota/Kasir");
 
-      let chemicalComplete = false;
-      try {
-        if (typeof listBiayaChemical_impl_ === "function") {
-          const chemicalRes = listBiayaChemical_impl_(cabangId);
-          chemicalComplete = !!(chemicalRes && chemicalRes.ok && chemicalRes.data && Array.isArray(chemicalRes.data.items) && chemicalRes.data.items.length > 0);
-        }
-      } catch (e) {}
+      let chemicalRes = null;
+      try { if (typeof listBiayaChemical_impl_ === "function") chemicalRes = listBiayaChemical_impl_(cabangId); } catch (e) {}
+      const chemicalComplete = !!(chemicalRes && chemicalRes.ok && chemicalRes.data && Array.isArray(chemicalRes.data.items) && chemicalRes.data.items.length > 0);
       if (chemicalComplete) lengkapCount++; else missing.push("Chemical");
 
-      let packingComplete = false;
-      try {
-        if (typeof listBiayaPacking_impl_ === "function") {
-          const packingRes = listBiayaPacking_impl_(cabangId);
-          packingComplete = !!(packingRes && packingRes.ok && packingRes.data && Array.isArray(packingRes.data.items) && packingRes.data.items.length > 0);
-        }
-      } catch (e) {}
+      let packingRes = null;
+      try { if (typeof listBiayaPacking_impl_ === "function") packingRes = listBiayaPacking_impl_(cabangId); } catch (e) {}
+      const packingComplete = !!(packingRes && packingRes.ok && packingRes.data && Array.isArray(packingRes.data.items) && packingRes.data.items.length > 0);
       if (packingComplete) lengkapCount++; else missing.push("Packing");
       // Ambil nilai biaya per load per komponen
       const komponenBiaya = [];
@@ -261,8 +250,7 @@ function getDashboardMasterBiayaSummary_impl_(cabangId) {
       let gasCardRef = null;
 
       try {
-        if (typeof listBiayaGas_impl_ === "function") {
-          const gasRes = listBiayaGas_impl_(cabangId);
+        {
           if (gasRes && gasRes.ok && gasRes.data && gasRes.data.items) {
             // Kategori Jasa Setrika: gas dipakai untuk memanaskan setrika uap,
             // dihitung PER JAM (s.biayaGasSetrikaPerJam, diisi kalau record
@@ -326,8 +314,7 @@ function getDashboardMasterBiayaSummary_impl_(cabangId) {
       } catch(e) {}
 
       try {
-        if (typeof getBiayaListrik_impl_ === "function") {
-          const listrikRes = getBiayaListrik_impl_(cabangId);
+        {
           if (listrikRes && listrikRes.ok && listrikRes.data && listrikRes.data.summary) {
             const listrikRecord = listrikRes.data.record || {};
             const cuciArr = Array.isArray(listrikRes.data.summary.cuci) ? listrikRes.data.summary.cuci : [];
@@ -367,8 +354,7 @@ function getDashboardMasterBiayaSummary_impl_(cabangId) {
         }
       } catch(e) {}
       try {
-        if (typeof getBiayaAir_impl_ === "function") {
-          const airRes = getBiayaAir_impl_(cabangId);
+        {
           if (airRes && airRes.ok && airRes.data && airRes.data.summary) {
             const airRecord = airRes.data.record || {};
             const airSummary = airRes.data.summary || {};
@@ -422,8 +408,7 @@ function getDashboardMasterBiayaSummary_impl_(cabangId) {
       } catch(e) {}
 
       try {
-        if (typeof getBiayaNotaKasir_impl_ === "function") {
-          const notaRes = getBiayaNotaKasir_impl_(cabangId);
+        {
           if (notaRes && notaRes.ok && notaRes.data && notaRes.data.summary) {
             const notaPerLoad = dashboardNumber_(notaRes.data.summary.totalBiayaNotaKasirPerLoad, 0);
             if (notaComplete) {
@@ -439,8 +424,7 @@ function getDashboardMasterBiayaSummary_impl_(cabangId) {
       } catch(e) {}
 
       try {
-        if (typeof listBiayaChemical_impl_ === "function") {
-          const chemicalRes = listBiayaChemical_impl_(cabangId);
+        {
           if (chemicalRes && chemicalRes.ok && chemicalRes.data && chemicalRes.data.items) {
             // Akumulasi biayaPerLoad SEMUA item chemical (Deterjen, Softener,
             // Parfum, Pelicin, dan item tambahan lain) jadi satu angka total.
@@ -479,8 +463,7 @@ function getDashboardMasterBiayaSummary_impl_(cabangId) {
       } catch(e) {}
 
       try {
-        if (typeof listBiayaPacking_impl_ === "function") {
-          const packingRes = listBiayaPacking_impl_(cabangId);
+        {
           if (packingRes && packingRes.ok && packingRes.data && packingRes.data.items) {
             // Akumulasi biayaPerLoad item packing utk layanan KILOAN saja:
             // item non-plastik (Isolasi, dll) selalu ikut; item plastik
@@ -648,7 +631,7 @@ function getDashboardHPPSummary_impl_(cabangId) {
 }
 
 function getDashboardHargaLayananSummary(sessionToken, cabangId) {
-  return withTenant_(sessionToken, function () { return getDashboardHargaLayananSummary_impl_(cabangId); });
+  return withTenant_(sessionToken, function () { return getDashboardHargaLayananSummaryFast_(cabangId); });
 }
 
 function getDashboardHargaLayananSummary_impl_(cabangId) {
@@ -777,7 +760,7 @@ function getDashboardHargaLayananSummary_impl_(cabangId) {
 }
 
 function getDashboardFixedCostSummary(sessionToken, cabangId) {
-  return withTenant_(sessionToken, function () { return getDashboardFixedCostSummary_impl_(cabangId); });
+  return withTenant_(sessionToken, function () { return getDashboardFixedCostSummaryFast_(cabangId); });
 }
 
 function getDashboardFixedCostSummary_impl_(cabangId) {
@@ -904,7 +887,10 @@ function getBepServiceMix_(cabangId, activeKeys) {
         mix: defaultMix,
         updatedAt: new Date().toISOString()
       }));
-      if (typeof firestoreSyncHppToggles_ === "function") firestoreSyncHppToggles_(cabangId); // best-effort sync default baru
+      // [2026-07-22] Pakai varian AndRecompute_ (bukan firestoreSyncHppToggles_
+      // lama) - BEP/PotensiOmset (computed.*) bergantung ke bepMix, jadi
+      // perlu ikut recompute begitu default baru ini disimpan.
+      if (typeof firestoreSyncHppTogglesAndRecompute_ === "function") firestoreSyncHppTogglesAndRecompute_(cabangId, DASHBOARD_RECOMPUTE_BEPMIX_GROUP_); // best-effort sync default baru
       return defaultMix;
     }
 
@@ -954,7 +940,10 @@ function saveBepServiceMix_impl_(cabangId, mixMap) {
       updatedAt: new Date().toISOString()
     }));
 
-    firestoreSyncHppToggles_(cleanId); // best-effort (non-fatal)
+    // [2026-07-22] Pakai varian AndRecompute_ (bukan firestoreSyncHppToggles_
+    // lama) - ini alur "Atur %" BEP customer, jelas mempengaruhi computed.bep
+    // & computed.potensiOmset yang perlu ikut segar.
+    firestoreSyncHppTogglesAndRecompute_(cleanId, DASHBOARD_RECOMPUTE_BEPMIX_GROUP_); // best-effort (non-fatal)
 
     return { ok: true, data: { cabangId: cleanId, mix: cleanMix } };
   } catch (err) {
@@ -1013,7 +1002,15 @@ function getBepWeightedServiceData_(cabangId) {
     warnings.push("HPP belum tersedia.");
   }
 
-  var hargaRes = getDashboardHargaLayananSummary_impl_(cabangId);
+  // [2026-07-22 - FIX FAN-OUT] Fast_ (bukan _impl_ langsung) -- dipanggil
+  // dari BEP & PotensiOmset, yg sering dihitung ulang BARENG hargaLayanan
+  // dalam 1 batch simpan yg sama; dashboardPrimeComputedCache_ di
+  // recomputeCabangSummary_/buildComputedWriteSpec_ menjamin versi SEGAR
+  // sudah ada di cache saat ini dipanggil. Kalau cabang lain yg TIDAK
+  // sedang di-recompute (fixedCost dkk), Fast_ baca cache Firestore lama
+  // yg memang masih akurat -- keduanya menghindari hitung ulang LIVE
+  // berkali-kali (akar regresi simpan 45,5 detik).
+  var hargaRes = getDashboardHargaLayananSummaryFast_(cabangId);
   var requiredItems = [];
   if (hargaRes && hargaRes.ok && hargaRes.data && hargaRes.data.rows && hargaRes.data.rows.length) {
     var hargaRow = hargaRes.data.rows[0];
@@ -1091,12 +1088,16 @@ function getBepWeightedServiceData_(cabangId) {
 }
 
 function getDashboardBEPSummary(sessionToken, cabangId) {
-  return withTenant_(sessionToken, function () { return getDashboardBEPSummary_impl_(cabangId); });
+  return withTenant_(sessionToken, function () { return getDashboardBEPSummaryFast_(cabangId); });
 }
 
 function getDashboardBEPSummary_impl_(cabangId) {
   try {
-    var fixedCostRes = getDashboardFixedCostSummary_impl_(cabangId);
+    // [2026-07-22 - FIX FAN-OUT] Fast_, bukan _impl_ live -- lihat catatan
+    // di getBepWeightedServiceData_ (fungsi ini dipanggil sampai 2-3x per
+    // save-batch lewat PotensiOmset, jadi FixedCost yg mahal -- 9 Firestore
+    // call/5,6 detik -- tidak boleh dihitung ulang tiap panggilan).
+    var fixedCostRes = getDashboardFixedCostSummaryFast_(cabangId);
     var warnings = [];
     var fixedCostPerBulan = 0;
 
@@ -1224,14 +1225,22 @@ function bepMachineUsageMap_(key) {
 }
 
 function getDashboardPotensiOmsetSummary(sessionToken, cabangId) {
-  return withTenant_(sessionToken, function () { return getDashboardPotensiOmsetSummary_impl_(cabangId); });
+  return withTenant_(sessionToken, function () { return getDashboardPotensiOmsetSummaryFast_(cabangId); });
 }
 
 function getDashboardPotensiOmsetSummary_impl_(cabangId) {
   try {
-    var fixedCostRes = getDashboardFixedCostSummary_impl_(cabangId);
+    // [2026-07-22 - FIX FAN-OUT] Fast_, bukan _impl_ live -- sebelumnya
+    // PotensiOmset memanggil ULANG SELURUH BEP (yg sendiri memanggil ULANG
+    // FixedCost&HargaLayanan penuh), jadi 1x recompute PotensiOmset =
+    // FixedCost dihitung 2-3x & HargaLayanan 2-3x. Diukur nyata: kontribusi
+    // utama regresi simpan 45,5 detik. dashboardPrimeComputedCache_ (dipanggil
+    // recomputeCabangSummary_/buildComputedWriteSpec_ SEBELUM field ini)
+    // menjamin versi SEGAR field yg ikut di-recompute batch yg sama tetap
+    // terbaca benar (bukan versi basi dari Firestore).
+    var fixedCostRes = getDashboardFixedCostSummaryFast_(cabangId);
     var cabangRes = getDashboardCabangSummary_impl_(cabangId);
-    var bepRes = getDashboardBEPSummary_impl_(cabangId);
+    var bepRes = getDashboardBEPSummaryFast_(cabangId);
 
     var warnings = [];
     var fixedCostPerBulan = 0;

@@ -260,7 +260,7 @@ function createBiayaGas_impl_(payload) {
 
     writeKeyAndAppendOrder_(sheet, "biayaGas_" + clean.id, JSON.stringify(clean), KEY_BIAYA_GAS_ORDER, clean.id);
 
-    firestoreSyncSubItemAndRecompute_(clean.cabangId, "gas", clean); // best-effort, 1 HTTP call (non-fatal)
+    firestoreSyncSubItemAndRecompute_(clean.cabangId, "gas", clean, DASHBOARD_RECOMPUTE_HPP_GROUP_); // best-effort, 1 HTTP call (non-fatal)
 
     return { ok: true, data: { record: clean, summary: computeBiayaGasSummary_(clean, cabang) } };
   } catch (err) {
@@ -314,7 +314,7 @@ function updateBiayaGas_impl_(id, payload) {
     }
 
     writeKey_(sheet, "biayaGas_" + id, JSON.stringify(clean));
-    firestoreSyncSubItemAndRecompute_(clean.cabangId, "gas", clean); // best-effort, 1 HTTP call (non-fatal)
+    firestoreSyncSubItemAndRecompute_(clean.cabangId, "gas", clean, DASHBOARD_RECOMPUTE_HPP_GROUP_); // best-effort, 1 HTTP call (non-fatal)
     return { ok: true, data: { record: clean, summary: computeBiayaGasSummary_(clean, cabang) } };
   } catch (err) {
     return errorResponse_(err, "updateBiayaGas");
@@ -341,7 +341,7 @@ function deleteBiayaGas_impl_(id) {
     deleteKeyRow_(sheet, "biayaGas_" + id);
     removeFromOrder_(sheet, KEY_BIAYA_GAS_ORDER, id);
     if (cabangIdRec) {
-      firestoreDeleteSubDocAndRecompute_(cabangIdRec, "gas", id); // best-effort, 1 HTTP call (non-fatal)
+      firestoreDeleteSubDocAndRecompute_(cabangIdRec, "gas", id, DASHBOARD_RECOMPUTE_HPP_GROUP_); // best-effort, 1 HTTP call (non-fatal)
     }
     return { ok: true, data: { id: id } };
   } catch (err) {

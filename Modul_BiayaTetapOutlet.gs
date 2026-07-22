@@ -265,12 +265,18 @@ function saveBiayaTetapOutlet_impl_(cabangId, payload) {
         }
       };
     });
-    // best-effort DI LUAR lock (supaya HTTP Firestore tidak menahan kunci global)
-    // TIDAK perlu recompute HPP -- Biaya Tetap Outlet tidak memengaruhi
-    // rumus HPP per-load (hanya fixed cost/BEP di Dashboard), jadi cukup
-    // sinkron 1 dokumen ini saja, tanpa 1 write tambahan yang sia-sia.
+    // best-effort DI LUAR lock (supaya HTTP Firestore tidak menahan kunci global).
+    // [2026-07-22] TETAP tidak perlu recompute HPP (Biaya Tetap Outlet tidak
+    // memengaruhi rumus HPP per-load) - TAPI SEKARANG perlu recompute
+    // FixedCost/BEP/PotensiOmset di Dashboard (computed.*, Modul_Firestore_
+    // Computed.gs), yang SEBELUM INI tidak pernah ter-refresh sama sekali
+    // saat Biaya Tetap Outlet disimpan (celah lama, baru ketahuan) - jadi
+    // cache Dashboard-nya jadi basi selamanya sampai ada save DI CABANG LAIN
+    // yang kebetulan memicu recompute. recomputeCabangSummary_ sendiri sudah
+    // best-effort (tidak pernah melempar).
     if (tetapResult && tetapResult.ok) {
       firestoreSyncConfigDoc_(cabangId, "tetapOutlet", tetapResult.data.record); // best-effort (non-fatal)
+      recomputeCabangSummary_(cabangId, DASHBOARD_RECOMPUTE_FIXEDCOST_GROUP_); // best-effort (non-fatal)
     }
     return tetapResult;
   } catch (err) {

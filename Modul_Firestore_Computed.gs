@@ -77,19 +77,120 @@ function getHppTogglesDocCached_(cabangId) {
 }
 
 /**
- * Hitung ulang HPP satu cabang (via jalur Sheets yang sudah ada & terbukti)
- * lalu simpan ke field `computed.hpp` dokumen Cabang di Firestore.
- * updateMask ["computed"] -> hanya field computed yang ditimpa, field lain
- * (profil/mesin dari fase migrasi lain) tidak tersentuh.
+ * [2026-07-22 - PERFORMA DASHBOARD] Cache per-eksekusi 1 GET dokumen Cabang
+ * dibagi SEMUA fast-reader ringkasan Dashboard (HPP/MasterBiaya/HargaLayanan/
+ * FixedCost/BEP/PotensiOmset) - tanpa ini, buka Dashboard 1 cabang jadi 6 GET
+ * terpisah (1 per ringkasan) walau cache-nya "hangat". Diukur nyata sebelum
+ * perbaikan ini: 78 panggilan Firestore/64 detik utk buka 1 cabang (5 dari 6
+ * ringkasan belum pakai pola computed sama sekali + fan-out silang antar
+ * fungsi - BEP manggil ulang FixedCost&HargaLayanan penuh, PotensiOmset
+ * manggil ulang SELURUH BEP lagi). Reset otomatis tiap eksekusi baru.
+ */
+let _dashboardComputedDocCache_ = {};
+
+function dashboardGetComputedDoc_(cabangId) {
+  if (Object.prototype.hasOwnProperty.call(_dashboardComputedDocCache_, cabangId)) {
+    return _dashboardComputedDocCache_[cabangId];
+  }
+  let doc = null;
+  try {
+    const tenantId = activeDataSpreadsheetId_();
+    if (tenantId) doc = firestoreGet_(firestoreCabangDocPath_(tenantId, cabangId));
+  } catch (err) {
+    console.warn("dashboardGetComputedDoc_(" + cabangId + ") gagal: " + err);
+    doc = null;
+  }
+  _dashboardComputedDocCache_[cabangId] = doc;
+  return doc;
+}
+
+/**
+ * [2026-07-22 - FIX REGRESI SIMPAN, tahap 2] Isi cache dokumen per-eksekusi
+ * (dashboardGetComputedDoc_) DENGAN NILAI SEGAR begitu 1 field selesai
+ * dihitung ulang di recomputeCabangSummary_/buildComputedWriteSpec_ --
+ * SEBELUM ditulis ke Firestore (yang baru terjadi di akhir batch).
+ * WAJIB: supaya BEP/PotensiOmset (yang dihitung ulang dalam BATCH SIMPAN
+ * YANG SAMA, mis. titik simpan HargaLayanan) membaca versi BARU field yang
+ * baru saja ikut dihitung ulang, BUKAN versi lama dari Firestore -- kalau
+ * tidak, BEP bisa memakai harga jual/HPP LAMA walau HargaLayanan baru saja
+ * disimpan pada request yang sama. Field yang TIDAK ikut di-recompute pada
+ * batch ini (mis. fixedCost saat simpan Air) TETAP terbaca dari cache
+ * Firestore lama, yang memang masih akurat (tidak terpengaruh perubahan).
+ */
+function dashboardPrimeComputedCache_(cabangId, field, value) {
+  const existing = _dashboardComputedDocCache_[cabangId];
+  const base = (existing && typeof existing === "object") ? existing : {};
+  const computed = (base.computed && typeof base.computed === "object") ? base.computed : {};
+  computed[field] = value;
+  base.computed = computed;
+  _dashboardComputedDocCache_[cabangId] = base;
+}
+
+/**
+ * [2026-07-22] Semua 6 field `computed.*` yang ada. Dipakai sbg default
+ * kalau caller tidak menentukan `fields` (mis. backfill massal/self-heal) --
+ * konteks itu tidak tahu dependency spesifik, jadi aman hitung semuanya.
+ */
+const DASHBOARD_ALL_COMPUTED_FIELDS_ = ["hpp", "masterBiaya", "hargaLayanan", "fixedCost", "bep", "potensiOmset"];
+
+/**
+ * [2026-07-22] Grup dependency per titik simpan -- fixedCost HANYA
+ * bergantung ke Biaya Tetap Outlet, TIDAK ke Gas/Chemical/Packing/Air/
+ * Listrik/NotaKasir/HargaLayanan/toggle HPP, jadi titik simpan itu tidak
+ * perlu ikut menghitung ulang fixedCost (ini akar regresi 45,5 detik).
+ */
+const DASHBOARD_RECOMPUTE_HPP_GROUP_ = ["hpp", "masterBiaya", "hargaLayanan", "bep", "potensiOmset"];
+const DASHBOARD_RECOMPUTE_FIXEDCOST_GROUP_ = ["fixedCost", "bep", "potensiOmset"];
+const DASHBOARD_RECOMPUTE_HARGALAYANAN_GROUP_ = ["hargaLayanan", "bep", "potensiOmset"];
+const DASHBOARD_RECOMPUTE_BEPMIX_GROUP_ = ["bep", "potensiOmset"];
+
+/**
+ * [2026-07-22] Fungsi `_impl_` sumber tiap field computed (dipakai
+ * recomputeCabangSummary_ & buildComputedWriteSpec_ supaya tidak duplikat).
+ */
+const DASHBOARD_COMPUTED_SOURCE_FNS_ = {
+  masterBiaya: function (cabangId) { return getDashboardMasterBiayaSummary_impl_(cabangId); },
+  hargaLayanan: function (cabangId) { return getDashboardHargaLayananSummary_impl_(cabangId); },
+  fixedCost: function (cabangId) { return getDashboardFixedCostSummary_impl_(cabangId); },
+  bep: function (cabangId) { return getDashboardBEPSummary_impl_(cabangId); },
+  potensiOmset: function (cabangId) { return getDashboardPotensiOmsetSummary_impl_(cabangId); },
+};
+
+/**
+ * Hitung ulang HANYA field `computed.xxx` yang diminta (`fields`, default
+ * SEMUA 6) satu cabang, lalu simpan dgn updateMask GRANULAR per-field
+ * ("computed.hpp", "computed.masterBiaya", dst - BUKAN blanket "computed")
+ * supaya field lain yg TIDAK dihitung ulang (mis. simpan Air tidak perlu
+ * hitung ulang fixedCost) tetap UTUH, tidak ketimpa/terhapus.
+ * [2026-07-22 - FIX REGRESI SIMPAN] Sebelumnya versi ini SELALU hitung
+ * SEMUA 6 ringkasan pada TIAP titik simpan (mask blanket "computed") --
+ * diukur nyata: 1x simpan Air jadi 45,5 DETIK (harusnya ~1-2 detik) karena
+ * ikut menghitung ulang FixedCost/BEP/PotensiOmset yang TIDAK terpengaruh
+ * data Air sama sekali. Sekarang tiap titik simpan kirim `fields` spesifik
+ * sesuai dependency data yang benar-benar berubah.
+ * Semua sumber `_impl_` TETAP baca dari Sheets (kebenaran asli) - modul ini
+ * HANYA memindahkan KAPAN & KE MANA hasilnya disimpan, TIDAK menduplikasi
+ * rumus/logika bisnis apa pun.
  * BEST-EFFORT: tidak pernah melempar; kembalikan {ok:false,...} kalau gagal.
  */
-function recomputeCabangSummary_(cabangId) {
+function recomputeCabangSummary_(cabangId, fields) {
   try {
     if (!cabangId || typeof cabangId !== "string") {
       return { ok: false, error: "cabangId tidak valid" };
     }
     const tenantId = activeDataSpreadsheetId_();
     if (!tenantId) return { ok: false, error: "tenantId (spreadsheet aktif) tidak ditemukan" };
+    const wanted = (fields && fields.length) ? fields : DASHBOARD_ALL_COMPUTED_FIELDS_;
+
+    // [PENTING] Pastikan cache dokumen per-eksekusi sudah DI-FETCH (dari
+    // Firestore, data NYATA) SEBELUM mulai priming field-per-field di bawah.
+    // Tanpa ini, dashboardPrimeComputedCache_ bisa "meracuni" cache dgn
+    // objek PARSIAL sebelum GET asli terjadi -- dashboardGetComputedDoc_
+    // lihat cabangId sudah "ada" di cache (walau isinya cuma field yg baru
+    // di-prime) & TIDAK PERNAH fetch field lain yg sudah ada di Firestore
+    // (mis. fixedCost) -- Fast_ reader field itu jadi selalu miss & balik
+    // hitung LIVE (mahal), padahal harusnya cukup baca cache.
+    dashboardGetComputedDoc_(cabangId);
 
     // Buang cache HPP per-eksekusi supaya dihitung ULANG dari data terbaru
     // (penting kalau dipanggil tepat setelah save dalam eksekusi yang sama).
@@ -97,16 +198,54 @@ function recomputeCabangSummary_(cabangId) {
       delete _strukturBiayaHPPCache_[cabangId];
     }
 
-    const hppRes = getStrukturBiayaHPP_impl_(cabangId);
-    if (!hppRes || !hppRes.ok) {
-      return { ok: false, error: (hppRes && hppRes.error) || "getStrukturBiayaHPP gagal" };
+    const computed = { computedAt: new Date() };
+    const maskFields = ["computed.computedAt"];
+
+    if (wanted.indexOf("hpp") !== -1) {
+      const hppRes = getStrukturBiayaHPP_impl_(cabangId);
+      if (!hppRes || !hppRes.ok) {
+        return { ok: false, error: (hppRes && hppRes.error) || "getStrukturBiayaHPP gagal" };
+      }
+      computed.hpp = hppRes.data;
+      maskFields.push("computed.hpp");
+      dashboardPrimeComputedCache_(cabangId, "hpp", hppRes.data);
     }
+
+    // [2026-07-22] Ringkasan Dashboard lain - reuse fungsi _impl_ yang SUDAH
+    // ADA & sudah dipakai jalur baca lama (tidak ada logika baru di sini).
+    // Masing-masing dibungkus try/catch sendiri supaya 1 ringkasan gagal
+    // tidak menggagalkan yang lain - field yang gagal cukup TIDAK disimpan,
+    // fast-reader-nya otomatis fallback live seperti biasa utk field itu saja.
+    // Urutan `wanted` SENGAJA dependency-first (masterBiaya/hargaLayanan/
+    // fixedCost sebelum bep, bep sebelum potensiOmset) supaya begitu BEP
+    // dihitung, dashboardPrimeComputedCache_ dari langkah sebelumnya sudah
+    // ke-isi & terbaca oleh Fast_ reader yang dipanggil BEP/PotensiOmset
+    // secara internal (lihat getDashboardBEPSummary_impl_).
+    wanted.forEach(function (field) {
+      if (field === "hpp" || !DASHBOARD_COMPUTED_SOURCE_FNS_[field]) return;
+      try {
+        const res = DASHBOARD_COMPUTED_SOURCE_FNS_[field](cabangId);
+        if (res && res.ok) {
+          computed[field] = res.data;
+          maskFields.push("computed." + field);
+          dashboardPrimeComputedCache_(cabangId, field, res.data);
+        }
+      } catch (extraErr) {
+        console.warn("recomputeCabangSummary_ (" + field + ") gagal utk " + cabangId + ": " + extraErr);
+      }
+    });
 
     firestoreSet_(
       firestoreCabangDocPath_(tenantId, cabangId),
-      { computed: { hpp: hppRes.data, computedAt: new Date() } },
-      ["computed"]
+      { computed: computed },
+      maskFields
     );
+    // Cache per-eksekusi SUDAH di-prime field-per-field di atas (SEBELUM
+    // write ini) via dashboardPrimeComputedCache_ -- TIDAK dibuang di sini
+    // (beda dari versi sebelumnya) supaya baca berikutnya di eksekusi yang
+    // SAMA tidak perlu 1 GET Firestore lagi (datanya sudah identik dgn yang
+    // baru saja ditulis).
+    dashboardPrimeComputedCache_(cabangId, "computedAt", computed.computedAt);
     return { ok: true, tenantId: tenantId, cabangId: cabangId };
   } catch (err) {
     console.warn("recomputeCabangSummary_ gagal (non-fatal) utk " + cabangId + ": " + err);
@@ -115,19 +254,17 @@ function recomputeCabangSummary_(cabangId) {
 }
 
 /**
- * Baca HPP CEPAT: 1 GET dari Firestore (computed.hpp). Kalau belum ada
- * (cabang belum pernah di-recompute), fallback hitung dari Sheets SEKALIGUS
- * memicu recompute supaya baca berikutnya sudah cepat. `_source` menandai
- * dari mana hasilnya, berguna saat verifikasi.
+ * Baca HPP CEPAT: 1 GET dari Firestore (computed.hpp, dibagi via
+ * dashboardGetComputedDoc_). Kalau belum ada (cabang belum pernah di-
+ * recompute), fallback hitung dari Sheets SEKALIGUS memicu recompute supaya
+ * baca berikutnya sudah cepat. `_source` menandai dari mana hasilnya,
+ * berguna saat verifikasi.
  */
 function getStrukturBiayaHPPFast_(cabangId) {
   try {
-    const tenantId = activeDataSpreadsheetId_();
-    if (tenantId) {
-      const doc = firestoreGet_(firestoreCabangDocPath_(tenantId, cabangId));
-      if (doc && doc.computed && doc.computed.hpp) {
-        return { ok: true, data: doc.computed.hpp, _source: "firestore", _computedAt: doc.computed.computedAt || null };
-      }
+    const doc = dashboardGetComputedDoc_(cabangId);
+    if (doc && doc.computed && doc.computed.hpp) {
+      return { ok: true, data: doc.computed.hpp, _source: "firestore", _computedAt: doc.computed.computedAt || null };
     }
   } catch (err) {
     console.warn("getStrukturBiayaHPPFast_ Firestore gagal, fallback Sheets: " + err);
@@ -136,6 +273,43 @@ function getStrukturBiayaHPPFast_(cabangId) {
   try { recomputeCabangSummary_(cabangId); } catch (e) {}
   if (res && res.ok) res._source = "sheets_fallback";
   return res;
+}
+
+/**
+ * [2026-07-22] 5 fast-reader ringkasan Dashboard lain - pola SAMA PERSIS
+ * dgn getStrukturBiayaHPPFast_ di atas: baca `computed.xxx` (via cache
+ * dokumen bersama dashboardGetComputedDoc_), fallback ke `_impl_` LIVE +
+ * self-heal (recomputeCabangSummary_) kalau cache kosong/gagal.
+ */
+function dashboardFastReader_(cabangId, computedField, implFn) {
+  try {
+    const doc = dashboardGetComputedDoc_(cabangId);
+    if (doc && doc.computed && doc.computed[computedField]) {
+      return { ok: true, data: doc.computed[computedField], _source: "firestore" };
+    }
+  } catch (err) {
+    console.warn("dashboardFastReader_(" + computedField + ") Firestore gagal, fallback Sheets: " + err);
+  }
+  const res = implFn(cabangId);
+  try { recomputeCabangSummary_(cabangId); } catch (e) {}
+  if (res && res.ok) res._source = "sheets_fallback";
+  return res;
+}
+
+function getDashboardMasterBiayaSummaryFast_(cabangId) {
+  return dashboardFastReader_(cabangId, "masterBiaya", getDashboardMasterBiayaSummary_impl_);
+}
+function getDashboardHargaLayananSummaryFast_(cabangId) {
+  return dashboardFastReader_(cabangId, "hargaLayanan", getDashboardHargaLayananSummary_impl_);
+}
+function getDashboardFixedCostSummaryFast_(cabangId) {
+  return dashboardFastReader_(cabangId, "fixedCost", getDashboardFixedCostSummary_impl_);
+}
+function getDashboardBEPSummaryFast_(cabangId) {
+  return dashboardFastReader_(cabangId, "bep", getDashboardBEPSummary_impl_);
+}
+function getDashboardPotensiOmsetSummaryFast_(cabangId) {
+  return dashboardFastReader_(cabangId, "potensiOmset", getDashboardPotensiOmsetSummary_impl_);
 }
 
 /**
@@ -238,27 +412,76 @@ function firestoreSyncHppToggles_(cabangId) {
 // berurutan). Diukur: turun ~1 detik/simpan dibanding 2 panggilan terpisah.
 // ============================================================================
 
-/** Hitung HPP (Sheets) & bentuk write-spec `computed` -- TIDAK mengirim apapun, cuma menyiapkan. */
-function buildComputedWriteSpec_(tenantId, cabangId) {
+/**
+ * [2026-07-22] Versi BATCHED dari recomputeCabangSummary_ - dipakai SEMUA
+ * helper `...AndRecompute_` di bawah supaya recompute-nya digabung jadi 1
+ * HTTP call bareng write config/sub-item-nya, BUKAN write terpisah.
+ * `fields` (default SEMUA 6) menentukan field `computed.xxx` mana yang
+ * DIHITUNG ULANG & ditulis (updateMask GRANULAR per-field, bukan blanket
+ * "computed") -- field lain yang TIDAK diminta tetap UTUH di Firestore.
+ * [2026-07-22 - FIX REGRESI SIMPAN] Sebelumnya SELALU hitung ke-6 ringkasan
+ * pada TIAP titik simpan -- diukur: 1x simpan Air jadi 45,5 DETIK karena
+ * ikut menghitung ulang FixedCost/BEP/PotensiOmset yg tidak terpengaruh data
+ * Air. Sekarang tiap caller kirim `fields` sesuai dependency data yg benar2
+ * berubah (mis. simpan Air/Gas/Chemical dst TIDAK perlu hitung ulang
+ * fixedCost, karena FixedCost cuma bergantung ke Biaya Tetap Outlet).
+ */
+function buildComputedWriteSpec_(tenantId, cabangId, fields) {
+  const wanted = (fields && fields.length) ? fields : DASHBOARD_ALL_COMPUTED_FIELDS_;
+  // [PENTING] Sama seperti recomputeCabangSummary_ -- pastikan cache dokumen
+  // per-eksekusi sudah DI-FETCH NYATA sebelum priming field-per-field,
+  // supaya field yg TIDAK ikut di-recompute batch ini (mis. fixedCost saat
+  // simpan Air) tetap kebaca dari Firestore, bukan selalu "miss".
+  dashboardGetComputedDoc_(cabangId);
   if (typeof _strukturBiayaHPPCache_ !== "undefined" && _strukturBiayaHPPCache_ && _strukturBiayaHPPCache_[cabangId]) {
     delete _strukturBiayaHPPCache_[cabangId];
   }
-  const hppRes = getStrukturBiayaHPP_impl_(cabangId);
-  if (!hppRes || !hppRes.ok) return null;
+
+  const computed = { computedAt: new Date() };
+  const maskFields = ["computed.computedAt"];
+
+  if (wanted.indexOf("hpp") !== -1) {
+    const hppRes = getStrukturBiayaHPP_impl_(cabangId);
+    if (!hppRes || !hppRes.ok) return null;
+    computed.hpp = hppRes.data;
+    maskFields.push("computed.hpp");
+    dashboardPrimeComputedCache_(cabangId, "hpp", hppRes.data);
+  }
+
+  // Urutan `wanted` SENGAJA dependency-first -- lihat catatan sama di
+  // recomputeCabangSummary_ (dashboardPrimeComputedCache_ di bawah supaya
+  // BEP/PotensiOmset baca versi SEGAR field yg baru dihitung di batch INI,
+  // bukan versi lama dari Firestore).
+  wanted.forEach(function (field) {
+    if (field === "hpp" || !DASHBOARD_COMPUTED_SOURCE_FNS_[field]) return;
+    try {
+      const res = DASHBOARD_COMPUTED_SOURCE_FNS_[field](cabangId);
+      if (res && res.ok) {
+        computed[field] = res.data;
+        maskFields.push("computed." + field);
+        dashboardPrimeComputedCache_(cabangId, field, res.data);
+      }
+    } catch (extraErr) {
+      console.warn("buildComputedWriteSpec_ (" + field + ") gagal utk " + cabangId + ": " + extraErr);
+    }
+  });
+
+  dashboardPrimeComputedCache_(cabangId, "computedAt", computed.computedAt);
+
   return {
     relPath: firestoreCabangDocPath_(tenantId, cabangId),
-    data: { computed: { hpp: hppRes.data, computedAt: new Date() } },
-    updateMaskFields: ["computed"],
+    data: { computed: computed },
+    updateMaskFields: maskFields,
   };
 }
 
 /** Sinkron 1 dokumen config 1:1 + recompute HPP, DIGABUNG jadi 1 HTTP call. BEST-EFFORT. */
-function firestoreSyncConfigDocAndRecompute_(cabangId, docName, record) {
+function firestoreSyncConfigDocAndRecompute_(cabangId, docName, record, fields) {
   try {
     const tenantId = activeDataSpreadsheetId_();
     if (!tenantId) return;
     const writeSpecs = [{ relPath: firestoreCabangDocPath_(tenantId, cabangId) + "/config/" + docName, data: record }];
-    const computedSpec = buildComputedWriteSpec_(tenantId, cabangId);
+    const computedSpec = buildComputedWriteSpec_(tenantId, cabangId, fields);
     if (computedSpec) writeSpecs.push(computedSpec);
     firestoreCommit_(writeSpecs);
   } catch (err) {
@@ -267,12 +490,12 @@ function firestoreSyncConfigDocAndRecompute_(cabangId, docName, record) {
 }
 
 /** Sinkron 1 item subkoleksi (gas/chemical/packing) + recompute HPP, DIGABUNG. BEST-EFFORT. */
-function firestoreSyncSubItemAndRecompute_(cabangId, subcollection, record) {
+function firestoreSyncSubItemAndRecompute_(cabangId, subcollection, record, fields) {
   try {
     const tenantId = activeDataSpreadsheetId_();
     if (!tenantId || !record || !record.id) return;
     const writeSpecs = [{ relPath: firestoreCabangDocPath_(tenantId, cabangId) + "/" + subcollection + "/" + record.id, data: record }];
-    const computedSpec = buildComputedWriteSpec_(tenantId, cabangId);
+    const computedSpec = buildComputedWriteSpec_(tenantId, cabangId, fields);
     if (computedSpec) writeSpecs.push(computedSpec);
     firestoreCommit_(writeSpecs);
   } catch (err) {
@@ -281,12 +504,12 @@ function firestoreSyncSubItemAndRecompute_(cabangId, subcollection, record) {
 }
 
 /** Hapus 1 item subkoleksi + recompute HPP, DIGABUNG (delete + update dlm 1 commit). BEST-EFFORT. */
-function firestoreDeleteSubDocAndRecompute_(cabangId, subcollection, itemId) {
+function firestoreDeleteSubDocAndRecompute_(cabangId, subcollection, itemId, fields) {
   try {
     const tenantId = activeDataSpreadsheetId_();
     if (!tenantId || !cabangId || !itemId) return;
     const writeSpecs = [{ deletePath: firestoreCabangDocPath_(tenantId, cabangId) + "/" + subcollection + "/" + itemId }];
-    const computedSpec = buildComputedWriteSpec_(tenantId, cabangId);
+    const computedSpec = buildComputedWriteSpec_(tenantId, cabangId, fields);
     if (computedSpec) writeSpecs.push(computedSpec);
     firestoreCommit_(writeSpecs);
   } catch (err) {
@@ -320,16 +543,24 @@ function firestoreSyncCabangProfilAndRecompute_(cabangId, cabang) {
     const maskFields = ["profil", "mesinCuci", "mesinPengering", "mesinSetrika", "kategoriLayanan", "okupansi", "createdAt", "updatedAt"];
     if (hppRes && hppRes.ok) {
       data.computed = { hpp: hppRes.data, computedAt: new Date() };
-      maskFields.push("computed");
+      // Mask GRANULAR ("computed.hpp"/"computed.computedAt"), BUKAN blanket
+      // "computed" -- profil cabang cuma memengaruhi HPP, mask blanket akan
+      // menghapus computed.masterBiaya/hargaLayanan/fixedCost/bep/
+      // potensiOmset yang sudah ada (celah yang baru ketahuan saat
+      // memperluas pola computed ke 5 ringkasan lain, 2026-07-22).
+      maskFields.push("computed.hpp", "computed.computedAt");
     }
     firestoreSet_(firestoreCabangDocPath_(tenantId, cabangId), data, maskFields);
+    if (Object.prototype.hasOwnProperty.call(_dashboardComputedDocCache_, cabangId)) {
+      delete _dashboardComputedDocCache_[cabangId];
+    }
   } catch (err) {
     console.warn("firestoreSyncCabangProfilAndRecompute_ gagal (non-fatal): " + err);
   }
 }
 
 /** Sinkron config/hppToggles + recompute HPP, DIGABUNG jadi 1 HTTP call. BEST-EFFORT. */
-function firestoreSyncHppTogglesAndRecompute_(cabangId) {
+function firestoreSyncHppTogglesAndRecompute_(cabangId, fields) {
   try {
     const tenantId = activeDataSpreadsheetId_();
     if (!tenantId) return;
@@ -358,7 +589,7 @@ function firestoreSyncHppTogglesAndRecompute_(cabangId) {
       relPath: firestoreCabangDocPath_(tenantId, cabangId) + "/config/hppToggles",
       data: freshToggles,
     }];
-    const computedSpec = buildComputedWriteSpec_(tenantId, cabangId);
+    const computedSpec = buildComputedWriteSpec_(tenantId, cabangId, fields);
     if (computedSpec) writeSpecs.push(computedSpec);
     firestoreCommit_(writeSpecs);
   } catch (err) {

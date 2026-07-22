@@ -287,7 +287,7 @@ function saveBiayaNotaKasir_impl_(cabangId, payload) {
     });
     // best-effort DI LUAR lock (supaya HTTP Firestore tidak menahan kunci global)
     if (nkResult && nkResult.ok) {
-      firestoreSyncConfigDocAndRecompute_(cabangId, "notaKasir", nkResult.data.record); // 1 HTTP call
+      firestoreSyncConfigDocAndRecompute_(cabangId, "notaKasir", nkResult.data.record, DASHBOARD_RECOMPUTE_HPP_GROUP_); // 1 HTTP call
     }
     return nkResult;
   } catch (err) {
