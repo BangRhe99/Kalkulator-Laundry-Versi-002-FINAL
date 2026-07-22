@@ -93,7 +93,15 @@ function getHargaLayanan_(cabangId) {
     // butuh (per load); kategori lain rekomendasinya sudah cukup dari HPP+min
     // order di sisi client. Aditif, tidak mengubah field/rumus lama.
     const recoContext = kategoriFinal === "self_service" ? buildSelfServiceRecoContext_(cleanCabangId) : null;
-    const layanan = buildHargaLayananItems_(kategoriFinal, hppMap, stored.hargaJual || {}, aktifMap, konversi, stored.minimumOrderKg || {}, recoContext);
+    // [2026-07-22] Layanan CUSTOM (Modul_StrukturBiayaHPP.gs, Firestore) --
+    // otomatis ikut tampil di sini, HANYA yang aktif (nonaktif tetap
+    // tersimpan tapi tidak dijual). hppMap sudah otomatis punya entri custom
+    // ini juga (buildHargaLayananHPPMap_ generic, iterate layanan[] apa
+    // adanya dari HPP yang SUDAH termasuk custom -- lihat getStrukturBiayaHPP_).
+    const customLayananDefs = typeof listCustomLayananHPP_impl_ === "function"
+      ? listCustomLayananHPP_impl_(cleanCabangId).filter(function (d) { return d.aktif !== false; })
+      : [];
+    const layanan = buildHargaLayananItems_(kategoriFinal, hppMap, stored.hargaJual || {}, aktifMap, konversi, stored.minimumOrderKg || {}, recoContext, customLayananDefs);
 
     return {
       ok: true,
@@ -181,7 +189,10 @@ function saveHargaLayanan_impl_(cabangId, payload) {
       };
     }
 
-    const cleanPayload = sanitizeHargaLayananPayload_(payload);
+    const customKeys = typeof listCustomLayananHPP_impl_ === "function"
+      ? listCustomLayananHPP_impl_(cleanCabangId).map(function (d) { return d.key; })
+      : [];
+    const cleanPayload = sanitizeHargaLayananPayload_(payload, customKeys);
     const sheet = ensureDataSheet_();
 
     const record = {
@@ -364,7 +375,11 @@ function buildHargaLayananHPPMap_(hppResult) {
   return map;
 }
 
-function getHargaLayananDefinitions_(kategori, aktifMap) {
+function getHargaLayananDefinitions_(kategori, aktifMap, customLayananDefs) {
+  const customDefs = (Array.isArray(customLayananDefs) ? customLayananDefs : []).map(function (d) {
+    return { key: d.key, title: d.title, hppSourceKey: d.key, unitLabel: d.unitLabel || (kategori === "self_service" ? "per load" : "per kg"), isCustom: true };
+  });
+
   if (kategori === "self_service") {
     // Layanan mana yang tampil mengikuti toggle aktif di kartu Struktur
     // Biaya HPP (aktifMap) - sama seperti drop_off/hybrid, supaya laundry
@@ -381,7 +396,7 @@ function getHargaLayananDefinitions_(kategori, aktifMap) {
     if (aktif.cuci_kering !== false) {
       defs.push({ key: "cuci_kering", title: "Cuci Kering", hppSourceKey: "cuci_kering", unitLabel: "per load" });
     }
-    return defs;
+    return defs.concat(customDefs);
   }
 
   if (kategori === "jasa_setrika") {
@@ -392,7 +407,7 @@ function getHargaLayananDefinitions_(kategori, aktifMap) {
         hppSourceKey: "setrika_saja",
         unitLabel: "per kg",
       },
-    ];
+    ].concat(customDefs);
   }
 
   // drop_off/hybrid: layanan mana yang tampil mengikuti toggle aktif di
@@ -418,11 +433,11 @@ function getHargaLayananDefinitions_(kategori, aktifMap) {
     defs.push({ key: "bed_cover", title: "Bed Cover", hppSourceKey: "bed_cover", unitLabel: "per item" });
   }
 
-  return defs;
+  return defs.concat(customDefs);
 }
 
-function buildHargaLayananItems_(kategori, hppMap, storedHargaJual, aktifMap, konversi, storedMinimumOrderKg, recoContext) {
-  const defs = getHargaLayananDefinitions_(kategori, aktifMap);
+function buildHargaLayananItems_(kategori, hppMap, storedHargaJual, aktifMap, konversi, storedMinimumOrderKg, recoContext, customLayananDefs) {
+  const defs = getHargaLayananDefinitions_(kategori, aktifMap, customLayananDefs);
   const items = [];
   const kapasitasKgPerLoad = toNumber_(konversi && konversi.kapasitasKgPerLoad, 0);
   const setrikaKapasitasKgPerJam = toNumber_(konversi && konversi.setrikaKapasitasKgPerJam, 0);
@@ -575,12 +590,16 @@ function getHargaLayananMarginStatusLabel_(margin, marginPercent) {
   return "Aman";
 }
 
-function sanitizeHargaLayananPayload_(payload) {
+function sanitizeHargaLayananPayload_(payload, extraAllowedKeys) {
   const input = payload && typeof payload === "object" ? payload : {};
   const hargaJualInput = input.hargaJual && typeof input.hargaJual === "object" ? input.hargaJual : {};
   const minimumOrderKgInput = input.minimumOrderKg && typeof input.minimumOrderKg === "object" ? input.minimumOrderKg : {};
   const hargaJual = {};
   const minimumOrderKg = {};
+  // [2026-07-22] extraAllowedKeys = key layanan CUSTOM milik cabang ini
+  // (Modul_StrukturBiayaHPP.gs, Firestore) - tanpa ini hargaJual/minimumOrderKg
+  // utk layanan custom akan DIBUANG diam-diam (celah yg sama seperti allowedKeys
+  // lama, cuma diperluas per-cabang, bukan dibuka bebas ke key apa pun).
   const allowedKeys = [
     "cuci_saja",
     "kering_saja",
@@ -589,7 +608,7 @@ function sanitizeHargaLayananPayload_(payload) {
     "cuci_kering_setrika",
     "setrika_saja",
     "bed_cover",
-  ];
+  ].concat(Array.isArray(extraAllowedKeys) ? extraAllowedKeys : []);
 
   allowedKeys.forEach(function (key) {
     hargaJual[key] = Math.max(0, round2_(toNumber_(hargaJualInput[key], 0)));

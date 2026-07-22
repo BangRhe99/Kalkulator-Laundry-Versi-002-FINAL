@@ -210,20 +210,188 @@ menjalankan bootApp().
 
   function buildStrukturHPPToggleHtml_(cabangId, toggleInfo) {
     if (!toggleInfo) return '';
+    var toggleFn = toggleInfo.isCustom ? 'toggleCustomLayananAktif_' : 'toggleStrukturHPPLayananDesktop_';
+    var deleteHtml = toggleInfo.isCustom
+      ? '<button type="button" class="hpp-custom-delete-btn" onclick="openConfirmDeleteCustomLayanan_(\'' + escapeJsAttr(cabangId) + '\', \'' + escapeJsAttr(toggleInfo.key) + '\', \'' + escapeJsAttr(toggleInfo.title) + '\', event)">Hapus</button>'
+      : '';
     return '<div class="hpp-bedcover-toggle-row">' +
       '<span>Layanan aktif</span>' +
-      '<button type="button" class="hpp-bedcover-toggle-btn" onclick="toggleStrukturHPPLayananDesktop_(\'' + escapeJsAttr(cabangId) + '\', \'' + escapeJsAttr(toggleInfo.key) + '\', false, event)">Matikan</button>' +
+      '<span>' +
+        '<button type="button" class="hpp-bedcover-toggle-btn" onclick="' + toggleFn + '(\'' + escapeJsAttr(cabangId) + '\', \'' + escapeJsAttr(toggleInfo.key) + '\', false, event)">Matikan</button>' +
+        deleteHtml +
+      '</span>' +
     '</div>';
   }
 
   function buildStrukturHPPOffRowsHtml_(cabangId, serviceToggles) {
     return serviceToggles.filter(function (t) { return t.aktif === false; }).map(function (t) {
+      var toggleFn = t.isCustom ? 'toggleCustomLayananAktif_' : 'toggleStrukturHPPLayananDesktop_';
+      var deleteHtml = t.isCustom
+        ? '<button type="button" class="hpp-custom-delete-btn" onclick="openConfirmDeleteCustomLayanan_(\'' + escapeJsAttr(cabangId) + '\', \'' + escapeJsAttr(t.key) + '\', \'' + escapeJsAttr(t.title) + '\', event)">Hapus</button>'
+        : '';
       return '<div class="hpp-bedcover-off-row">' +
         '<span>Layanan ' + escapeHtml((t.title || '').replace(/^HPP /, '')) + ' nonaktif</span>' +
-        '<button type="button" class="hpp-bedcover-toggle-btn" onclick="toggleStrukturHPPLayananDesktop_(\'' + escapeJsAttr(cabangId) + '\', \'' + escapeJsAttr(t.key) + '\', true, event)">Aktifkan</button>' +
+        '<span>' +
+          '<button type="button" class="hpp-bedcover-toggle-btn" onclick="' + toggleFn + '(\'' + escapeJsAttr(cabangId) + '\', \'' + escapeJsAttr(t.key) + '\', true, event)">Aktifkan</button>' +
+          deleteHtml +
+        '</span>' +
       '</div>';
     }).join('');
   }
+
+  /* =======================================================================
+   * LAYANAN CUSTOM [2026-07-22] -- tambah/hapus/toggle layanan HPP custom
+   * (Firestore, Modul_StrukturBiayaHPP.gs). Toggle aktif/nonaktif layanan
+   * custom TIDAK lewat toggleHPPLayananAktif (itu khusus key bawaan,
+   * ditolak backend utk key custom) - pakai jalur sendiri di bawah.
+   * ======================================================================= */
+  var customLayananModalCabangId_ = null;
+  var customLayananModalPool_ = [];
+
+  function refreshCustomLayananView_(cabangId) {
+    if (typeof invalidateServerReadCache_ === "function") {
+      invalidateServerReadCache_("getStrukturBiayaHPP", cabangId);
+      invalidateServerReadCache_("getHargaLayanan", cabangId);
+    }
+    if (view.screen === "strukturHPPDetail") {
+      openStrukturHPPDetail(cabangId);
+    } else {
+      renderStrukturHPPDesktop_();
+    }
+  }
+
+  window.toggleCustomLayananAktif_ = function (cabangId, key, nextAktif, evt) {
+    if (evt) evt.stopPropagation();
+    if (!cabangId || !key) return;
+    callServer_("setCustomLayananHPPAktif", [cabangId, key, nextAktif], function (res) {
+      if (!res || !res.ok) {
+        showToast((res && res.error) || "Gagal mengubah status layanan.", "err");
+        return;
+      }
+      refreshCustomLayananView_(cabangId);
+    }, function (err) {
+      showToast(err && err.message ? err.message : "Gagal mengubah status layanan.", "err");
+    });
+  };
+
+  window.openConfirmDeleteCustomLayanan_ = function (cabangId, key, title, evt) {
+    if (evt) evt.stopPropagation();
+    document.getElementById("confirmTitle").textContent = "Hapus layanan custom ini?";
+    document.getElementById("confirmText").textContent =
+      "Layanan \"" + title + "\" akan dihapus permanen, termasuk harga jualnya di Harga Layanan. Tidak bisa dikembalikan.";
+    document.getElementById("confirmOverlay").classList.add("show");
+
+    var btn = document.getElementById("confirmDeleteBtn");
+    btn.onclick = function () { confirmDeleteCustomLayanan_(cabangId, key); };
+  };
+
+  function confirmDeleteCustomLayanan_(cabangId, key) {
+    var btn = document.getElementById("confirmDeleteBtn");
+    btn.disabled = true;
+    btn.textContent = "Menghapus...";
+
+    callServer_("deleteCustomLayananHPP", [cabangId, key], function (res) {
+      btn.disabled = false;
+      btn.textContent = "Hapus";
+      closeConfirm();
+      if (!res || !res.ok) {
+        showToast((res && res.error) || "Gagal menghapus layanan.", "err");
+        return;
+      }
+      showToast("Layanan custom dihapus.", "ok");
+      refreshCustomLayananView_(cabangId);
+    }, function (err) {
+      btn.disabled = false;
+      btn.textContent = "Hapus";
+      showToast(err && err.message ? err.message : "Gagal menghapus layanan.", "err");
+    });
+  }
+
+  function buildCustomLayananAddButtonHtml_(cabangId) {
+    return '<div class="hpp-custom-add-row">' +
+      '<button type="button" class="hpp-custom-add-btn" onclick="openCustomLayananModal_(\'' + escapeJsAttr(cabangId) + '\')">+ Tambah Layanan Custom</button>' +
+    '</div>';
+  }
+
+  window.openCustomLayananModal_ = function (cabangId) {
+    if (!cabangId) return;
+    customLayananModalCabangId_ = cabangId;
+    customLayananModalPool_ = [];
+
+    var titleInput = document.getElementById("customLayananTitleInput");
+    if (titleInput) titleInput.value = "";
+    var errEl = document.getElementById("customLayananError");
+    if (errEl) { errEl.textContent = ""; errEl.classList.remove("show"); }
+
+    var listEl = document.getElementById("customLayananComponentList");
+    if (listEl) listEl.innerHTML = '<div class="custom-layanan-empty">Memuat komponen...</div>';
+
+    document.getElementById("customLayananOverlay").classList.add("show");
+
+    callServer_("getStrukturHPPComponentPool", [cabangId], function (res) {
+      if (!res || !res.ok) {
+        if (listEl) listEl.innerHTML = '<div class="custom-layanan-empty">' + escapeHtml((res && res.error) || "Gagal memuat komponen biaya.") + '</div>';
+        return;
+      }
+      var pool = Array.isArray(res.data.pool) ? res.data.pool : [];
+      customLayananModalPool_ = pool;
+      if (!listEl) return;
+      if (!pool.length) {
+        listEl.innerHTML = '<div class="custom-layanan-empty">Belum ada data biaya master yang bisa dipakai. Lengkapi Master Biaya dulu.</div>';
+        return;
+      }
+      listEl.innerHTML = pool.map(function (c) {
+        return '<div class="custom-layanan-component-row">' +
+          '<label>' +
+            '<input type="checkbox" value="' + escapeJsAttr(c.key) + '" data-custom-layanan-component>' +
+            '<span>' + escapeHtml(c.label) + '</span>' +
+          '</label>' +
+          '<span class="custom-layanan-component-amount">' + money0(c.amount) + '</span>' +
+        '</div>';
+      }).join('');
+    }, function (err) {
+      if (listEl) listEl.innerHTML = '<div class="custom-layanan-empty">' + escapeHtml(err && err.message ? err.message : String(err)) + '</div>';
+    });
+  };
+
+  window.closeCustomLayananModal = function () {
+    document.getElementById("customLayananOverlay").classList.remove("show");
+  };
+
+  window.saveCustomLayananHPPFromModal = function () {
+    var cabangId = customLayananModalCabangId_;
+    var errEl = document.getElementById("customLayananError");
+    var showErr = function (msg) {
+      if (errEl) { errEl.textContent = msg; errEl.classList.add("show"); }
+    };
+    if (errEl) { errEl.textContent = ""; errEl.classList.remove("show"); }
+
+    if (!cabangId) { showErr("Outlet tidak valid."); return; }
+
+    var title = (document.getElementById("customLayananTitleInput").value || "").trim();
+    if (!title) { showErr("Nama layanan wajib diisi."); return; }
+
+    var checked = document.querySelectorAll('#customLayananComponentList input[data-custom-layanan-component]:checked');
+    var componentKeys = Array.prototype.slice.call(checked).map(function (el) { return el.value; });
+    if (!componentKeys.length) { showErr("Pilih minimal 1 komponen biaya."); return; }
+
+    var btn = document.getElementById("customLayananSaveBtn");
+    btn.disabled = true;
+    btn.textContent = "Menyimpan...";
+
+    callServer_("saveCustomLayananHPP", [cabangId, { title: title, componentKeys: componentKeys }], function (res) {
+      btn.disabled = false;
+      btn.textContent = "Simpan";
+      if (!res || !res.ok) { showErr((res && res.error) || "Gagal menyimpan layanan."); return; }
+      closeCustomLayananModal();
+      showToast("Layanan custom \"" + title + "\" tersimpan.", "ok");
+      refreshCustomLayananView_(cabangId);
+    }, function (err) {
+      btn.disabled = false;
+      btn.textContent = "Simpan";
+      showErr(err && err.message ? err.message : "Gagal menyimpan layanan.");
+    });
+  };
 
   function buildStrukturHPPDesktopHtml_(data) {
     data = data || {};
@@ -235,9 +403,10 @@ menjalankan bootApp().
     var cabangId = (data.cabang && data.cabang.id) || '';
 
     var offHtml = buildStrukturHPPOffRowsHtml_(cabangId, serviceToggles);
+    var addBtnHtml = buildCustomLayananAddButtonHtml_(cabangId);
 
     if (!layanan.length) {
-      return '<div class="dashboard-empty">HPP belum siap dihitung untuk outlet ini.</div>' + offHtml;
+      return addBtnHtml + '<div class="dashboard-empty">HPP belum siap dihitung untuk outlet ini.</div>' + offHtml;
     }
 
     var miniHtml = layanan.map(function (svc) {
@@ -270,7 +439,7 @@ menjalankan bootApp().
     // Dibungkus .hpp-desktop-scroll supaya HANYA daftar kartu ini yang bisa
     // discroll kalau lebih panjang dari tinggi panel - header & panel di
     // luar tetap terkunci (lihat Style_Module_HPP.html).
-    return '<div class="hpp-desktop-scroll"><div class="hpp-mini-list">' + miniHtml + '</div>' + offHtml + warningHtml + '</div>';
+    return '<div class="hpp-desktop-scroll">' + addBtnHtml + '<div class="hpp-mini-list">' + miniHtml + '</div>' + offHtml + warningHtml + '</div>';
   }
 
   window.openStrukturHPPDetail = function (cabangId) {
@@ -380,6 +549,7 @@ menjalankan bootApp().
         '</div>' +
       '</div>' +
       warningHtml +
+      buildCustomLayananAddButtonHtml_(cabangId) +
       serviceHtml +
       offHtml;
   }
@@ -387,10 +557,17 @@ menjalankan bootApp().
   function renderStrukturHPPServiceCard(service, cabangId, toggleInfo) {
     service = service || {};
     var components = Array.isArray(service.components) ? service.components : [];
+    var toggleFn = (toggleInfo && toggleInfo.isCustom) ? 'toggleCustomLayananAktif_' : 'toggleStrukturHPPLayananDetail_';
+    var deleteHtml = (toggleInfo && toggleInfo.isCustom)
+      ? '<button type="button" class="hpp-custom-delete-btn" onclick="openConfirmDeleteCustomLayanan_(\'' + escapeJsAttr(cabangId) + '\', \'' + escapeJsAttr(service.key) + '\', \'' + escapeJsAttr(service.title) + '\', event)">Hapus</button>'
+      : '';
     var toggleHtml = !toggleInfo ? '' :
       '<div class="hpp-bedcover-toggle-row">' +
         '<span>Layanan aktif</span>' +
-        '<button type="button" class="hpp-bedcover-toggle-btn" onclick="toggleStrukturHPPLayananDetail_(\'' + escapeJsAttr(cabangId) + '\', \'' + escapeJsAttr(service.key) + '\', false, event)">Matikan</button>' +
+        '<span>' +
+          '<button type="button" class="hpp-bedcover-toggle-btn" onclick="' + toggleFn + '(\'' + escapeJsAttr(cabangId) + '\', \'' + escapeJsAttr(service.key) + '\', false, event)">Matikan</button>' +
+          deleteHtml +
+        '</span>' +
       '</div>';
 
     return (

@@ -158,6 +158,30 @@ function getStrukturBiayaHPP_(cabangId) {
       });
     }
 
+    // [2026-07-22] Layanan CUSTOM (user-defined, tersimpan di Firestore) --
+    // reuse pool komponen biaya yang SAMA dengan layanan bawaan (bukan
+    // rumus baru), user tinggal pilih komponen mana yang berlaku. Muncul di
+    // layanan[]/serviceToggles persis seperti layanan bawaan, JADI otomatis
+    // ikut ke computed.hpp (Modul_Firestore_Computed.gs, tidak perlu ubah
+    // apa pun di sana) & otomatis kebaca Modul_HargaLayanan.gs lewat
+    // buildHargaLayananHPPMap_ (generic, iterate layanan[] apa adanya).
+    const customLayananDefs = listCustomLayananHPP_impl_(cabangId);
+    if (customLayananDefs.length) {
+      const componentPool = strukturHPPComponentPool_(normalized, kategori);
+      const poolByKey = {};
+      componentPool.forEach(function (c) { poolByKey[c.key] = c; });
+      customLayananDefs.forEach(function (def) {
+        const comps = (def.componentKeys || [])
+          .map(function (k) { return poolByKey[k]; })
+          .filter(Boolean);
+        if (!comps.length) return;
+        if (def.aktif !== false) {
+          layanan.push(calculateHPPService_(def.key, def.title, comps, STRUKTUR_HPP_UNIT_LABEL_));
+        }
+        serviceToggles.push({ key: def.key, title: def.title, aktif: def.aktif !== false, isCustom: true });
+      });
+    }
+
     return {
       ok: true,
       data: {
@@ -1453,6 +1477,275 @@ function strukturHPPNumber_(value, fallback) {
 function strukturHPPString_(value) {
   if (value === null || value === undefined) return "";
   return String(value).trim();
+}
+
+// ============================================================================
+// SECTION: LAYANAN CUSTOM (2026-07-22) -- disimpan di Firestore
+// (tenants/{t}/cabang/{c}/customLayanan/{key}), TIDAK di Sheets. User
+// menambah layanan baru dengan MEMILIH SENDIRI komponen biaya mana yang
+// berlaku (dari pool komponen yang SAMA dipakai layanan bawaan sekategori,
+// mis. Cuci Sprei dibuat mirip Cuci Kering Lipat -- pilih Air Washer,
+// Listrik Washer/Pompa/Dryer, Gas Dryer, Deterjen, Softener, Packing, App
+// Kasir & Nota yang relevan). Rumus per komponen TIDAK diduplikasi -- semua
+// nilai diambil dari `normalized` yang SAMA dipakai builder bawaan, jadi
+// otomatis ikut update kalau harga master (Gas/Listrik/dst) berubah.
+// ============================================================================
+
+/**
+ * Pool komponen biaya yang TERSEDIA utk dipilih user per kategori cabang --
+ * label & nilai IDENTIK dgn yang dipakai builder layanan bawaan
+ * (buildKiloanHPPStructure_/buildSelfServiceHPPStructure_/
+ * buildJasaSetrikaHPPStructure_), supaya layanan custom "berperilaku sama"
+ * seperti layanan bawaan yang mirip.
+ */
+function strukturHPPComponentPool_(normalized, kategori) {
+  const pool = [];
+  const push = function (key, label, amount, note) {
+    pool.push({ key: key, label: label, amount: strukturHPPRound2_(strukturHPPNumber_(amount, 0)), note: note || "" });
+  };
+
+  if (kategori === "self_service") {
+    push("air", "Air per Load", normalized.air.biayaPerLoad, normalized.air.sumberAir === "sumur" ? "Sumber air sumur: biaya air otomatis Rp0." : "");
+    push("listrik_washer", "Listrik Washer per Load", normalized.listrik.washerPerLoad);
+    push("listrik_pompa", "Listrik Pompa per Load", normalized.listrik.pompaPerLoad);
+    push("listrik_dryer", "Listrik Dryer per Load", normalized.listrik.dryerPerLoad);
+    push("gas_lpg", "Gas LPG per Load", normalized.gas.biayaPerLoad);
+    push("app_nota", "Biaya App Kasir & Nota per Load", normalized.notaKasir.biayaPerLoad);
+    return pool;
+  }
+
+  if (kategori === "jasa_setrika") {
+    const kgPerJam = normalized.kiloan.setrikaKapasitasKgPerJam;
+    const setrikaNote = normalized.kiloan.adaMesinSetrika ? "" : "Belum ada mesin setrika di Profil Outlet.";
+    const toPerLoadSetrika = function (perKgValue) { return strukturHPPRound2_(perKgValue * kgPerJam); };
+    if (normalized.kiloan.adaMesinSetrikaListrik) {
+      push("setrika_listrik", "Listrik Setrika per Load", normalized.kiloan.setrikaRpPerJam, setrikaNote);
+    } else {
+      push("setrika_air", "Air Setrika per Load", normalized.kiloan.airSetrikaRpPerJam, setrikaNote);
+      push("setrika_gas", "Gas Setrika per Load", normalized.kiloan.gasSetrikaRpPerJam);
+    }
+    push("parfum", "Parfum per Load", toPerLoadSetrika(normalized.kiloan.parfumPerKg));
+    const packingItemsJS = Array.isArray(normalized.kiloan.packingItemsKiloan) ? normalized.kiloan.packingItemsKiloan : [];
+    packingItemsJS.forEach(function (item, idx) {
+      push("packing_" + strukturHPPSlug_(item.nama) + "_" + idx, item.nama + " per Load", toPerLoadSetrika(item.biayaPerKg));
+    });
+    push("app_nota", "Biaya App Kasir & Nota per Load", normalized.notaKasir.biayaPerLoad);
+    return pool;
+  }
+
+  // drop_off / hybrid (kiloan)
+  const kg = normalized.kiloan.kapasitasKgPerLoad;
+  const toPerLoad = function (perKgValue) { return strukturHPPRound2_(perKgValue * kg); };
+  const kgNote = kg <= 0 ? "Kapasitas kg mesin cuci belum diisi." : "";
+
+  push("air_washer", "Air Washer per Load", normalized.air.biayaPerLoad);
+  push("listrik_washer", "Listrik Washer per Load", normalized.listrik.washerPerLoad);
+  push("listrik_pompa", "Listrik Pompa per Load", normalized.listrik.pompaPerLoad);
+  push("listrik_dryer", "Listrik Dryer per Load", normalized.listrik.dryerPerLoad);
+  push("gas_dryer", "Gas Dryer per Load", normalized.gas.biayaPerLoad);
+  push("deterjen", "Deterjen per Load", toPerLoad(normalized.kiloan.deterjenPerKg), kgNote);
+  push("softener", "Softener per Load", toPerLoad(normalized.kiloan.softenerPerKg));
+  push("parfum", "Parfum per Load", toPerLoad(normalized.kiloan.parfumPerKg));
+
+  const setrikaNote = normalized.kiloan.adaMesinSetrika ? "" : "Belum ada mesin setrika di Profil Outlet.";
+  const setrikaKapasitasKgPerJam = normalized.kiloan.setrikaKapasitasKgPerJam;
+  const toPerKgSetrika = function (rpPerJam) {
+    return setrikaKapasitasKgPerJam > 0 ? strukturHPPRound2_(rpPerJam / setrikaKapasitasKgPerJam) : 0;
+  };
+  if (normalized.kiloan.adaMesinSetrikaListrik) {
+    push("listrik_setrika", "Listrik Setrika per Load", toPerLoad(getStrukturHPPSetrikaPerKg_(normalized)), setrikaNote);
+  } else {
+    push("air_setrika", "Air Setrika per Load", toPerLoad(toPerKgSetrika(normalized.kiloan.airSetrikaRpPerJam)), setrikaNote);
+    push("gas_setrika", "Gas Setrika per Load", toPerLoad(toPerKgSetrika(normalized.kiloan.gasSetrikaRpPerJam)));
+  }
+
+  const packingItemsKiloan = Array.isArray(normalized.kiloan.packingItemsKiloan) ? normalized.kiloan.packingItemsKiloan : [];
+  packingItemsKiloan.forEach(function (item, idx) {
+    push("packing_" + strukturHPPSlug_(item.nama) + "_" + idx, item.nama + " per Load", toPerLoad(item.biayaPerKg));
+  });
+
+  push("app_nota", "Biaya App Kasir & Nota per Load", normalized.notaKasir.biayaPerLoad);
+
+  return pool;
+}
+
+/** Baca semua layanan custom cabang dari Firestore. BEST-EFFORT: [] kalau gagal. */
+function listCustomLayananHPP_impl_(cabangId) {
+  try {
+    const tenantId = activeDataSpreadsheetId_();
+    if (!tenantId || !cabangId) return [];
+    const docs = firestoreListCollection_(firestoreCabangDocPath_(tenantId, cabangId), "customLayanan");
+    return docs.map(function (doc) {
+      return {
+        key: doc.key || doc.id,
+        title: doc.title || "",
+        unitLabel: doc.unitLabel || "per kg",
+        componentKeys: Array.isArray(doc.componentKeys) ? doc.componentKeys : [],
+        aktif: doc.aktif !== false,
+        createdAt: doc.createdAt || null,
+        updatedAt: doc.updatedAt || null,
+      };
+    });
+  } catch (err) {
+    console.warn("listCustomLayananHPP_impl_ gagal: " + err);
+    return [];
+  }
+}
+
+/** Public: pool komponen tersedia + layanan custom yang sudah ada, utk form "Tambah Layanan Custom". */
+function getStrukturHPPComponentPool(sessionToken, cabangId) {
+  return withTenant_(sessionToken, function () { return getStrukturHPPComponentPool_impl_(cabangId); });
+}
+
+function getStrukturHPPComponentPool_impl_(cabangId) {
+  try {
+    const sources = getStrukturHPPSourceData_(cabangId);
+    if (!sources.ok) return sources;
+    const normalized = normalizeStrukturHPPInput_(sources.data);
+    const kategori = normalized.cabang.kategoriLayanan;
+    const pool = strukturHPPComponentPool_(normalized, kategori);
+    const customLayanan = listCustomLayananHPP_impl_(cabangId);
+    return { ok: true, data: { kategori: kategori, pool: pool, customLayanan: customLayanan } };
+  } catch (err) {
+    return strukturHPPErrorResponse_(err, "getStrukturHPPComponentPool");
+  }
+}
+
+/** Public: simpan layanan custom baru ATAU update yang sudah ada (kirim `key` utk update). */
+function saveCustomLayananHPP(sessionToken, cabangId, payload) {
+  return withTenant_(sessionToken, function () { return saveCustomLayananHPP_impl_(cabangId, payload); });
+}
+
+function saveCustomLayananHPP_impl_(cabangId, payload) {
+  try {
+    const cleanCabangId = typeof cabangId === "string" ? cabangId.trim() : "";
+    if (!cleanCabangId) {
+      return { ok: false, error: "ID cabang tidak valid.", stage: "saveCustomLayananHPP:validate_cabang_id" };
+    }
+
+    const input = payload && typeof payload === "object" ? payload : {};
+    const title = strukturHPPString_(input.title);
+    if (!title) {
+      return { ok: false, error: "Nama layanan wajib diisi.", stage: "saveCustomLayananHPP:validate_title" };
+    }
+    if (title.length > 60) {
+      return { ok: false, error: "Nama layanan maksimal 60 karakter.", stage: "saveCustomLayananHPP:validate_title_length" };
+    }
+
+    const componentKeysInput = Array.isArray(input.componentKeys) ? input.componentKeys : [];
+    if (!componentKeysInput.length) {
+      return { ok: false, error: "Pilih minimal 1 komponen biaya.", stage: "saveCustomLayananHPP:validate_components" };
+    }
+
+    const sources = getStrukturHPPSourceData_(cleanCabangId);
+    if (!sources.ok) return sources;
+    const normalized = normalizeStrukturHPPInput_(sources.data);
+    const kategori = normalized.cabang.kategoriLayanan;
+    const pool = strukturHPPComponentPool_(normalized, kategori);
+    const validKeys = {};
+    pool.forEach(function (c) { validKeys[c.key] = true; });
+    const componentKeys = componentKeysInput
+      .map(String)
+      .filter(function (k) { return validKeys[k]; });
+    if (!componentKeys.length) {
+      return {
+        ok: false,
+        error: "Komponen yang dipilih tidak dikenali (data biaya mungkin sudah berubah, coba muat ulang layar).",
+        stage: "saveCustomLayananHPP:validate_components_known",
+      };
+    }
+
+    const tenantId = activeDataSpreadsheetId_();
+    if (!tenantId) {
+      return { ok: false, error: "tenantId (spreadsheet aktif) tidak ditemukan.", stage: "saveCustomLayananHPP:tenant" };
+    }
+
+    const existingKey = strukturHPPString_(input.key);
+    const isUpdate = existingKey.indexOf("custom_") === 0;
+    const key = isUpdate ? existingKey : "custom_" + strukturHPPSlug_(title) + "_" + Utilities.getUuid().replace(/-/g, "").slice(0, 6);
+    const unitLabel = kategori === "self_service" ? "per load" : "per kg";
+    const now = new Date().toISOString();
+
+    if (isUpdate) {
+      firestoreSet_(
+        firestoreCabangDocPath_(tenantId, cleanCabangId) + "/customLayanan/" + key,
+        { title: title, unitLabel: unitLabel, componentKeys: componentKeys, updatedAt: now },
+        ["title", "unitLabel", "componentKeys", "updatedAt"]
+      );
+    } else {
+      firestoreSet_(
+        firestoreCabangDocPath_(tenantId, cleanCabangId) + "/customLayanan/" + key,
+        { key: key, title: title, unitLabel: unitLabel, componentKeys: componentKeys, aktif: true, createdAt: now, updatedAt: now }
+      );
+    }
+
+    if (typeof _strukturBiayaHPPCache_ !== "undefined") delete _strukturBiayaHPPCache_[cleanCabangId];
+    try { recomputeCabangSummary_(cleanCabangId, DASHBOARD_RECOMPUTE_HPP_GROUP_); } catch (e) {}
+
+    return { ok: true, data: { key: key, title: title, unitLabel: unitLabel, componentKeys: componentKeys } };
+  } catch (err) {
+    return strukturHPPErrorResponse_(err, "saveCustomLayananHPP");
+  }
+}
+
+/** Public: hapus layanan custom (permanen, bukan cuma nonaktifkan). */
+function deleteCustomLayananHPP(sessionToken, cabangId, key) {
+  return withTenant_(sessionToken, function () { return deleteCustomLayananHPP_impl_(cabangId, key); });
+}
+
+function deleteCustomLayananHPP_impl_(cabangId, key) {
+  try {
+    const cleanCabangId = typeof cabangId === "string" ? cabangId.trim() : "";
+    const cleanKey = strukturHPPString_(key);
+    if (!cleanCabangId || !cleanKey || cleanKey.indexOf("custom_") !== 0) {
+      return { ok: false, error: "Data tidak valid.", stage: "deleteCustomLayananHPP:validate" };
+    }
+    const tenantId = activeDataSpreadsheetId_();
+    if (!tenantId) {
+      return { ok: false, error: "tenantId (spreadsheet aktif) tidak ditemukan.", stage: "deleteCustomLayananHPP:tenant" };
+    }
+
+    firestoreDeleteDoc_(firestoreCabangDocPath_(tenantId, cleanCabangId) + "/customLayanan/" + cleanKey);
+
+    if (typeof _strukturBiayaHPPCache_ !== "undefined") delete _strukturBiayaHPPCache_[cleanCabangId];
+    try { recomputeCabangSummary_(cleanCabangId, DASHBOARD_RECOMPUTE_HPP_GROUP_); } catch (e) {}
+
+    return { ok: true, data: { key: cleanKey } };
+  } catch (err) {
+    return strukturHPPErrorResponse_(err, "deleteCustomLayananHPP");
+  }
+}
+
+/** Public: aktif/nonaktifkan layanan custom (tanpa hapus datanya). */
+function setCustomLayananHPPAktif(sessionToken, cabangId, key, aktif) {
+  return withTenant_(sessionToken, function () { return setCustomLayananHPPAktif_impl_(cabangId, key, aktif); });
+}
+
+function setCustomLayananHPPAktif_impl_(cabangId, key, aktif) {
+  try {
+    const cleanCabangId = typeof cabangId === "string" ? cabangId.trim() : "";
+    const cleanKey = strukturHPPString_(key);
+    if (!cleanCabangId || !cleanKey || cleanKey.indexOf("custom_") !== 0) {
+      return { ok: false, error: "Data tidak valid.", stage: "setCustomLayananHPPAktif:validate" };
+    }
+    const tenantId = activeDataSpreadsheetId_();
+    if (!tenantId) {
+      return { ok: false, error: "tenantId (spreadsheet aktif) tidak ditemukan.", stage: "setCustomLayananHPPAktif:tenant" };
+    }
+
+    firestoreSet_(
+      firestoreCabangDocPath_(tenantId, cleanCabangId) + "/customLayanan/" + cleanKey,
+      { aktif: !!aktif, updatedAt: new Date().toISOString() },
+      ["aktif", "updatedAt"]
+    );
+
+    if (typeof _strukturBiayaHPPCache_ !== "undefined") delete _strukturBiayaHPPCache_[cleanCabangId];
+    try { recomputeCabangSummary_(cleanCabangId, DASHBOARD_RECOMPUTE_HPP_GROUP_); } catch (e) {}
+
+    return { ok: true, data: { key: cleanKey, aktif: !!aktif } };
+  } catch (err) {
+    return strukturHPPErrorResponse_(err, "setCustomLayananHPPAktif");
+  }
 }
 
 function strukturHPPRound2_(value) {

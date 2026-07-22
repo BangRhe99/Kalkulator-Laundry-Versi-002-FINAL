@@ -306,6 +306,27 @@ RIWAYAT PEMECAHAN FILE INI:
     </div>
   </div>
 </div>
+<div class="confirm-overlay" id="customLayananOverlay">
+  <div class="confirm-box custom-layanan-box">
+    <h3>Tambah Layanan Custom</h3>
+    <p>Buat layanan HPP baru untuk outlet ini. Pilih komponen biaya yang berlaku -- mirip cara HPP layanan bawaan dihitung, nilainya otomatis ikut update kalau harga biaya master berubah.</p>
+    <div class="custom-layanan-field">
+      <label for="customLayananTitleInput">Nama Layanan</label>
+      <input type="text" id="customLayananTitleInput" placeholder="Contoh: Cuci Sprei" maxlength="60">
+    </div>
+    <div class="custom-layanan-field">
+      <label>Komponen Biaya</label>
+      <div class="custom-layanan-component-list" id="customLayananComponentList">
+        <div class="custom-layanan-empty">Memuat komponen...</div>
+      </div>
+    </div>
+    <div class="custom-layanan-error" id="customLayananError"></div>
+    <div class="confirm-actions">
+      <button class="btn-secondary" onclick="closeCustomLayananModal()">Batal</button>
+      <button class="btn-primary" id="customLayananSaveBtn" onclick="saveCustomLayananHPPFromModal()">Simpan</button>
+    </div>
+  </div>
+</div>
 
 <?!= include('Script_Boot_Diagnostics') ?>
 <?!= include('Script_Shared_Util') ?>
