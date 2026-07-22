@@ -752,11 +752,16 @@ function adminListAccounts(sessionToken) {
 
 /**
  * adminDeleteAccount: [2026-07-14] Hapus akun PERMANEN - authUser_<email>,
- * sesi aktifnya (paksa logout semua device), pendaftaran OTP menggantung
- * kalau ada, DAN spreadsheet data tenant-nya dipindah ke Trash Drive (bukan
- * musnah instan - masih bisa dipulihkan manual dari Trash 30 hari kalau
- * salah pilih akun). Setelah dihapus, email yang sama BISA daftar ulang dari
- * nol (readKey_ authUser_ akan kosong, dianggap belum pernah terdaftar).
+ * sesi aktifnya (paksa logout semua device), pendaftaran menggantung kalau
+ * ada, DAN spreadsheet data tenant-nya dipindah ke Trash Drive (bukan musnah
+ * instan - masih bisa dipulihkan manual dari Trash 30 hari kalau salah pilih
+ * akun). Setelah dihapus, email yang sama BISA daftar ulang dari nol
+ * (readKey_ authUser_ akan kosong, dianggap belum pernah terdaftar).
+ *
+ * [2026-07-22] Juga bisa dipakai membersihkan pendaftaran PENDING yang macet
+ * (klik link verifikasi tidak pernah selesai/link kedaluwarsa) - akun begini
+ * BELUM punya authUser_ sama sekali (cuma authOtp_), jadi tidak dianggap
+ * "not_found" lagi selama SALAH SATU dari authUser_/authOtp_ ada.
  *
  * [PROTEKSI] Akun AUTH_ADMIN_EMAIL_ (pemilik app) tidak boleh dihapus lewat
  * sini - kalau terhapus, panel admin ini sendiri & 4 outlet Template
@@ -777,23 +782,25 @@ function adminDeleteAccount(sessionToken, targetEmail) {
 
     var sheet = ensureDataSheet_();
     var raw = readKey_(sheet, authKeyUser_(cleanEmail));
-    if (!raw) {
+    var pendingRaw = readKey_(sheet, authKeyOtp_(cleanEmail));
+    if (!raw && !pendingRaw) {
       return { ok: false, error: "Akun tidak ditemukan.", stage: "adminDeleteAccount:not_found" };
     }
-    var user = JSON.parse(raw);
 
-    if (user.tenantSpreadsheetId) {
-      try {
-        DriveApp.getFileById(user.tenantSpreadsheetId).setTrashed(true);
-      } catch (driveErr) {
-        // Spreadsheet mungkin sudah tidak ada/sudah di-trash sebelumnya -
-        // tetap lanjut hapus akunnya, jangan gagalkan seluruh operasi.
+    if (raw) {
+      var user = JSON.parse(raw);
+      if (user.tenantSpreadsheetId) {
+        try {
+          DriveApp.getFileById(user.tenantSpreadsheetId).setTrashed(true);
+        } catch (driveErr) {
+          // Spreadsheet mungkin sudah tidak ada/sudah di-trash sebelumnya -
+          // tetap lanjut hapus akunnya, jangan gagalkan seluruh operasi.
+        }
       }
+      deleteKeyRow_(sheet, authKeyUser_(cleanEmail));
     }
 
-    deleteKeyRow_(sheet, authKeyUser_(cleanEmail));
-
-    if (readKey_(sheet, authKeyOtp_(cleanEmail))) {
+    if (pendingRaw) {
       deleteKeyRow_(sheet, authKeyOtp_(cleanEmail));
     }
 

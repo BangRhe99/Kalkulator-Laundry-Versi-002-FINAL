@@ -85,11 +85,16 @@ Include SEBELUM Script_Boot_Main.html.
       cells += '<div class="gas-result-cell"><div class="label">Status</div><div class="val" style="font-size:13px;">' + escapeHtml(acc.status) + (acc.online ? " &middot; Online" : "") + '</div></div>';
       cells += '<div class="gas-result-cell"><div class="label">Terdaftar</div><div class="val" style="font-size:13px;">' + escapeHtml(adminFormatDate_(acc.createdAt)) + '</div></div>';
 
-      var actions = acc.pending ? "" :
-        '<div class="actions">' +
-          '<button class="icon-btn" type="button" aria-label="Kirim link reset password" title="Kirim link reset password" onclick="adminSendPasswordReset(\'' + escapeJsAttr(acc.email) + '\', this); event.stopPropagation();">&#128231;</button>' +
-          '<button class="icon-btn" type="button" aria-label="Hapus akun" onclick="openConfirmDeleteAccount(\'' + escapeJsAttr(acc.email) + '\'); event.stopPropagation();">&#10005;</button>' +
-        '</div>';
+      // [2026-07-22] Akun pending (belum klik link verifikasi) tetap dapat
+      // tombol Hapus - buat bersihkan pendaftaran yang macet/link
+      // kedaluwarsa (lihat adminDeleteAccount, Modul_Auth.gs, sekarang
+      // menerima akun yang cuma punya authOtp_ tanpa authUser_). Tombol
+      // kirim-reset TIDAK relevan utk akun pending (belum ada akun aktif
+      // yang bisa direset passwordnya).
+      var actions = '<div class="actions">' +
+        (acc.pending ? "" : '<button class="icon-btn" type="button" aria-label="Kirim link reset password" title="Kirim link reset password" onclick="adminSendPasswordReset(\'' + escapeJsAttr(acc.email) + '\', this); event.stopPropagation();">&#128231;</button>') +
+        '<button class="icon-btn" type="button" aria-label="Hapus akun" onclick="openConfirmDeleteAccount(\'' + escapeJsAttr(acc.email) + '\'); event.stopPropagation();">&#10005;</button>' +
+      '</div>';
 
       // [2026-07-14] SENGAJA tidak ada tombol aksi admin di sini utk akun yang
       // belum tersambung - provisioning HARUS dipicu oleh akun itu sendiri
