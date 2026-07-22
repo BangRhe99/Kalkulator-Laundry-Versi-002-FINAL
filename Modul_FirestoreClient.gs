@@ -163,10 +163,27 @@ function firestoreFromFields_(fields) {
   return obj;
 }
 
+/**
+ * [BUG FIX 2026-07-22] Dokumen cabang (& subkoleksi lain yang butuh field
+ * `id`) TIDAK PERNAH menyimpan ID-nya sebagai field di dalam data - ID cuma
+ * ada di PATH dokumen (mis. tenants/<t>/cabang/<cabangId>), lihat
+ * firestoreSyncCabangProfil_/firestoreSyncCabangProfilAndRecompute_. Sejak
+ * read-flip ke Firestore-first (2026-07-21), fungsi ini tidak pernah
+ * mengekstrak ID dari path itu -> semua cabang yang dibaca dari Firestore
+ * punya `id: ""` -> Master Biaya/HPP-nya jadi "hilang" (query pakai
+ * cabangId kosong, padahal data ASLI di Firestore & Sheets utuh). Sekarang
+ * `id` diturunkan dari segmen terakhir `doc.name` sebagai fallback (TIDAK
+ * menimpa kalau field `id` eksplisit sudah ada di data - kompatibel ke
+ * belakang kalau ada dokumen lain yang memang menyimpan `id` sendiri).
+ */
 function firestoreFromDoc_(doc) {
   if (!doc || !doc.fields) return null;
   var obj = firestoreFromFields_(doc.fields);
   obj._path = doc.name;
+  if (!obj.id) {
+    var segments = String(doc.name || "").split("/");
+    obj.id = segments[segments.length - 1] || "";
+  }
   return obj;
 }
 
