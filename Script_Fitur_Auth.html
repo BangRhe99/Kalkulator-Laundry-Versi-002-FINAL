@@ -94,9 +94,14 @@ Script_Fitur_FirebaseAuth.html (perlu wrapper authFirebase*_ dari situ).
   /**
    * authMapFirebaseError_: petakan kode error Firebase Auth (Inggris) ke
    * pesan Indonesia yang jelas - dipakai di semua tempat yang menangani
-   * hasil authFirebaseSendMagicLink_/authFirebaseCompleteMagicLink_.
+   * hasil authFirebaseSendMagicLink_/authFirebaseCompleteMagicLink_. Terima
+   * error OBJECT (bukan cuma code) supaya kalau errornya BUKAN dari Firebase
+   * (mis. Firebase SDK gagal dimuat/diinisialisasi), pesan .message asli
+   * tetap tampil - jangan sampai user cuma lihat "gagal" tanpa info sama
+   * sekali (itu yang bikin susah didiagnosis tanpa tebak-tebakan).
    */
-  function authMapFirebaseError_(code) {
+  function authMapFirebaseError_(err) {
+    var code = err && err.code;
     switch (code) {
       case "auth/invalid-action-code":
         return "Link ini sudah pernah dipakai atau tidak valid. Ulangi dari awal.";
@@ -109,7 +114,12 @@ Script_Fitur_FirebaseAuth.html (perlu wrapper authFirebase*_ dari situ).
       case "auth/user-disabled":
         return "Akun ini dinonaktifkan.";
       default:
-        return "Verifikasi email gagal. Ulangi dari awal.";
+        // Kode belum dikenal (atau bukan error Firebase sama sekali) -
+        // tampilkan detail asli (bukan cuma pesan generik) supaya kalau
+        // masih terjadi, bisa dilaporkan balik & didiagnosis tanpa
+        // tebak-tebakan.
+        var detail = code || (err && err.message) || "";
+        return detail ? ("Verifikasi email gagal (" + detail + "). Coba lagi.") : "Verifikasi email gagal. Coba lagi.";
     }
   }
 
@@ -194,24 +204,35 @@ Script_Fitur_FirebaseAuth.html (perlu wrapper authFirebase*_ dari situ).
     }
 
     if (btn) { btn.disabled = true; btn.textContent = "Mendaftar..."; }
+    if (typeof premiumLoaderShow === "function") {
+      premiumLoaderShow({ status: "Mendaftarkan akun Anda", mode: "await" });
+    }
+
+    function doneOk_(fn) {
+      if (btn) { btn.disabled = false; btn.textContent = "Daftar"; }
+      if (typeof premiumLoaderComplete === "function") premiumLoaderComplete(fn);
+      else fn();
+    }
+    function doneFail_(msg, elId) {
+      if (btn) { btn.disabled = false; btn.textContent = "Daftar"; }
+      if (typeof premiumLoaderFail === "function") premiumLoaderFail();
+      authShowError_(elId || "authRegisterError", msg);
+    }
+
     google.script.run
       .withSuccessHandler(function (res) {
         if (!res || !res.ok) {
-          if (btn) { btn.disabled = false; btn.textContent = "Daftar"; }
-          authShowError_("authRegisterError", (res && res.error) || "Gagal mendaftar.");
+          doneFail_((res && res.error) || "Gagal mendaftar.");
           return;
         }
         authFirebaseSendMagicLink_(res.data.email, "register").then(function () {
-          if (btn) { btn.disabled = false; btn.textContent = "Daftar"; }
-          authShowCheckEmail_(res.data.email, "register");
+          doneOk_(function () { authShowCheckEmail_(res.data.email, "register"); });
         }).catch(function (err) {
-          if (btn) { btn.disabled = false; btn.textContent = "Daftar"; }
-          authShowError_("authRegisterError", authMapFirebaseError_(err && err.code));
+          doneFail_(authMapFirebaseError_(err));
         });
       })
       .withFailureHandler(function (err) {
-        if (btn) { btn.disabled = false; btn.textContent = "Daftar"; }
-        authShowError_("authRegisterError", err && err.message ? err.message : String(err));
+        doneFail_(err && err.message ? err.message : String(err));
       })
       .registerUser(email, password);
   };
@@ -225,6 +246,10 @@ Script_Fitur_FirebaseAuth.html (perlu wrapper authFirebase*_ dari situ).
     if (label) label.textContent = email;
     var titleEl = document.getElementById("authCheckEmailTitle");
     if (titleEl) titleEl.textContent = purpose === "resetPassword" ? "Reset Password" : "Verifikasi Email";
+    // Aksen warna ikut alur asalnya - sage kalau dari Daftar, brass (default,
+    // dihapus class-nya) kalau dari Lupa Password/reset.
+    var cardEl = document.getElementById("authCheckEmailCard");
+    if (cardEl) cardEl.classList.toggle("is-accent-sage", purpose === "register");
     authGoTo("checkEmail");
   }
 
@@ -238,7 +263,7 @@ Script_Fitur_FirebaseAuth.html (perlu wrapper authFirebase*_ dari situ).
       if (typeof showToast === "function") showToast("Link baru sudah dikirim.", "ok");
     }).catch(function (err) {
       if (btn) { btn.disabled = false; btn.textContent = "Kirim ulang"; }
-      authShowError_("authCheckEmailError", authMapFirebaseError_(err && err.code));
+      authShowError_("authCheckEmailError", authMapFirebaseError_(err));
     });
   };
 
@@ -253,24 +278,35 @@ Script_Fitur_FirebaseAuth.html (perlu wrapper authFirebase*_ dari situ).
     }
 
     if (btn) { btn.disabled = true; btn.textContent = "Mengirim..."; }
+    if (typeof premiumLoaderShow === "function") {
+      premiumLoaderShow({ status: "Memproses permintaan reset", mode: "await" });
+    }
+
+    function doneOk_(fn) {
+      if (btn) { btn.disabled = false; btn.textContent = "Kirim Kode Reset"; }
+      if (typeof premiumLoaderComplete === "function") premiumLoaderComplete(fn);
+      else fn();
+    }
+    function doneFail_(msg) {
+      if (btn) { btn.disabled = false; btn.textContent = "Kirim Kode Reset"; }
+      if (typeof premiumLoaderFail === "function") premiumLoaderFail();
+      authShowError_("authForgotError", msg);
+    }
+
     google.script.run
       .withSuccessHandler(function (res) {
         if (!res || !res.ok) {
-          if (btn) { btn.disabled = false; btn.textContent = "Kirim Kode Reset"; }
-          authShowError_("authForgotError", (res && res.error) || "Gagal memproses permintaan.");
+          doneFail_((res && res.error) || "Gagal memproses permintaan.");
           return;
         }
         authFirebaseSendMagicLink_(res.data.email, "resetPassword").then(function () {
-          if (btn) { btn.disabled = false; btn.textContent = "Kirim Kode Reset"; }
-          authShowCheckEmail_(res.data.email, "resetPassword");
+          doneOk_(function () { authShowCheckEmail_(res.data.email, "resetPassword"); });
         }).catch(function (err) {
-          if (btn) { btn.disabled = false; btn.textContent = "Kirim Kode Reset"; }
-          authShowError_("authForgotError", authMapFirebaseError_(err && err.code));
+          doneFail_(authMapFirebaseError_(err));
         });
       })
       .withFailureHandler(function (err) {
-        if (btn) { btn.disabled = false; btn.textContent = "Kirim Kode Reset"; }
-        authShowError_("authForgotError", err && err.message ? err.message : String(err));
+        doneFail_(err && err.message ? err.message : String(err));
       })
       .requestPasswordReset(email);
   };
@@ -407,14 +443,29 @@ Script_Fitur_FirebaseAuth.html (perlu wrapper authFirebase*_ dari situ).
       try { window.history.replaceState({}, document.title, window.location.pathname); } catch (e) {}
     }
 
-    function finishWithError_(code) {
+    function loaderDone_(fn) {
+      if (typeof premiumLoaderComplete === "function") premiumLoaderComplete(fn);
+      else fn();
+    }
+    function loaderFail_(fn) {
+      if (typeof premiumLoaderFail === "function") premiumLoaderFail();
+      fn();
+    }
+
+    function finishWithError_(err) {
       authFirebaseClearStoredEmail_();
       cleanUrl_();
-      authGoTo("login");
-      authShowError_("authLoginError", authMapFirebaseError_(code));
+      loaderFail_(function () {
+        authGoTo("login");
+        authShowError_("authLoginError", authMapFirebaseError_(err));
+      });
     }
 
     function proceedWithEmail_(email) {
+      if (typeof premiumLoaderShow === "function") {
+        premiumLoaderShow({ status: "Menyelesaikan verifikasi", mode: "await" });
+      }
+
       authFirebaseCompleteMagicLink_(email).then(function (idToken) {
         authFirebaseClearStoredEmail_();
         cleanUrl_();
@@ -424,29 +475,35 @@ Script_Fitur_FirebaseAuth.html (perlu wrapper authFirebase*_ dari situ).
           authPendingResetEmail_ = email;
           var lbl = document.getElementById("authResetEmailLabel");
           if (lbl) lbl.textContent = email;
-          authGoTo("resetPassword");
+          loaderDone_(function () { authGoTo("resetPassword"); });
           return;
         }
 
         google.script.run
           .withSuccessHandler(function (res) {
             if (!res || !res.ok) {
-              authGoTo("login");
-              authShowError_("authLoginError", (res && res.error) || "Verifikasi email gagal.");
+              loaderFail_(function () {
+                authGoTo("login");
+                authShowError_("authLoginError", (res && res.error) || "Verifikasi email gagal.");
+              });
               return;
             }
             var loginEmailEl = document.getElementById("authLoginEmail");
             if (loginEmailEl) loginEmailEl.value = res.data.email;
-            authGoTo("login");
-            if (typeof showToast === "function") showToast("Email terverifikasi. Silakan masuk dengan password Anda.", "ok");
+            loaderDone_(function () {
+              authGoTo("login");
+              if (typeof showToast === "function") showToast("Email terverifikasi. Silakan masuk dengan password Anda.", "ok");
+            });
           })
           .withFailureHandler(function (err) {
-            authGoTo("login");
-            authShowError_("authLoginError", err && err.message ? err.message : String(err));
+            loaderFail_(function () {
+              authGoTo("login");
+              authShowError_("authLoginError", err && err.message ? err.message : String(err));
+            });
           })
           .verifyEmailMagicLink(idToken, email);
       }).catch(function (err) {
-        finishWithError_(err && err.code);
+        finishWithError_(err);
       });
     }
 

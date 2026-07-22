@@ -36,8 +36,24 @@ Include SEBELUM Script_Fitur_Auth.html (yang memanggil wrapper di file ini).
     messagingSenderId: "339840190577",
     appId: "1:339840190577:web:191a61ca0302b8ba7533d0",
   };
+  var firebaseAuthReady_ = Promise.resolve();
   try {
     firebase.initializeApp(firebaseConfig_);
+    // [FIX 2026-07-22] Halaman ini jalan DI DALAM iframe sandbox cross-origin
+    // Apps Script (n-xxxx-script.googleusercontent.com di dalam
+    // script.google.com) - browser modern (terutama mobile) sering
+    // MEMBLOKIR/mem-partisi akses IndexedDB pihak-ketiga di konteks begini.
+    // Firebase Auth SDK defaultnya coba simpan state ke IndexedDB DULU
+    // sebelum operasi apa pun (termasuk sendSignInLinkToEmail) - kalau akses
+    // itu diblokir, operasi PALING AWAL gagal instan (sebelum email sempat
+    // terkirim). Persistence NONE (in-memory saja) menghindari IndexedDB
+    // sama sekali - aman karena idToken cuma dipakai sekali lalu dibuang
+    // (lihat authFirebaseCompleteMagicLink_), tidak butuh persist antar
+    // reload. authFirebaseSendMagicLink_/authFirebaseCompleteMagicLink_
+    // menunggu promise ini SELESAI dulu sebelum jalan.
+    firebaseAuthReady_ = firebase.auth().setPersistence(firebase.auth.Auth.Persistence.NONE).catch(function (e) {
+      console.error("[FirebaseAuth] setPersistence gagal:", e);
+    });
   } catch (e) {
     console.error("[FirebaseAuth] init gagal:", e);
   }
@@ -54,9 +70,11 @@ Include SEBELUM Script_Fitur_Auth.html (yang memanggil wrapper di file ini).
    */
   window.authFirebaseSendMagicLink_ = function (email, purpose) {
     var continueUrl = window.location.origin + window.location.pathname + "?authPurpose=" + encodeURIComponent(purpose);
-    return firebase.auth().sendSignInLinkToEmail(email, {
-      url: continueUrl,
-      handleCodeInApp: true
+    return firebaseAuthReady_.then(function () {
+      return firebase.auth().sendSignInLinkToEmail(email, {
+        url: continueUrl,
+        handleCodeInApp: true
+      });
     }).then(function () {
       try { window.localStorage.setItem(AUTH_EMAIL_FOR_SIGNIN_KEY_, email); } catch (e) {}
     });
@@ -91,7 +109,9 @@ Include SEBELUM Script_Fitur_Auth.html (yang memanggil wrapper di file ini).
    * kebenaran.
    */
   window.authFirebaseCompleteMagicLink_ = function (email) {
-    return firebase.auth().signInWithEmailLink(email, window.location.href).then(function (result) {
+    return firebaseAuthReady_.then(function () {
+      return firebase.auth().signInWithEmailLink(email, window.location.href);
+    }).then(function (result) {
       return result.user.getIdToken().then(function (idToken) {
         firebase.auth().signOut().catch(function () {});
         return idToken;

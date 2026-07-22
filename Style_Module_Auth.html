@@ -35,7 +35,7 @@ BATAS TANGGUNG JAWAB: hanya CSS fitur Auth, pakai token dari Style_Tokens.html.
     height: 56px;
     margin: 0 auto 16px;
     border-radius: 50%;
-    background: var(--sage-dim);
+    background: var(--brass-dim);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -44,11 +44,29 @@ BATAS TANGGUNG JAWAB: hanya CSS fitur Auth, pakai token dari Style_Tokens.html.
     width: 30px;
     height: 30px;
     fill: none;
-    stroke: var(--sage);
+    stroke: var(--brass);
     stroke-width: 1.8;
     stroke-linecap: round;
     stroke-linejoin: round;
   }
+
+  /* [2026-07-22] Aksen warna beda antara layar Masuk (brass - SAMA dengan
+     warna brand "Laundry" di header app asli, Style_Base.html .brand-word-
+     accent) vs Daftar (sage - dipakai juga di splash loader) supaya user
+     langsung bisa bedakan sedang di layar mana sekilas lihat, TANPA baca
+     judul. Diterapkan lewat modifier class pada .auth-card, bukan per-id,
+     supaya layar lain (Cek Email dsb) bisa ikut warna yang relevan lewat
+     JS (lihat authApplyAuthAccent_, Script_Fitur_Auth.html). */
+  .auth-card.is-accent-sage .auth-logo { background: var(--sage-dim); }
+  .auth-card.is-accent-sage .auth-logo svg { stroke: var(--sage); }
+  .auth-card.is-accent-sage .auth-brand-accent { color: var(--sage); }
+  .auth-card.is-accent-sage .auth-submit-btn { background: var(--sage); }
+
+  .auth-brand-accent { color: var(--brass); }
+  /* .btn-primary defaultnya --sage (Style_Components.html, dipakai di
+     seluruh app) - di auth timpa jadi --brass supaya layar default (Masuk)
+     match warna brand asli app (header .brand-word-accent = brass juga). */
+  .auth-submit-btn { background: var(--brass); }
 
   .auth-title {
     font-family: var(--font-display);
