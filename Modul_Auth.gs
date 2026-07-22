@@ -817,6 +817,188 @@ function confirmPasswordResetMagicLink(idToken, email, salt, derivedHash) {
   }
 }
 
+// ----------------------------------------------------------------------------
+// LYNK.ID AUTO-PROVISIONING (webhook payment.received - lihat doPost, Code.gs)
+// ----------------------------------------------------------------------------
+// [2026-07-22] Begitu customer bayar produk Kalkulator Laundry di Lynk.id,
+// akun otomatis "diundang" (invite) TANPA admin perlu generate apa pun
+// manual - cocok utk pembelian jam berapa pun termasuk saat admin offline.
+// Invite BUKAN akun aktif - cuma bukti "email ini sudah terverifikasi
+// bayar", customer masih harus klik link & pilih password sendiri
+// (completeLynkInvite) sebelum akun jadi aktif & bisa dipakai login.
+
+var LYNK_INVITE_TTL_MS_ = 48 * 60 * 60 * 1000; // 48 jam
+
+function authKeyLynkProcessed_(refId) {
+  return "lynkProcessed_" + refId;
+}
+
+function authKeyLynkInvite_(token) {
+  return "lynkInvite_" + token;
+}
+
+/**
+ * processLynkPurchaseWebhook_: dipanggil doPost (Code.gs) SETELAH token URL
+ * tervalidasi. Validasi ISI payload sendiri di sini (bukan di doPost) -
+ * event harus "payment.received", status harus SUCCESS, DAN salah satu item
+ * yang dibeli harus produk Kalkulator Laundry (toko user jual banyak produk
+ * lain juga - pembelian produk LAIN harus diabaikan, tidak boleh ikut dapat
+ * akun). Idempoten lewat refId - Lynk.id bisa kirim ulang webhook yang sama
+ * (retry) kalau respons sebelumnya dianggap gagal, JANGAN kirim 2 email
+ * invite utk 1 transaksi yang sama.
+ */
+function processLynkPurchaseWebhook_(payload) {
+  if (!payload || payload.event !== "payment.received") return;
+
+  var d = payload.data || {};
+  if (d.message_action !== "SUCCESS") return;
+
+  var md = d.message_data || {};
+  var items = md.items || [];
+  var isKalkulatorLaundry = items.some(function (item) {
+    return item && item.uuid === LYNK_PRODUCT_UUID_KALKULATOR_LAUNDRY_;
+  });
+  if (!isKalkulatorLaundry) return;
+
+  var refId = String(md.refId || "").trim();
+  var email = authNormalizeEmail_((md.customer && md.customer.email) || "");
+  if (!refId || !authIsValidGmail_(email)) {
+    Logger.log("[processLynkPurchaseWebhook_] refId/email tidak valid, diabaikan. refId=" + refId + " email=" + email);
+    return;
+  }
+
+  var sheet = ensureDataSheet_();
+
+  // [IDEMPOTEN] refId yang sama sudah pernah diproses -> jangan kirim email
+  // invite lagi (mencegah duplikat kalau Lynk.id retry webhook).
+  if (readKey_(sheet, authKeyLynkProcessed_(refId))) {
+    Logger.log("[processLynkPurchaseWebhook_] refId " + refId + " sudah pernah diproses, dilewati.");
+    return;
+  }
+
+  var token = Utilities.getUuid() + Utilities.getUuid();
+  writeKey_(sheet, authKeyLynkInvite_(token), JSON.stringify({
+    email: email,
+    refId: refId,
+    expiresAt: Date.now() + LYNK_INVITE_TTL_MS_,
+    used: false,
+    createdAt: new Date().toISOString()
+  }));
+
+  try {
+    MailApp.sendEmail({
+      to: email,
+      subject: "Akun Kalkulator Laundry Anda Sudah Siap!",
+      body:
+        "Halo,\n\n" +
+        "Terima kasih sudah membeli Kalkulator Laundry. Akun Anda sudah disiapkan untuk email ini.\n\n" +
+        "Klik link berikut untuk membuat password & mengaktifkan akun Anda:\n" +
+        APP_EXEC_URL_ + "?lynkInvite=" + encodeURIComponent(token) + "\n\n" +
+        "Link ini berlaku 48 jam dan hanya bisa dipakai 1 kali.\n\n" +
+        "Kalau Anda tidak merasa melakukan pembelian ini, abaikan email ini."
+    });
+  } catch (mailErr) {
+    Logger.log("[processLynkPurchaseWebhook_] gagal kirim email ke " + email + ": " + mailErr.message);
+  }
+
+  // Tandai refId sudah diproses SETELAH email terkirim (kalau MailApp gagal
+  // di atas, refId TIDAK ditandai - webhook retry berikutnya masih bisa
+  // coba lagi, bukan hangus percuma).
+  writeKey_(sheet, authKeyLynkProcessed_(refId), JSON.stringify({ refId: refId, email: email, processedAt: new Date().toISOString() }));
+}
+
+/**
+ * getLynkInvite: dipanggil client saat halaman dibuka dgn ?lynkInvite=<token>
+ * (lihat authHandleBootAuth_/boot, Script_Fitur_Auth.html) - validasi invite
+ * & balikin email-nya (utk ditampilkan read-only di layar "Aktifkan Akun").
+ * Public (tanpa session, sama seperti getAuthSalt) krn dipanggil SEBELUM
+ * akun ada.
+ */
+function getLynkInvite(token) {
+  try {
+    var cleanToken = String(token || "").trim();
+    if (!cleanToken) {
+      return { ok: false, error: "Link tidak valid.", stage: "getLynkInvite:empty_token" };
+    }
+
+    var sheet = ensureDataSheet_();
+    var raw = readKey_(sheet, authKeyLynkInvite_(cleanToken));
+    if (!raw) {
+      return { ok: false, error: "Link tidak ditemukan atau sudah tidak berlaku.", stage: "getLynkInvite:not_found" };
+    }
+
+    var invite = JSON.parse(raw);
+    if (invite.used) {
+      return { ok: false, error: "Link ini sudah pernah dipakai.", stage: "getLynkInvite:already_used" };
+    }
+    if (Date.now() > Number(invite.expiresAt || 0)) {
+      return { ok: false, error: "Link ini sudah kedaluwarsa. Hubungi admin untuk mendapatkan link baru.", stage: "getLynkInvite:expired" };
+    }
+
+    return { ok: true, data: { email: invite.email } };
+  } catch (err) {
+    return errorResponse_(err, "getLynkInvite");
+  }
+}
+
+/**
+ * completeLynkInvite: aktivasi akun sesungguhnya - password dihitung CLIENT
+ * (authGenerateSalt_/authDeriveHash_, sama seperti registerUser) sebelum
+ * dikirim ke sini, langsung hashVersion 3. TIDAK createSession_ (customer
+ * tetap harus login manual pakai password yang baru diset - konsisten
+ * dengan verifyEmailMagicLink).
+ */
+function completeLynkInvite(token, salt, derivedHash) {
+  try {
+    var cleanToken = String(token || "").trim();
+    var cleanSalt = typeof salt === "string" ? salt.trim() : "";
+    var cleanHash = typeof derivedHash === "string" ? derivedHash.trim() : "";
+    if (!cleanSalt || !cleanHash) {
+      return { ok: false, error: "Data password tidak lengkap.", stage: "completeLynkInvite:validate_hash" };
+    }
+
+    var sheet = ensureDataSheet_();
+    var raw = readKey_(sheet, authKeyLynkInvite_(cleanToken));
+    if (!raw) {
+      return { ok: false, error: "Link tidak ditemukan atau sudah tidak berlaku.", stage: "completeLynkInvite:not_found" };
+    }
+
+    var invite = JSON.parse(raw);
+    if (invite.used) {
+      return { ok: false, error: "Link ini sudah pernah dipakai.", stage: "completeLynkInvite:already_used" };
+    }
+    if (Date.now() > Number(invite.expiresAt || 0)) {
+      return { ok: false, error: "Link ini sudah kedaluwarsa. Hubungi admin untuk mendapatkan link baru.", stage: "completeLynkInvite:expired" };
+    }
+
+    var cleanEmail = authNormalizeEmail_(invite.email);
+    if (readKey_(sheet, authKeyUser_(cleanEmail))) {
+      return { ok: false, error: "Email ini sudah punya akun. Silakan masuk seperti biasa.", stage: "completeLynkInvite:already_registered" };
+    }
+
+    writeKey_(sheet, authKeyUser_(cleanEmail), JSON.stringify({
+      email: cleanEmail,
+      passwordHash: cleanHash,
+      salt: cleanSalt,
+      hashVersion: 3,
+      createdAt: new Date().toISOString(),
+      verifiedAt: new Date().toISOString(),
+      tenantSpreadsheetId: ""
+    }));
+
+    invite.used = true;
+    writeKey_(sheet, authKeyLynkInvite_(cleanToken), JSON.stringify(invite));
+
+    try {
+      provisionTenantSpreadsheet_(cleanEmail);
+    } catch (provisionErr) {}
+
+    return { ok: true, data: { email: cleanEmail } };
+  } catch (err) {
+    return errorResponse_(err, "completeLynkInvite");
+  }
+}
+
 var ADMIN_ONLINE_THRESHOLD_MS_ = 5 * 60 * 1000; // 5 menit
 
 /**

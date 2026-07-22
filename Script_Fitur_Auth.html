@@ -79,13 +79,13 @@ Script_Fitur_FirebaseAuth.html (perlu wrapper authFirebase*_ dari situ).
   }
 
   window.authGoTo = function (name) {
-    ["authScreenLogin", "authScreenRegister", "authScreenCheckEmail", "authScreenConfirmEmail", "authScreenForgotPassword", "authScreenResetPassword"].forEach(function (id) {
+    ["authScreenLogin", "authScreenRegister", "authScreenCheckEmail", "authScreenConfirmEmail", "authScreenLynkSetPassword", "authScreenForgotPassword", "authScreenResetPassword"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.classList.remove("active");
     });
     var target = document.getElementById("authScreen" + name.charAt(0).toUpperCase() + name.slice(1));
     if (target) target.classList.add("active");
-    ["authLoginError", "authRegisterError", "authCheckEmailError", "authConfirmEmailError", "authForgotError", "authResetError"].forEach(function (id) {
+    ["authLoginError", "authRegisterError", "authCheckEmailError", "authConfirmEmailError", "authLynkInviteError", "authForgotError", "authResetError"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.style.display = "none";
     });
@@ -414,6 +414,68 @@ Script_Fitur_FirebaseAuth.html (perlu wrapper authFirebase*_ dari situ).
     });
   };
 
+  /**
+   * submitAuthLynkSetPassword: aktivasi akun dari link "Aktifkan Akun"
+   * (pembelian Lynk.id) - email sudah terverifikasi lewat pembelian
+   * (authLynkInviteToken_ didapat authHandleBootAuth_), customer cuma pilih
+   * password. Hash dihitung client (REUSE authGenerateSalt_/authDeriveHash_),
+   * TIDAK auto-login setelah sukses - konsisten dgn semua alur verifikasi
+   * lain di app ini (harus login manual).
+   */
+  window.submitAuthLynkSetPassword = function () {
+    var passEl = document.getElementById("authLynkInvitePassword");
+    var btn = document.getElementById("authLynkInviteBtn");
+    var password = passEl ? passEl.value : "";
+
+    if (password.length < 6) {
+      authShowError_("authLynkInviteError", "Password minimal 6 karakter.");
+      return;
+    }
+    if (!authLynkInviteToken_) {
+      authShowError_("authLynkInviteError", "Link tidak valid. Ulangi dari email pembelian Anda.");
+      return;
+    }
+
+    if (btn) { btn.disabled = true; btn.textContent = "Memproses..."; }
+    if (typeof premiumLoaderShow === "function") {
+      premiumLoaderShow({ status: "Mengaktifkan akun Anda", mode: "await" });
+    }
+
+    var salt = authGenerateSalt_();
+    authDeriveHash_(password, salt).then(function (hash) {
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (btn) { btn.disabled = false; btn.textContent = "Aktifkan Akun"; }
+          if (!res || !res.ok) {
+            if (typeof premiumLoaderFail === "function") premiumLoaderFail();
+            authShowError_("authLynkInviteError", (res && res.error) || "Gagal mengaktifkan akun.");
+            return;
+          }
+          var loginEmailEl = document.getElementById("authLoginEmail");
+          if (loginEmailEl) loginEmailEl.value = res.data.email;
+          authLynkInviteToken_ = "";
+          if (typeof premiumLoaderComplete === "function") {
+            premiumLoaderComplete(function () {
+              authGoTo("login");
+              if (typeof showToast === "function") showToast("Akun aktif! Silakan masuk dengan password Anda.", "ok");
+            });
+          } else {
+            authGoTo("login");
+          }
+        })
+        .withFailureHandler(function (err) {
+          if (btn) { btn.disabled = false; btn.textContent = "Aktifkan Akun"; }
+          if (typeof premiumLoaderFail === "function") premiumLoaderFail();
+          authShowError_("authLynkInviteError", err && err.message ? err.message : String(err));
+        })
+        .completeLynkInvite(authLynkInviteToken_, salt, hash);
+    }).catch(function (err) {
+      if (btn) { btn.disabled = false; btn.textContent = "Aktifkan Akun"; }
+      if (typeof premiumLoaderFail === "function") premiumLoaderFail();
+      authShowError_("authLynkInviteError", err && err.message ? err.message : String(err));
+    });
+  };
+
   window.authLogout = function () {
     // Hapus sesi di server DULU (selagi token masih ada di localStorage utk
     // dikirim) - baru clear localStorage. Kalau gagal (mis. sudah offline),
@@ -491,7 +553,39 @@ Script_Fitur_FirebaseAuth.html (perlu wrapper authFirebase*_ dari situ).
    * layar yang sesuai, BARU TIDAK memanggil callback() (supaya bootReveal_
    * tidak menimpa layar yang baru diarahkan dengan layar login polos).
    */
+  var authLynkInviteToken_ = "";
+
   window.authHandleBootAuth_ = function (callback) {
+    // [2026-07-22] Link "Aktifkan Akun" dari email pembelian Lynk.id -
+    // dicek DULUAN (independen dari magic link Firebase, tidak saling
+    // tumpang tindih krn URL/param-nya beda) - lihat processLynkPurchaseWebhook_
+    // (Modul_Auth.gs) & doGet (Code.gs).
+    var lynkToken = (typeof window.__lynkInviteToken === "string") ? window.__lynkInviteToken : "";
+    if (lynkToken) {
+      authLynkInviteToken_ = lynkToken;
+      var authRootElLynk = document.getElementById("authRoot");
+      if (authRootElLynk) authRootElLynk.style.display = "flex";
+      try { window.history.replaceState({}, document.title, window.location.pathname); } catch (e) {}
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res || !res.ok) {
+            authGoTo("login");
+            authShowError_("authLoginError", (res && res.error) || "Link tidak valid.");
+            return;
+          }
+          var lbl = document.getElementById("authLynkInviteEmailLabel");
+          if (lbl) lbl.textContent = res.data.email;
+          authGoTo("lynkSetPassword");
+        })
+        .withFailureHandler(function (err) {
+          authGoTo("login");
+          authShowError_("authLoginError", err && err.message ? err.message : String(err));
+        })
+        .getLynkInvite(lynkToken);
+      return;
+    }
+
     if (typeof authFirebaseIsMagicLink_ !== "function" || !authFirebaseIsMagicLink_()) {
       callback();
       return;
