@@ -53,10 +53,18 @@ menjalankan bootApp().
       // Splash loading hyper-premium (progres acak) dulu, baru singkap layar
       // via bootReveal_ sebagai onDone. Kalau file loader kebetulan tidak
       // ter-include, langsung singkap tanpa splash (jangan sampai macet).
+      // [2026-07-22] authHandleBootAuth_ dulu SEBELUM bootReveal_ - deteksi
+      // magic link (klik link verifikasi/reset password) itu ASYNC, jadi
+      // keputusan tampilan normal (bootReveal_) harus ditunda sampai proses
+      // itu (kalau ada) selesai. Kalau bukan magic link, langsung lanjut ke
+      // bootReveal_ seperti biasa (lihat Script_Fitur_Auth.html).
+      var revealFn_ = (typeof authHandleBootAuth_ === "function")
+        ? function () { authHandleBootAuth_(bootReveal_); }
+        : bootReveal_;
       if (typeof premiumLoaderRunBoot === "function") {
-        premiumLoaderRunBoot(bootReveal_);
+        premiumLoaderRunBoot(revealFn_);
       } else {
-        bootReveal_();
+        revealFn_();
       }
     } catch (err) {
       // Pastikan overlay splash tidak menutupi pesan error di bawah.

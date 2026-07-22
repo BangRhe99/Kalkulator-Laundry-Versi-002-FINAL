@@ -2,22 +2,35 @@
 ===============================================================================
 FILE: Script_Fitur_Auth.html
 PROJECT: Kalkulator Laundry Versi 002
-ISI: Fitur Masuk / Daftar / Verifikasi OTP (#authRoot)
+ISI: Fitur Masuk / Daftar / Verifikasi Email (klik link) / Lupa Password
+(#authRoot)
 
 FUNGSI:
-Validasi form, panggil registerUser/verifyOtp/resendOtp/loginUser (Modul_Auth.gs),
-pindah antar 3 layar auth (authGoTo), simpan status login di localStorage.
+Validasi form, panggil registerUser/loginUser/requestPasswordReset
+(Modul_Auth.gs) + wrapper Firebase (Script_Fitur_FirebaseAuth.html) utk
+verifikasi email lewat KLIK LINK (bukan lagi ketik kode OTP/reset manual).
+LOGIN TETAP email+password (loginUser, TIDAK berubah). Pindah antar layar
+auth (authGoTo), simpan status login di localStorage.
 
-[2026-07-13] MULTI-TENANT: loginUser/verifyOtp yang sukses sekarang JUGA
-mengembalikan sessionToken (Modul_Auth.gs) - token INI yang jadi identitas
-sungguhan di server (divalidasi tiap panggilan lewat withTenant_/callServer_,
-lihat Script_Shared_Util.html), BUKAN email di localStorage. Email di
-localStorage cuma penanda UI (isi form login otomatis dsb) - kalau token
-hilang/tidak valid, server akan menolak dgn {ok:false, code:"UNAUTHORIZED"}
-dan callServer_ otomatis memaksa logout.
+[2026-07-22] Verifikasi pendaftaran & reset password sekarang lewat magic
+link Firebase (klik link di email) - lihat authHandleBootAuth_ di bawah,
+dipanggil dari Script_Boot_Main.html SEBELUM bootReveal_ memutuskan tampilan
+(karena deteksi magic link itu ASYNC). idToken hasil klik link HANYA dipakai
+membuktikan kepemilikan email (dikirim ke verifyEmailMagicLink/
+confirmPasswordResetMagicLink) - TIDAK PERNAH dipakai untuk auto-login, user
+tetap harus ketik password di layar Masuk seperti biasa.
+
+[2026-07-13] MULTI-TENANT: loginUser yang sukses mengembalikan sessionToken
+(Modul_Auth.gs) - token INI yang jadi identitas sungguhan di server
+(divalidasi tiap panggilan lewat withTenant_/callServer_, lihat
+Script_Shared_Util.html), BUKAN email di localStorage. Email di localStorage
+cuma penanda UI (isi form login otomatis dsb) - kalau token hilang/tidak
+valid, server akan menolak dgn {ok:false, code:"UNAUTHORIZED"} dan
+callServer_ otomatis memaksa logout.
 
 Include SEBELUM Script_Boot_Main.html (bootApp() manggil isAuthLoggedIn()
-dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
+dari sini utk memutuskan tampilkan #authRoot atau #appRoot) & SETELAH
+Script_Fitur_FirebaseAuth.html (perlu wrapper authFirebase*_ dari situ).
 ===============================================================================
 -->
 <script>
@@ -26,6 +39,8 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
   var AUTH_SESSION_STORAGE_KEY_ = "klAuthSessionToken";
   var authPendingEmail_ = "";
   var authPendingResetEmail_ = "";
+  var authCheckEmailPurpose_ = ""; // "register" | "resetPassword" - dipakai tombol Kirim Ulang
+  var authPendingResetIdToken_ = ""; // idToken hasil klik link reset password, dipakai submitAuthResetPassword
 
   // [ADMIN UI] Cuma dipakai utk tampil/sembunyikan kartu menu "Buat Akun
   // Afiliator" (authApplyAdminUI_ di bawah) - HANYA kosmetik client. Kalau
@@ -64,17 +79,39 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
   }
 
   window.authGoTo = function (name) {
-    ["authScreenLogin", "authScreenRegister", "authScreenOtp", "authScreenForgotPassword", "authScreenResetPassword"].forEach(function (id) {
+    ["authScreenLogin", "authScreenRegister", "authScreenCheckEmail", "authScreenConfirmEmail", "authScreenForgotPassword", "authScreenResetPassword"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.classList.remove("active");
     });
     var target = document.getElementById("authScreen" + name.charAt(0).toUpperCase() + name.slice(1));
     if (target) target.classList.add("active");
-    ["authLoginError", "authRegisterError", "authOtpError", "authForgotError", "authResetError"].forEach(function (id) {
+    ["authLoginError", "authRegisterError", "authCheckEmailError", "authConfirmEmailError", "authForgotError", "authResetError"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.style.display = "none";
     });
   };
+
+  /**
+   * authMapFirebaseError_: petakan kode error Firebase Auth (Inggris) ke
+   * pesan Indonesia yang jelas - dipakai di semua tempat yang menangani
+   * hasil authFirebaseSendMagicLink_/authFirebaseCompleteMagicLink_.
+   */
+  function authMapFirebaseError_(code) {
+    switch (code) {
+      case "auth/invalid-action-code":
+        return "Link ini sudah pernah dipakai atau tidak valid. Ulangi dari awal.";
+      case "auth/expired-action-code":
+        return "Link ini sudah kedaluwarsa. Ulangi dari awal.";
+      case "auth/too-many-requests":
+        return "Terlalu banyak permintaan. Coba lagi sebentar lagi.";
+      case "auth/invalid-email":
+        return "Alamat email tidak valid.";
+      case "auth/user-disabled":
+        return "Akun ini dinonaktifkan.";
+      default:
+        return "Verifikasi email gagal. Ulangi dari awal.";
+    }
+  }
 
   window.toggleAuthPassword = function (inputId, btn) {
     var input = document.getElementById(inputId);
@@ -143,11 +180,9 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
   window.submitAuthRegister = function () {
     var emailEl = document.getElementById("authRegisterEmail");
     var passwordEl = document.getElementById("authRegisterPassword");
-    var accessCodeEl = document.getElementById("authRegisterAccessCode");
     var btn = document.getElementById("authRegisterBtn");
     var email = emailEl ? emailEl.value.trim() : "";
     var password = passwordEl ? passwordEl.value : "";
-    var accessCode = accessCodeEl ? accessCodeEl.value.trim() : "";
 
     if (!authIsValidGmailClient_(email)) {
       authShowError_("authRegisterError", "Email harus alamat Gmail yang valid (contoh: nama@gmail.com).");
@@ -157,76 +192,54 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
       authShowError_("authRegisterError", "Password minimal 6 karakter.");
       return;
     }
-    // [2026-07-14] Kode akses OPSIONAL - kosong tetap boleh lanjut daftar
-    // (backend registerUser kasih akses permanen gratis kalau kosong).
 
-    if (btn) { btn.disabled = true; btn.textContent = "Mengirim OTP..."; }
+    if (btn) { btn.disabled = true; btn.textContent = "Mendaftar..."; }
     google.script.run
       .withSuccessHandler(function (res) {
-        if (btn) { btn.disabled = false; btn.textContent = "Daftar"; }
         if (!res || !res.ok) {
+          if (btn) { btn.disabled = false; btn.textContent = "Daftar"; }
           authShowError_("authRegisterError", (res && res.error) || "Gagal mendaftar.");
           return;
         }
-        authPendingEmail_ = res.data.email;
-        var label = document.getElementById("authOtpEmailLabel");
-        if (label) label.textContent = res.data.email;
-        var otpInput = document.getElementById("authOtpCode");
-        if (otpInput) otpInput.value = "";
-        authGoTo("otp");
+        authFirebaseSendMagicLink_(res.data.email, "register").then(function () {
+          if (btn) { btn.disabled = false; btn.textContent = "Daftar"; }
+          authShowCheckEmail_(res.data.email, "register");
+        }).catch(function (err) {
+          if (btn) { btn.disabled = false; btn.textContent = "Daftar"; }
+          authShowError_("authRegisterError", authMapFirebaseError_(err && err.code));
+        });
       })
       .withFailureHandler(function (err) {
         if (btn) { btn.disabled = false; btn.textContent = "Daftar"; }
         authShowError_("authRegisterError", err && err.message ? err.message : String(err));
       })
-      .registerUser(email, password, accessCode);
+      .registerUser(email, password);
   };
 
-  window.submitAuthOtp = function () {
-    var codeEl = document.getElementById("authOtpCode");
-    var btn = document.getElementById("authOtpBtn");
-    var code = codeEl ? codeEl.value.trim() : "";
+  // authShowCheckEmail_: tampilkan layar "Cek email Anda" (dipakai baik
+  // setelah daftar maupun setelah minta reset password - beda cuma `purpose`
+  // yang disimpan utk tombol Kirim Ulang & label pesan).
+  function authShowCheckEmail_(email, purpose) {
+    authCheckEmailPurpose_ = purpose;
+    var label = document.getElementById("authCheckEmailLabel");
+    if (label) label.textContent = email;
+    var titleEl = document.getElementById("authCheckEmailTitle");
+    if (titleEl) titleEl.textContent = purpose === "resetPassword" ? "Reset Password" : "Verifikasi Email";
+    authGoTo("checkEmail");
+  }
 
-    if (!/^\d{4}$/.test(code)) {
-      authShowError_("authOtpError", "Kode OTP harus 4 angka.");
-      return;
-    }
-
-    if (btn) { btn.disabled = true; btn.textContent = "Memverifikasi..."; }
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (btn) { btn.disabled = false; btn.textContent = "Verifikasi"; }
-        if (!res || !res.ok) {
-          authShowError_("authOtpError", (res && res.error) || "Verifikasi gagal.");
-          return;
-        }
-        var loginEmailEl = document.getElementById("authLoginEmail");
-        if (loginEmailEl) loginEmailEl.value = res.data.email;
-        authPendingEmail_ = "";
-        authGoTo("login");
-        if (typeof showToast === "function") showToast("Akun berhasil diverifikasi. Silakan masuk.", "ok");
-      })
-      .withFailureHandler(function (err) {
-        if (btn) { btn.disabled = false; btn.textContent = "Verifikasi"; }
-        authShowError_("authOtpError", err && err.message ? err.message : String(err));
-      })
-      .verifyOtp(authPendingEmail_, code);
-  };
-
-  window.resendAuthOtp = function () {
-    if (!authPendingEmail_) return;
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
-          authShowError_("authOtpError", (res && res.error) || "Gagal mengirim ulang OTP.");
-          return;
-        }
-        if (typeof showToast === "function") showToast("Kode OTP baru sudah dikirim.", "ok");
-      })
-      .withFailureHandler(function (err) {
-        authShowError_("authOtpError", err && err.message ? err.message : String(err));
-      })
-      .resendOtp(authPendingEmail_);
+  window.resendAuthCheckEmail_ = function () {
+    var email = authFirebaseGetStoredEmail_();
+    if (!email || !authCheckEmailPurpose_) return;
+    var btn = document.getElementById("authCheckEmailResendBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "Mengirim..."; }
+    authFirebaseSendMagicLink_(email, authCheckEmailPurpose_).then(function () {
+      if (btn) { btn.disabled = false; btn.textContent = "Kirim ulang"; }
+      if (typeof showToast === "function") showToast("Link baru sudah dikirim.", "ok");
+    }).catch(function (err) {
+      if (btn) { btn.disabled = false; btn.textContent = "Kirim ulang"; }
+      authShowError_("authCheckEmailError", authMapFirebaseError_(err && err.code));
+    });
   };
 
   window.submitAuthForgotPassword = function () {
@@ -242,20 +255,18 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
     if (btn) { btn.disabled = true; btn.textContent = "Mengirim..."; }
     google.script.run
       .withSuccessHandler(function (res) {
-        if (btn) { btn.disabled = false; btn.textContent = "Kirim Kode Reset"; }
         if (!res || !res.ok) {
-          authShowError_("authForgotError", (res && res.error) || "Gagal mengirim kode reset.");
+          if (btn) { btn.disabled = false; btn.textContent = "Kirim Kode Reset"; }
+          authShowError_("authForgotError", (res && res.error) || "Gagal memproses permintaan.");
           return;
         }
-        authPendingResetEmail_ = res.data.email;
-        var label = document.getElementById("authResetEmailLabel");
-        if (label) label.textContent = res.data.email;
-        var codeInput = document.getElementById("authResetCode");
-        var passInput = document.getElementById("authResetNewPassword");
-        if (codeInput) codeInput.value = "";
-        if (passInput) passInput.value = "";
-        authGoTo("resetPassword");
-        if (typeof showToast === "function") showToast("Kalau email terdaftar, kode reset sudah dikirim.", "ok");
+        authFirebaseSendMagicLink_(res.data.email, "resetPassword").then(function () {
+          if (btn) { btn.disabled = false; btn.textContent = "Kirim Kode Reset"; }
+          authShowCheckEmail_(res.data.email, "resetPassword");
+        }).catch(function (err) {
+          if (btn) { btn.disabled = false; btn.textContent = "Kirim Kode Reset"; }
+          authShowError_("authForgotError", authMapFirebaseError_(err && err.code));
+        });
       })
       .withFailureHandler(function (err) {
         if (btn) { btn.disabled = false; btn.textContent = "Kirim Kode Reset"; }
@@ -264,35 +275,17 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
       .requestPasswordReset(email);
   };
 
-  window.resendAuthForgotPassword = function () {
-    if (!authPendingResetEmail_) return;
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.ok) {
-          authShowError_("authResetError", (res && res.error) || "Gagal mengirim ulang kode.");
-          return;
-        }
-        if (typeof showToast === "function") showToast("Kode reset baru sudah dikirim (kalau email terdaftar).", "ok");
-      })
-      .withFailureHandler(function (err) {
-        authShowError_("authResetError", err && err.message ? err.message : String(err));
-      })
-      .requestPasswordReset(authPendingResetEmail_);
-  };
-
   window.submitAuthResetPassword = function () {
-    var codeEl = document.getElementById("authResetCode");
     var passEl = document.getElementById("authResetNewPassword");
     var btn = document.getElementById("authResetBtn");
-    var code = codeEl ? codeEl.value.trim() : "";
     var newPassword = passEl ? passEl.value : "";
 
-    if (!/^\d{4}$/.test(code)) {
-      authShowError_("authResetError", "Kode reset harus 4 angka.");
-      return;
-    }
     if (newPassword.length < 6) {
       authShowError_("authResetError", "Password baru minimal 6 karakter.");
+      return;
+    }
+    if (!authPendingResetIdToken_ || !authPendingResetEmail_) {
+      authShowError_("authResetError", "Sesi verifikasi sudah tidak berlaku. Ulangi dari awal.");
       return;
     }
 
@@ -309,6 +302,7 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
         if (loginEmailEl) loginEmailEl.value = res.data.email;
         if (loginPasswordEl) loginPasswordEl.value = "";
         authPendingResetEmail_ = "";
+        authPendingResetIdToken_ = "";
         authGoTo("login");
         if (typeof showToast === "function") showToast("Password berhasil direset. Silakan masuk.", "ok");
       })
@@ -316,7 +310,7 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
         if (btn) { btn.disabled = false; btn.textContent = "Reset Password"; }
         authShowError_("authResetError", err && err.message ? err.message : String(err));
       })
-      .confirmPasswordReset(authPendingResetEmail_, code, newPassword);
+      .confirmPasswordResetMagicLink(authPendingResetIdToken_, authPendingResetEmail_, newPassword);
   };
 
   window.authLogout = function () {
@@ -382,4 +376,102 @@ dari sini utk memutuskan tampilkan #authRoot atau #appRoot).
     var sidebarItemEl = document.getElementById("adminAfiliatorSidebarItem");
     if (sidebarItemEl) sidebarItemEl.style.display = isAdmin ? "flex" : "none";
   }
+
+  // ---- Boot: selesaikan magic link (kalau ada) SEBELUM tampilan normal ----
+
+  var authBootConfirmEmailCallback_ = null;
+
+  /**
+   * authHandleBootAuth_: dipanggil dari Script_Boot_Main.html SEBELUM
+   * bootReveal_ (deteksi magic link ASYNC, bootReveal_ butuh keputusan
+   * SEGERA). Kalau URL BUKAN magic link (kasus normal, jauh lebih sering) ->
+   * langsung panggil callback() (=bootReveal_), TIDAK ADA PERUBAHAN
+   * perilaku. Kalau URL magic link -> proses verifikasi dulu, arahkan ke
+   * layar yang sesuai, BARU TIDAK memanggil callback() (supaya bootReveal_
+   * tidak menimpa layar yang baru diarahkan dengan layar login polos).
+   */
+  window.authHandleBootAuth_ = function (callback) {
+    if (typeof authFirebaseIsMagicLink_ !== "function" || !authFirebaseIsMagicLink_()) {
+      callback();
+      return;
+    }
+
+    var authRootEl = document.getElementById("authRoot");
+    if (authRootEl) authRootEl.style.display = "flex";
+
+    var params;
+    try { params = new URLSearchParams(window.location.search); } catch (e) { params = null; }
+    var purpose = (params && params.get("authPurpose")) || "register";
+
+    function cleanUrl_() {
+      try { window.history.replaceState({}, document.title, window.location.pathname); } catch (e) {}
+    }
+
+    function finishWithError_(code) {
+      authFirebaseClearStoredEmail_();
+      cleanUrl_();
+      authGoTo("login");
+      authShowError_("authLoginError", authMapFirebaseError_(code));
+    }
+
+    function proceedWithEmail_(email) {
+      authFirebaseCompleteMagicLink_(email).then(function (idToken) {
+        authFirebaseClearStoredEmail_();
+        cleanUrl_();
+
+        if (purpose === "resetPassword") {
+          authPendingResetIdToken_ = idToken;
+          authPendingResetEmail_ = email;
+          var lbl = document.getElementById("authResetEmailLabel");
+          if (lbl) lbl.textContent = email;
+          authGoTo("resetPassword");
+          return;
+        }
+
+        google.script.run
+          .withSuccessHandler(function (res) {
+            if (!res || !res.ok) {
+              authGoTo("login");
+              authShowError_("authLoginError", (res && res.error) || "Verifikasi email gagal.");
+              return;
+            }
+            var loginEmailEl = document.getElementById("authLoginEmail");
+            if (loginEmailEl) loginEmailEl.value = res.data.email;
+            authGoTo("login");
+            if (typeof showToast === "function") showToast("Email terverifikasi. Silakan masuk dengan password Anda.", "ok");
+          })
+          .withFailureHandler(function (err) {
+            authGoTo("login");
+            authShowError_("authLoginError", err && err.message ? err.message : String(err));
+          })
+          .verifyEmailMagicLink(idToken, email);
+      }).catch(function (err) {
+        finishWithError_(err && err.code);
+      });
+    }
+
+    var storedEmail = authFirebaseGetStoredEmail_();
+    if (storedEmail) {
+      proceedWithEmail_(storedEmail);
+    } else {
+      // Link dibuka di device/browser LAIN dari yang minta - localStorage
+      // kosong, tidak tahu email siapa yang harus dipakai. Minta user
+      // konfirmasi email-nya dulu.
+      authBootConfirmEmailCallback_ = proceedWithEmail_;
+      authGoTo("confirmEmail");
+    }
+  };
+
+  window.submitAuthConfirmEmail = function () {
+    var emailEl = document.getElementById("authConfirmEmailInput");
+    var email = emailEl ? emailEl.value.trim() : "";
+    if (!authIsValidGmailClient_(email)) {
+      authShowError_("authConfirmEmailError", "Email harus alamat Gmail yang valid (contoh: nama@gmail.com).");
+      return;
+    }
+    if (typeof authBootConfirmEmailCallback_ === "function") {
+      authBootConfirmEmailCallback_(email);
+      authBootConfirmEmailCallback_ = null;
+    }
+  };
 </script>

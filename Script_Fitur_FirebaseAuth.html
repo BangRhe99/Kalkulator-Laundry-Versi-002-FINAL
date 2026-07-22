@@ -1,24 +1,33 @@
 <!--
 ===============================================================================
 FILE: Script_Fitur_FirebaseAuth.html
-EKSPERIMEN VALIDASI (2026-07-21): cek apakah Firebase Auth (magic link) bisa
-menyelesaikan proses sign-in dari DALAM iframe sandbox Apps Script
-(n-xxxx-script.googleusercontent.com), yang beda origin dari domain utama
-(script.google.com). Auto-jalan HANYA kalau URL /exec dibuka dengan
-?fbtest=<token rahasia> (di-set doGet, Code.gs, lewat template scriptlet
-debugFirebaseTestToken) -- user biasa yang buka /exec TANPA parameter itu
-TIDAK PERNAH memicu apapun di file ini. Hasil dilaporkan lewat network
-beacon ke endpoint diagnostik sendiri (bukan diintip dari luar iframe,
-karena javascript_tool/browser automation tidak bisa menjangkau iframe
-cross-origin ini). Akan dihapus/diganti alur pendaftaran asli setelah
-validasi selesai.
+ISI: Init Firebase SDK (client) + wrapper tipis untuk kirim/selesaikan magic
+link (Email Link Sign-In) - dipakai HANYA untuk membuktikan kepemilikan email
+saat DAFTAR (ganti kode OTP lama) & saat RESET PASSWORD (ganti kode reset
+lama). Login sehari-hari TETAP email+password (Modul_Auth.gs, tidak berubah).
+
+Firebase idToken hasil signInWithEmailLink dipakai SEKALI (dikirim ke server
+lewat verifyEmailMagicLink/confirmPasswordResetMagicLink, Modul_Auth.gs) lalu
+langsung signOut() dari Firebase - sesi login sesungguhnya (authSession_)
+tetap sistem kita sendiri, bukan Firebase.
+
+[2026-07-21/22] Divalidasi lewat eksperimen sesi sebelumnya: magic link BISA
+selesai dari dalam iframe sandbox Apps Script (n-xxxx-script.googleusercontent.com)
+setelah 2 syarat dipenuhi: apiKey benar (jangan typo!) & origin di-allowlist
+di Firebase Console > Authentication > Settings > Authorized domains. Kalau
+nanti dibuat DEPLOYMENT BARU (bukan versi baru dari deployment yang sama),
+origin sandbox mungkin berubah & perlu di-allowlist ulang.
+
+Include SEBELUM Script_Fitur_Auth.html (yang memanggil wrapper di file ini).
 ===============================================================================
 -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script>
 "use strict";
-try {
+  // SAMA PERSIS dengan FIREBASE_WEB_API_KEY_ di Modul_Auth.gs - kalau project
+  // Firebase pernah diganti/key di-rotate, update DUA-DUANYA. Web API key
+  // Firebase memang didesain publik (bukan rahasia).
   var firebaseConfig_ = {
     apiKey: "AIzaSyC06_ALEXOK9R_aL7bSvIVI7u_d0ANlSyk",
     authDomain: "secret-cipher-488105-f2.firebaseapp.com",
@@ -27,42 +36,66 @@ try {
     messagingSenderId: "339840190577",
     appId: "1:339840190577:web:191a61ca0302b8ba7533d0",
   };
-  firebase.initializeApp(firebaseConfig_);
-} catch (e) {
-  console.error("[FirebaseAuthTest] init GAGAL:", e);
-}
-
-window.testFirebaseMagicLink_ = function (email) {
-  return firebase.auth().sendSignInLinkToEmail(email, {
-    url: window.location.href,
-    handleCodeInApp: true,
-  }).then(function () {
-    return { ok: true, origin: window.location.origin };
-  }).catch(function (err) {
-    return { ok: false, code: err.code, message: err.message, origin: window.location.origin };
-  });
-};
-
-(function () {
-  var DEBUG_TOKEN_ = "fbtest-9a41c7e2";
-  var tplToken = window.__debugFirebaseTestToken || "";
-  if (tplToken !== DEBUG_TOKEN_) return; // user biasa -- berhenti di sini, tidak jalan apapun
-
-  function reportFirebaseTest_(ok, code, message) {
-    var url = "https://script.google.com/macros/s/AKfycbxQPKNOM8aTSZtWaRwp6GENbE2dT5nERK1Yd1cakULzKN2Pxrqpcui_88R_6jSCyR73xg/exec"
-      + "?firestoreDiag=172f236702e084579016d5fabd8e8ea598af2a070b59a307"
-      + "&action=firebaseTestReport"
-      + "&ok=" + encodeURIComponent(ok)
-      + "&code=" + encodeURIComponent(code || "")
-      + "&message=" + encodeURIComponent(message || "")
-      + "&origin=" + encodeURIComponent(window.location.origin);
-    fetch(url, { mode: "no-cors" }).catch(function () {});
+  try {
+    firebase.initializeApp(firebaseConfig_);
+  } catch (e) {
+    console.error("[FirebaseAuth] init gagal:", e);
   }
 
-  testFirebaseMagicLink_("rheza354@gmail.com").then(function (res) {
-    reportFirebaseTest_(res.ok, res.code, res.message);
-  }).catch(function (err) {
-    reportFirebaseTest_(false, "unhandled_exception", String(err));
-  });
-})();
+  var AUTH_EMAIL_FOR_SIGNIN_KEY_ = "emailForSignIn";
+
+  /**
+   * authFirebaseSendMagicLink_: kirim magic link ke email, continueUrl bawa
+   * ?authPurpose=register|resetPassword supaya saat link diklik & halaman
+   * dimuat ulang, authHandleBootAuth_ (Script_Fitur_Auth.html) tahu proses
+   * mana yang harus dilanjutkan. Simpan email ke localStorage (pola resmi
+   * Firebase) supaya kalau link diklik di TAB/DEVICE YANG SAMA, tidak perlu
+   * ketik ulang email.
+   */
+  window.authFirebaseSendMagicLink_ = function (email, purpose) {
+    var continueUrl = window.location.origin + window.location.pathname + "?authPurpose=" + encodeURIComponent(purpose);
+    return firebase.auth().sendSignInLinkToEmail(email, {
+      url: continueUrl,
+      handleCodeInApp: true
+    }).then(function () {
+      try { window.localStorage.setItem(AUTH_EMAIL_FOR_SIGNIN_KEY_, email); } catch (e) {}
+    });
+  };
+
+  window.authFirebaseIsMagicLink_ = function () {
+    try {
+      return firebase.auth().isSignInWithEmailLink(window.location.href);
+    } catch (e) {
+      return false;
+    }
+  };
+
+  window.authFirebaseGetStoredEmail_ = function () {
+    try {
+      return window.localStorage.getItem(AUTH_EMAIL_FOR_SIGNIN_KEY_) || "";
+    } catch (e) {
+      return "";
+    }
+  };
+
+  window.authFirebaseClearStoredEmail_ = function () {
+    try { window.localStorage.removeItem(AUTH_EMAIL_FOR_SIGNIN_KEY_); } catch (e) {}
+  };
+
+  /**
+   * authFirebaseCompleteMagicLink_: selesaikan sign-in dari link yang
+   * diklik, balikin idToken (dipakai server utk verifikasi - lihat
+   * firebaseVerifyIdToken_, Modul_Auth.gs). Firebase sendiri langsung
+   * signOut() setelah idToken didapat - state Firebase TIDAK dipakai lagi
+   * setelahnya, sesi asli kita sendiri (authSession_) yang jadi sumber
+   * kebenaran.
+   */
+  window.authFirebaseCompleteMagicLink_ = function (email) {
+    return firebase.auth().signInWithEmailLink(email, window.location.href).then(function (result) {
+      return result.user.getIdToken().then(function (idToken) {
+        firebase.auth().signOut().catch(function () {});
+        return idToken;
+      });
+    });
+  };
 </script>

@@ -2,23 +2,24 @@
 ===============================================================================
 FILE: Script_Fitur_AdminAfiliator.html
 PROJECT: Kalkulator Laundry Versi 002
-ISI: Fitur Admin - Panel Kode Akses & Kelola Akun (screenAdminAfiliator)
+ISI: Fitur Admin - Kelola Akun (screenAdminAfiliator)
 
 FUNGSI:
-1. submitAdminGenerateCode/refreshAdminCodesList_: generate 1 kode trial 7
-   hari (adminGenerateAccessCode, Modul_Auth.gs) & tampilkan riwayat semua
-   kode (adminListAccessCodes).
-2. refreshAdminAccountsList_/renderAdminAccountsList_: ambil & render daftar
+1. refreshAdminAccountsList_/renderAdminAccountsList_: ambil & render daftar
    semua akun (adminListAccounts, Modul_Auth.gs) via cachedServerRead_, isi
    juga kartu ringkasan (Total Aktif/Online Sekarang). Daftar detail
    collapsed default (toggleAdminAccountsDetail) - Progressive Disclosure,
    baru muncul setelah kartu ringkasan diklik.
-3. openConfirmDeleteAccount/confirmDeleteAccountNow: hapus akun permanen
+2. openConfirmDeleteAccount/confirmDeleteAccountNow: hapus akun permanen
    (adminDeleteAccount) - reuse #confirmOverlay bersama (sama seperti hapus
    item Chemical/Packing/dst, lihat Script_Fitur_Cabang.html utk closeConfirm).
 Backend yang menegakkan "hanya admin boleh" (cek session.email) - kartu menu
 & layar ini di client cuma disembunyikan utk user lain (authApplyAdminUI_,
 Script_Fitur_Auth.html), BUKAN satu-satunya lapisan keamanan.
+
+[2026-07-22] Fitur "Kode Akses" (generate kode trial/billing) DIHAPUS TOTAL -
+tidak berfungsi/tidak dipakai, semua akun sekarang akses penuh tanpa gerbang
+kode apa pun.
 
 Include SEBELUM Script_Boot_Main.html.
 ===============================================================================
@@ -26,14 +27,8 @@ Include SEBELUM Script_Boot_Main.html.
 <script>
 "use strict";
   var adminAccountsDetailOpen_ = false;
-  var adminLastGeneratedCode_ = "";
 
   window.openScreenAdminAfiliator = function () {
-    var errEl = document.getElementById("adminGenCodeError");
-    var resultEl = document.getElementById("adminGenCodeResult");
-    if (errEl) errEl.style.display = "none";
-    if (resultEl) resultEl.style.display = "none";
-
     adminAccountsDetailOpen_ = false;
     var section = document.getElementById("adminAccountsSection");
     var arrow = document.getElementById("adminSummaryArrow");
@@ -42,7 +37,6 @@ Include SEBELUM Script_Boot_Main.html.
 
     showScreen("adminAfiliator");
     refreshAdminAccountsList_();
-    refreshAdminCodesList_();
   };
 
   window.toggleAdminAccountsDetail = function () {
@@ -62,99 +56,6 @@ Include SEBELUM Script_Boot_Main.html.
     return dd + "/" + mm + "/" + d.getFullYear();
   }
 
-  // ---- Kode Akses -----------------------------------------------------
-
-  window.submitAdminGenerateCode = function () {
-    var btn = document.getElementById("adminGenCodeBtn");
-    var errEl = document.getElementById("adminGenCodeError");
-    var resultEl = document.getElementById("adminGenCodeResult");
-    if (errEl) errEl.style.display = "none";
-
-    if (btn) { btn.disabled = true; btn.textContent = "Memproses..."; }
-    callServer_("adminGenerateAccessCode", [], function (res) {
-      if (btn) { btn.disabled = false; btn.textContent = "Generate Kode Akses"; }
-      if (!res || !res.ok) {
-        if (errEl) { errEl.textContent = (res && res.error) || "Gagal membuat kode."; errEl.style.display = "block"; }
-        return;
-      }
-      adminLastGeneratedCode_ = res.data.code;
-      if (resultEl) {
-        document.getElementById("adminGenCodeValue").textContent = res.data.code;
-        resultEl.style.display = "block";
-      }
-      if (typeof invalidateServerReadCache_ === "function") invalidateServerReadCache_("adminListAccessCodes");
-      refreshAdminCodesList_();
-      if (typeof showToast === "function") showToast("Kode akses baru dibuat.", "ok");
-    }, function (err) {
-      if (btn) { btn.disabled = false; btn.textContent = "Generate Kode Akses"; }
-      if (errEl) { errEl.textContent = err && err.message ? err.message : String(err); errEl.style.display = "block"; }
-    });
-  };
-
-  window.copyAdminGeneratedCode = function () {
-    if (!adminLastGeneratedCode_) return;
-    var done = function () { if (typeof showToast === "function") showToast("Kode disalin.", "ok"); };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(adminLastGeneratedCode_).then(done).catch(function () { adminFallbackCopy_(adminLastGeneratedCode_, done); });
-    } else {
-      adminFallbackCopy_(adminLastGeneratedCode_, done);
-    }
-  };
-
-  function adminFallbackCopy_(text, done) {
-    var ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand("copy"); if (done) done(); } catch (e) {}
-    document.body.removeChild(ta);
-  }
-
-  function renderAdminCodesList_(codes) {
-    var listEl = document.getElementById("adminCodesList");
-    var emptyEl = document.getElementById("adminCodesEmpty");
-    var countEl = document.getElementById("adminCodesCount");
-    if (!listEl) return;
-
-    if (countEl) countEl.textContent = codes.length + " kode";
-    if (!codes.length) {
-      listEl.innerHTML = "";
-      if (emptyEl) emptyEl.style.display = "block";
-      return;
-    }
-    if (emptyEl) emptyEl.style.display = "none";
-
-    listEl.innerHTML = codes.map(function (c) {
-      var dotColor = c.used ? "var(--text-faint)" : "var(--sage)";
-      var cells = "";
-      cells += '<div class="gas-result-cell"><div class="label">Status</div><div class="val" style="font-size:13px;">' + (c.used ? "Sudah dipakai" : "Belum dipakai") + '</div></div>';
-      cells += '<div class="gas-result-cell"><div class="label">Dibuat</div><div class="val" style="font-size:13px;">' + escapeHtml(adminFormatDate_(c.createdAt)) + '</div></div>';
-      if (c.used && c.usedByEmail) {
-        cells += '<div class="gas-result-cell"><div class="label">Dipakai Oleh</div><div class="val" style="font-size:12px; word-break:break-all;">' + escapeHtml(c.usedByEmail) + '</div></div>';
-      }
-
-      return '' +
-        '<div class="gas-card">' +
-          '<div class="gas-card-top">' +
-            '<div class="title-group">' +
-              '<span class="flame-dot" style="background:' + dotColor + ';"></span>' +
-              '<h3 style="font-size:13px; font-family:var(--font-mono);">' + escapeHtml(c.code) + '</h3>' +
-            '</div>' +
-          '</div>' +
-          '<div class="gas-card-result"><div class="gas-result-grid">' + cells + '</div></div>' +
-        '</div>';
-    }).join("");
-  }
-
-  function refreshAdminCodesList_() {
-    cachedServerRead_("adminListAccessCodes", undefined, function (res) {
-      if (!res || !res.ok) return;
-      renderAdminCodesList_(res.data.codes || []);
-    }, function () {});
-  }
-
   // ---- Daftar Akun ------------------------------------------------------
 
   function renderAdminAccountsList_(accounts) {
@@ -172,23 +73,11 @@ Include SEBELUM Script_Boot_Main.html.
     if (emptyEl) emptyEl.style.display = "none";
 
     listEl.innerHTML = accounts.map(function (acc) {
-      var dotColor = "var(--text-faint)";
-      if (!acc.pending) {
-        if (acc.online) dotColor = "var(--sage)";
-        else if (acc.status === "Aktif (permanen)") dotColor = "var(--sage)";
-        else if (acc.status === "Trial kedaluwarsa") dotColor = "var(--red)";
-        else dotColor = "var(--volt)";
-      }
+      var dotColor = acc.pending ? "var(--volt)" : "var(--sage)";
 
       var cells = "";
       cells += '<div class="gas-result-cell"><div class="label">Status</div><div class="val" style="font-size:13px;">' + escapeHtml(acc.status) + (acc.online ? " &middot; Online" : "") + '</div></div>';
       cells += '<div class="gas-result-cell"><div class="label">Terdaftar</div><div class="val" style="font-size:13px;">' + escapeHtml(adminFormatDate_(acc.createdAt)) + '</div></div>';
-      if (acc.accessExpiresAt) {
-        cells += '<div class="gas-result-cell"><div class="label">Trial Berakhir</div><div class="val" style="font-size:13px;">' + escapeHtml(adminFormatDate_(acc.accessExpiresAt)) + '</div></div>';
-      }
-      if (acc.afiliatorLabel) {
-        cells += '<div class="gas-result-cell"><div class="label">Afiliator</div><div class="val" style="font-size:13px;">' + escapeHtml(acc.afiliatorLabel) + '</div></div>';
-      }
 
       var actions = acc.pending ? "" :
         '<div class="actions"><button class="icon-btn" type="button" aria-label="Hapus akun" onclick="openConfirmDeleteAccount(\'' + escapeJsAttr(acc.email) + '\'); event.stopPropagation();">&#10005;</button></div>';

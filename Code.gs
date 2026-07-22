@@ -155,10 +155,6 @@ function doGet(e) {
   if (diag) return diag;
 
   const tmpl = HtmlService.createTemplateFromFile("Index");
-  // [SEMENTARA -- validasi Firebase Auth] token ini HANYA dipakai utk memicu
-  // tes otomatis di Script_Fitur_FirebaseAuth.html, kosong = tidak jalan
-  // sama sekali utk user biasa. Lihat Script_Fitur_FirebaseAuth.html.
-  tmpl.debugFirebaseTestToken = (e && e.parameter && e.parameter.fbtest) || "";
 
   return tmpl
     .evaluate()
@@ -252,18 +248,6 @@ function handleFirestoreDiagnostic_(e) {
       const saveRes = saveBiayaAir_impl_(cabangId, airNow.data.record);
       const totalMs = Date.now() - t0;
       payload = { ok: true, action: action, cabangId: cabangId, saveOk: saveRes.ok, totalMs: totalMs };
-    } else if (action === "firebaseTestReport") {
-      // Dipanggil oleh beacon fetch() dari DALAM iframe sandbox (lihat
-      // Script_Fitur_FirebaseAuth.html) -- simpan hasilnya supaya bisa
-      // dibaca lewat action getFirebaseTestReport di bawah.
-      PropertiesService.getScriptProperties().setProperty("lastFirebaseTestReport", JSON.stringify({
-        ok: params.ok, code: params.code || "", message: params.message || "",
-        origin: params.origin || "", at: new Date().toISOString(),
-      }));
-      payload = { ok: true, action: action };
-    } else if (action === "getFirebaseTestReport") {
-      const raw = PropertiesService.getScriptProperties().getProperty("lastFirebaseTestReport");
-      payload = { ok: true, action: action, result: raw ? JSON.parse(raw) : null };
     } else if (action === "breakdownSave") {
       // Urai latensi: berapa dari Sheets (writeKey_ + hitung HPP) vs berapa
       // dari 2 panggilan Firestore (sync config doc + recompute).
